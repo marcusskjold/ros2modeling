@@ -1,102 +1,102 @@
 System:
-  dds_implementation: 'super'
+  dds_implementation: super
   default_qos_profile: {buffersize: 10}
   external_outputs:
-  - 'output0'
+  - output0
   hosts:
-  - host: 'host0'
-    operating_system: 'ubuntu 1'
+  - host: host0
+    operating_system: ubuntu 1
     executors: 
-    - executor: 'host0_executor0'
-      implementation: 'EventExecutor'
+    - executor: host0_executor0
+      implementation: EventExecutor
       nodes:
-      - node: 'sensor1'
+      - node: sensor1
         publishers: 
-        - publisher: 'sensor1publisher0'
-          topic: 'sensor1'
+        - publisher: sensor1publisher0
+          topic: sensor1
         callbacks:
-        - callback: 'sensor1callback0'
+        - callback: sensor1callback0
           wcet: 30
-          publisher: 'sensor1publisher0'
+          publisher: sensor1publisher0
         timers:
-        - timer: "sensor1timer0"
-          callback: 'sensor1callback0'
+        - timer: sensor1timer0
+          callback: sensor1callback0
           period: 50
           offset: 0
-      - node: 'sensor2'
+      - node: sensor2
         publishers:
-        - publisher: 'sensor2publisher0'
-          topic: 'sensor2'
+        - publisher: sensor2publisher0
+          topic: sensor2
         callbacks:
-        - callback: 'sensor2callback0'
+        - callback: sensor2callback0
           wcet: 30
-          publisher: 'sensor2publisher0'
+          publisher: sensor2publisher0
         timers:
-        - timer: "sensor2timer0"
+        - timer: sensor2timer0
           value: 0
-          callback: 'sensor2callback0'
+          callback: sensor2callback0
           period: 50
           offset: 0
-      - node: 'filter1'
+      - node: filter1
         publishers:
-        - publisher: 'filter1publisher0'
-          topic: 'filter1'
+        - publisher: filter1publisher0
+          topic: filter1
         callbacks:
-        - callback: 'filter1callback0'
+        - callback: filter1callback0
           wcet: 30
-          publisher: 'filter1publisher0'
+          publisher: filter1publisher0
         subscriptions:
-        - topic: 'sensor1'
-          callback: 'filter1callback0'
-      - node: 'filter2'
+        - topic: sensor1
+          callback: filter1callback0
+      - node: filter2
         publishers:
-        - publisher: 'filter2publisher0'
-          topic: 'filter2'
+        - publisher: filter2publisher0
+          topic: filter2
         callbacks:
-        - callback: 'filter2callback0'
+        - callback: filter2callback0
           wcet: 30
-          publisher: 'filter2publisher0'
+          publisher: filter2publisher0
         subscriptions: 
-        - topic: 'sensor2'
-          callback: 'filter2callback0'
-      - node: 'fusion'
+        - topic: sensor2
+          callback: filter2callback0
+      - node: fusion
         publishers:
-        - publisher: 'fusionpublisher0'
-          topic: 'fusion'
+        - publisher: fusionpublisher0
+          topic: fusion
         callbacks:
-        - callback: 'fusioncallback0'
+        - callback: fusioncallback0
           wcet: 30
           write_variables:
-          - 'fusionvar0'
+          - fusionvar0
           publisher: None
-        - callback: 'fusioncallback1'
+        - callback: fusioncallback1
           wcet: 30
           read_variables: 
-          - 'fusionvar0'
-          publisher: 'fusionpublisher0'
+          - fusionvar0
+          publisher: fusionpublisher0
         subscriptions:
-        - topic: 'filter2'
-          callback: 'fusioncallback0'
-        - topic: 'filter1'
-          callback: 'fusioncallback1'
+        - topic: filter2
+          callback: fusioncallback0
+        - topic: filter1
+          callback: fusioncallback1
         variables:
-        - 'fusionvar0'
-      - node: 'filter3'
+        - fusionvar0
+      - node: filter3
         publishers:
-        - publisher: 'filter3publisher0'
-          topic: 'filter3'
+        - publisher: filter3publisher0
+          topic: filter3
         callbacks:
-        - callback: 'filter3callback0'
+        - callback: filter3callback0
           wcet: 30
-          publisher: 'filter3publisher0'
+          publisher: filter3publisher0
         subscriptions:
-        - topic: 'fusion'
-          callback: 'filter3callback0'
-      - node: 'actuator'
+        - topic: fusion
+          callback: filter3callback0
+      - node: actuator
         callbacks:
-        - callback: 'actuatorcallback0'
+        - callback: actuatorcallback0
           wcet: 30
           publisher: None
         subscriptions:
-        - topic: 'filter3'
-          callback: 'filter3callback0'
+        - topic: filter3
+          callback: filter3callback0
