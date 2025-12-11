@@ -3,7 +3,7 @@ from enum import Enum
 # from typing import string
 
 TimeUnit = int
-Value = int
+# Value = int
 QualityOfService = dict
 Buffer = int
 Topic = str
@@ -24,30 +24,24 @@ class ContainedElement:
 
 @dataclass
 class Variable:
-    value: int
-    pass
+    name: str
+
 
 @dataclass
 class ExternalOutput:
-    pass
+    name: str
 
 
 @dataclass
 class Trigger:
-    value: int
     callback_name: str
-
 
 
 @dataclass
 class Timer(Trigger):
+    name: str
     period: TimeUnit
     offset: TimeUnit
-
-
-@dataclass
-class ExternalInput(Trigger):
-    description: str
 
 
 
@@ -58,6 +52,15 @@ class Publisher():
     topic: Topic
     buffer: Buffer
 
+    def __init__(self,
+                 name: str,
+                 topic: Topic,
+                 qos_offered: QualityOfService = DEFAULT_QOS):
+        self.name = name
+        self.topic = topic
+        self.buffer = qos_offered["buffersize"]
+        self.qos_offered = qos_offered
+
 
 @dataclass
 class Callback(NamedElement):
@@ -66,9 +69,10 @@ class Callback(NamedElement):
     write_variables: list[Variable]
     calls: list[NamedElement]
     publisher: str
+    external_outputs: list[ExternalOutput]
 
     def __init__(self, name: str, wcet=0, read_variables=[],
-                 write_variables=[], calls=[], outputs=[],
+                 write_variables=[], calls=[], external_outputs=[],
                  publisher: str = None):
         self.read_variables = read_variables
         self.name = name
@@ -77,6 +81,7 @@ class Callback(NamedElement):
         self.write_variables = write_variables
         self.calls = calls
         self.publisher = publisher
+        self.external_outputs = external_outputs
 
 
 @dataclass
@@ -97,12 +102,17 @@ class Subscription():
 
 @dataclass
 class Service():
-    pass
+    name: str
 
 
 @dataclass
 class Action():
-    pass
+    name: str
+
+
+@dataclass
+class ExternalInput():
+    name: str
 
 
 @dataclass
@@ -124,8 +134,14 @@ class Node(NamedElement):
         self.subscriptions.append(
             Subscription(topic=topic, callback=callback, qos_requested=qos_requested))
 
-    def add_callback(self, name: str = None, wcet=0, read_variables=[],
-                     write_variables=[], calls=[],
+
+    def add_callback(self,
+                     name: str = None,
+                     wcet=0,
+                     read_variables=[],
+                     write_variables=[],
+                     calls=[],
+                     outputs: list[ExternalOutput] = None,
                      publisher: Publisher = None) -> Callback:
         if name is None:
             name = self.name + "callback" + str(len(self.callbacks))
@@ -136,7 +152,8 @@ class Node(NamedElement):
         callback = Callback(name=name, wcet=wcet,
                             read_variables=read_variables,
                             write_variables=write_variables,
-                            calls=calls, publisher=pname)
+                            calls=calls, publisher=pname,
+                            external_outputs=outputs)
         self.callbacks.append(callback)
         return callback
 
@@ -149,7 +166,6 @@ class Node(NamedElement):
         publisher = Publisher(name=name,
                               qos_offered=qos_offered,
                               topic=topic,
-                              buffer=qos_offered["buffersize"],
                               )
         self.publishers.append(publisher)
         return publisher
@@ -164,9 +180,19 @@ class Node(NamedElement):
         if name is None:
             name = self.name + "timer" + str(len(self.timers))
         timer = Timer(
-            value=0, callback_name=callback.name, period=period, offset=offset)
+            callback_name=callback.name,
+            period=period,
+            offset=offset,
+            name=name)
         self.timers.append(timer)
         return timer
+
+    def add_variable(self, name: str = None):
+        if name is None:
+            name = self.name + "var" + str(len(self.variables))
+        var = Variable(name=name)
+        self.variables.append(var)
+        return var
 
 
 @dataclass
@@ -175,15 +201,34 @@ class Executor(NamedElement):
     implementation: str
     nodes: list[Node]
 
-    def add_node(self, name: str = None) -> Node:
+    def add_node(self, name: str = None, subscriptions=None,
+                 variables=None, timers=None, services=None,
+                 actions=None, external_inputs=None,
+                 callbacks=None, publishers=None) -> Node:
 
         if name is None:
             name = self.name + "node" + str(len(self.nodes))
+        if subscriptions is None:
+            subscriptions = []
+        if variables is None:
+            variables = []
+        if timers is None:
+            timers = []
+        if services is None:
+            services = []
+        if actions is None:
+            actions = []
+        if external_inputs is None:
+            external_inputs = []
+        if callbacks is None:
+            callbacks = []
+        if publishers is None:
+            publishers = []
 
-        node = Node(name=name, subscriptions=[],
-                    variables=[], timers=[], services=[],
-                    actions=[], external_inputs=[],
-                    callbacks=[], publishers=[])
+        node = Node(name=name, subscriptions=subscriptions,
+                    variables=variables, timers=timers, services=services,
+                    actions=actions, external_inputs=external_inputs,
+                    callbacks=callbacks, publishers=publishers)
         node.name = name
         self.nodes.append(node)
         return node
@@ -192,22 +237,22 @@ class Executor(NamedElement):
         return [self.add_node(name=name) for name in nodenames]
 
 
-@dataclass
-class DDS:
-    implementation: str
-    topics: list[Topic]
-
-    def add_topic(self, name: str = None) -> Topic:
-        topic = name
-        if topic is None:
-            topic = "topic" + str(len(self.topics))
-
-        self.topics.append(topic)
-        return topic
-
-    def add_topics(self, names: list[str] = None) -> list[Topic]:
-        return [self.add_topic(name) for name in names]
-
+# @dataclass
+# class DDS:
+#     implementation: str
+#     topics: list[Topic]
+#
+#     def add_topic(self, name: str = None) -> Topic:
+#         topic = name
+#         if topic is None:
+#             topic = "topic" + str(len(self.topics))
+#
+#         self.topics.append(topic)
+#         return topic
+#
+#     def add_topics(self, names: list[str] = None) -> list[Topic]:
+#         return [self.add_topic(name) for name in names]
+#
 
 @dataclass
 class Host(NamedElement):
@@ -232,8 +277,28 @@ class Host(NamedElement):
 
 @dataclass
 class System:
-    dds: DDS
+    dds_implementation: str
+    external_outputs: list[ExternalOutput]
+    external_inputs: list[ExternalInput]
     hosts: list[Host]
+
+    def add_external_input(self, name: str = None) -> ExternalInput:
+
+        if name is None:
+            name = "input" + str(len(self.external_inputs))
+
+        input = ExternalInput(name)
+        self.external_inputs.append(input)
+        return input
+
+    def add_external_output(self, name: str = None) -> ExternalOutput:
+
+        if name is None:
+            name = "output" + str(len(self.external_outputs))
+
+        output = ExternalOutput(name)
+        self.external_outputs.append(output)
+        return output
 
     def add_host(self, name: str = None, operating_system: str = None) -> Host:
 
@@ -258,5 +323,7 @@ class System:
         if (dds_implementation is None):
             raise ValueError("Please provide dds_implementation")
 
+        self.external_outputs = []
         self.hosts = []
-        self.dds = DDS(implementation=dds_implementation, topics=[])
+        self.dds_implementation = dds_implementation
+        self.external_inputs = []
