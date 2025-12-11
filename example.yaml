@@ -14,15 +14,24 @@ System:
         publishers: 
         - publisher: sensor1publisher0
           topic: sensor1
+        - publisher: sensor1service0publisher
+          topic: sensor1service0
         callbacks:
         - callback: sensor1callback0
           wcet: 30
           publisher: sensor1publisher0
+        - callback: sensor1service0_cb
+          wcet: 100
+          publisher: sensor1service0publisher
         timers:
         - timer: sensor1timer0
           callback: sensor1callback0
           period: 50
           offset: 0
+        services:
+        - service: sensor1service0
+          callback: sensor1service0_cb
+
       - node: sensor2
         publishers:
         - publisher: sensor2publisher0
@@ -38,6 +47,9 @@ System:
           period: 50
           offset: 0
       - node: filter1
+        clients:
+        - client: filter1client0
+          service: sensor1service0
         publishers:
         - publisher: filter1publisher0
           topic: filter1
@@ -45,6 +57,10 @@ System:
         - callback: filter1callback0
           wcet: 30
           publisher: filter1publisher0
+        - callback: filter1request0
+          client: filter1client0
+          timeout: 500
+          wcet: 50
         subscriptions:
         - topic: sensor1
           callback: filter1callback0
