@@ -1,0 +1,18 @@
+- [ ] Write down notes and justifications and arguments etc.
+
+---
+
+- [ ] Make a system using services
+- [ ] Add Actions
+- [ ] Make a system using actions
+- [ ] Make a YAML parser
+- [ ] Make a YAML printer
+- [ ] Support annotating nodes for monitoring
+- [ ] Add external input support for modelling concrete scenarios
+- [ ] Make a Backeman model validator
+- [ ] Make a M2M to Backeman python System class
+- [ ] Run an experiment defining a system in our language and testing properties using Backeman
+
+---
+
+- [ ] Repeat for Dust
