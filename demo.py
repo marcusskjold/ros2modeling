@@ -1,8 +1,7 @@
 import ros2system as ros
 from pprint import pprint
 
-
-system = ros.System("super")
+system = ros.System("test", dds_implementation="super")
 
 host = system.add_host(operating_system="ubuntu 1")
 executor = host.add_executor(implementation="EventExecutor")
@@ -48,20 +47,20 @@ act = executor.add_node(name="actuator")
 # case st
 
 pub1 = s1.add_publisher(topic="sensor1")
-cb1 = s1.add_callback(wcet=30, publisher=pub1)
+cb1 = s1.add_callback(wcet=30, publishers=[pub1])
 s1.add_timer(period=50, callback=cb1)
 
 pub2 = s2.add_publisher(topic="sensor2")
-cb2 = s2.add_callback(wcet=30, publisher=pub2)
+cb2 = s2.add_callback(wcet=30, publishers=[pub2])
 s2.add_timer(period=50, callback=cb2)
 
 pub3 = f1.add_publisher(topic="filter1")
-cb3 = f1.add_callback(wcet=30, publisher=pub3)
+cb3 = f1.add_callback(wcet=30, publishers=[pub3])
 f1.add_subscription(topic="sensor1", callback=cb3)
 
 
 pub4 = f2.add_publisher(topic="filter2")
-cb4 = f2.add_callback(wcet=30, publisher=pub4)
+cb4 = f2.add_callback(wcet=30, publishers=[pub4])
 f2.add_subscription(topic="sensor2", callback=cb4)
 
 # subscription variant
@@ -69,7 +68,7 @@ var1 = fu.add_variable()
 cb5 = fu.add_callback(wcet=30, write_variables=[var1])
 fu.add_subscription(topic="filter2", callback=cb5)
 pub5 = fu.add_publisher(topic="fusion")
-cb6 = fu.add_callback(wcet=30, publisher=pub5, read_variables=[var1])
+cb6 = fu.add_callback(wcet=30, publishers=[pub5], read_variables=[var1])
 fu.add_subscription(topic="filter1", callback=cb6)
 
 
@@ -81,16 +80,18 @@ fu.add_subscription(topic="filter1", callback=cb6)
 # cb6 = fu.add_callback(wcet=30, write_variables=[var2])
 # fu.add_subscription(topic="filter2", callback=cb6)
 # pub5 = fu.add_publisher(topic="fusion")
-# cb61 = fu.add_callback(wcet=30, read_variables=[var1, var2], publisher=pub5)
+# cb61 = fu.add_callback(wcet=30, read_variables=[var1, var2], publisher=[pub5])
 # fu.add_timer(topic="fusion", period=100, callback=cb7)
 
 pub6 = f3.add_publisher(topic="filter3")
-cb7 = f3.add_callback(wcet=30, publisher=pub6)
+cb7 = f3.add_callback(wcet=30, publishers=[pub6])
 f3.add_subscription(topic="fusion", callback=cb7)
+# serv1 = f3.add_service()
 
 extout = system.add_external_output()
 cb8 = act.add_callback(wcet=30, outputs=[extout])
 act.add_subscription(topic="filter3", callback=cb7)
+
 
 pprint(system, width=120, indent=1, compact=False)
 
