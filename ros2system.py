@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+
 TimeUnit = int
 QualityOfService = dict
 Buffer = int
@@ -8,6 +9,13 @@ Topic = str
 DEFAULT_EXECUTOR = "SingleThreadedExecutor"
 DEFAULT_QOS: QualityOfService = {"buffersize": 10}
 
+EXECUTORS = ["SingleThreadedExecutor",
+             "SingleThreadedExecutorPreJazzy",
+             "SingleThreadedExecutorPreEloquent",
+             "MultiThreadedExecutor",
+             "StaticSingleThreadedExecutor",
+             "EventsExecutor"
+             ]
 
 
 @dataclass
@@ -57,6 +65,7 @@ class Request():
     client: str
     timeout: TimeUnit
 
+
 @dataclass
 class Callback():
     name: str
@@ -64,7 +73,7 @@ class Callback():
     read_variables: list[Variable]
     write_variables: list[Variable]
     calls: list[str]
-    publisher: str
+    publishers: list[str]
     external_outputs: list[ExternalOutput]
 
     def __init__(self,
@@ -74,7 +83,7 @@ class Callback():
                  write_variables=None,
                  calls=None,
                  external_outputs=None,
-                 publisher: str = None,
+                 publishers: list[str] = None,
                  requests: list[Request] = None):
         if write_variables is None:
             write_variables = []
@@ -86,15 +95,18 @@ class Callback():
             read_variables = []
         if requests is None:
             requests = []
+        if publishers is None:
+            publishers = []
         self.read_variables = read_variables
         self.name = name
         self.wcet = wcet
         self.read_variables = read_variables
         self.write_variables = write_variables
         self.calls = calls
-        self.publisher = publisher
+        self.publishers = publishers
         self.external_outputs = external_outputs
         self.requests = requests
+
 
 @dataclass
 class Subscription():
@@ -165,11 +177,11 @@ class Node():
         callback = self.add_callback(
             name=name + "_cb",
             wcet=wcet,
-            publisher=self.add_publisher(
+            publishers=[self.add_publisher(
                 name=name + "_publisher",
                 qos_offered=qos_offered,
                 topic=name
-            )
+            )]
         )
         service = Service(name=name,
                           callback=callback,
@@ -191,7 +203,7 @@ class Node():
                      write_variables=None,
                      calls: list = None,
                      outputs: list[ExternalOutput] = None,
-                     publisher: Publisher = None,
+                     publishers: list[Publisher] = None,
                      requests: list[Request] = None) -> Callback:
         if read_variables is None:
             read_variables = []
@@ -203,14 +215,14 @@ class Node():
             requests = []
         if name is None:
             name = self.name + "callback" + str(len(self.callbacks))
-        if publisher is None:
-            pname = None
+        if publishers is None:
+            pnames = []
         else:
-            pname = publisher.name
+            pnames = [publisher.name for publisher in publishers]
         callback = Callback(name=name, wcet=wcet,
                             read_variables=read_variables,
                             write_variables=write_variables,
-                            calls=calls, publisher=pname,
+                            calls=calls, publishers=pnames,
                             external_outputs=outputs)
         self.callbacks.append(callback)
         return callback
@@ -329,6 +341,7 @@ class Host():
 
 @dataclass
 class System:
+    name: str
     dds_implementation: str
     external_outputs: list[ExternalOutput]
     external_inputs: list[ExternalInput]
@@ -370,11 +383,12 @@ class System:
     def add_topics(self, names: list[str] = None) -> list[Topic]:
         self.dds.add_topics(names=names)
 
-    def __init__(self, dds_implementation: str = None):
+    def __init__(self, name: str, dds_implementation: str = None):
 
         if (dds_implementation is None):
             raise ValueError("Please provide dds_implementation")
 
+        self.name = name
         self.external_outputs = []
         self.hosts = []
         self.dds_implementation = dds_implementation
