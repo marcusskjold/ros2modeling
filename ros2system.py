@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+#TODO: Make enums (in validator) available to the user of this class
 
 TimeUnit = int
 QualityOfService = dict
@@ -8,6 +9,9 @@ Topic = str
 
 DEFAULT_EXECUTOR = "SingleThreadedExecutor"
 DEFAULT_QOS: QualityOfService = {"buffersize": 10}
+DEFAULT_DISTRIBUTION = "Rolling" #TODO: Make this overridable inside system?
+UNSPECIFIED = "Generic" #When not specified in model
+
 
 EXECUTORS = ["SingleThreadedExecutor",
              "SingleThreadedExecutorPreJazzy",
@@ -270,6 +274,7 @@ class Node():
 @dataclass
 class Executor():
     name: str
+    ros_distribution: str
     implementation: str
     nodes: list[Node]
 
@@ -322,15 +327,17 @@ class Executor():
 class Host():
     name: str
     operating_system: str
+    architecture: str
     executors: list[Executor]
 
     def add_executor(self, name: str = None,
-                     implementation: str = DEFAULT_EXECUTOR) -> Executor:
+                     implementation: str = DEFAULT_EXECUTOR,
+                     ros_distribution = DEFAULT_DISTRIBUTION) -> Executor:
 
         if name is None:
             name = self.name + "_executor" + str(len(self.executors))
 
-        executor = Executor(name=name, implementation=implementation, nodes=[])
+        executor = Executor(name=name, implementation=implementation, nodes=[], ros_distribution=ros_distribution)
         self.executors.append(executor)
         return executor
 
@@ -365,15 +372,12 @@ class System:
         self.external_outputs.append(output)
         return output
 
-    def add_host(self, name: str = None, operating_system: str = None) -> Host:
-
-        if (operating_system is None):
-            raise ValueError("Please provide operating_system")
+    def add_host(self, name: str = None, operating_system: str = UNSPECIFIED, architecture=UNSPECIFIED) -> Host:
 
         if name is None:
             name = "host" + str(len(self.hosts))
 
-        host = Host(executors=[], operating_system=operating_system, name=name)
+        host = Host(executors=[], operating_system=operating_system, name=name, architecture=architecture)
         self.hosts.append(host)
         return host
 

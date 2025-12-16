@@ -15,6 +15,12 @@ with open('example_simpler.yaml','r') as file:
     if(len(yaml_object)!=1 or not ('System' in yaml_object)):
         raise SyntaxError("file must have single outer-key 'System'")
     pprint(yaml_object, sort_dicts=False)
+    # try:
+    #     ros_sys = ros.System(name=yaml_object['system'],
+    #                          dds_implementation=yaml_object['dds_implementation'],
+    #                          default=)
+    # except:
+
 
 #TODO: check that argument order is preserved
     #check that using C-version of ruamel is okay(see website)
