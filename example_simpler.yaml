@@ -1,4 +1,5 @@
 System:
+  system: mySystem
   dds_implementation: super
   default_qos_profile: {buffersize: 10}
   external_outputs:
