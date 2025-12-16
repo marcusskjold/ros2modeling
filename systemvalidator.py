@@ -1,24 +1,91 @@
 import ros2system as ros
 
+"""
+A ros2 system model consists of
+Hosts
+Variables
+ExternalOutputs
+
+TODO: Make dicts to map executors to distributions (check for age)
+and operating systems to architectures
+TODO: Add operating system versions
+
+"""
+
 DDS_IMPLEMENTATIONS = [
+    "Generic",
     "Cyclone",
     "Fast",
     "RTI connext",
     "Gurum"
 ]
 
-external_inputs: list[ros.ExternalInput]
-external_outputs: list[ros.ExternalOutput]
-global_executors: list[str]
-global_nodes: list[str]
-global_
+EXECUTORS = [
+    "SingleThreadedExecutor",
+    "MultiThreadedExecutor",
+    "StaticSingleThreadedExecutor",
+    "EventsExecutor"
+]
+
+OPERATING_SYSTEMS = [
+    "Generic",
+    "Windows",
+    "Debian",
+    "MacOS",
+    "Ubuntu",
+    "OpenEmbedded"
+]
+
+ARCHITECTURES = [
+    "Generic",
+    "amd64",
+    "arm64",
+    "arm32"
+]
+
+DISTRIBUTIONS = [
+    "Ardent Apalone",
+    "Bouncy Bolson",
+    "Kilted Kaiju",
+    "Jazzy Jalisco",
+    "Iron Irwini",
+    "Humble Hawksbill",
+    "Galactic Geochelone",
+    "Foxy Fitzroy",
+    "Dashing Diademata",
+    "Crystal Clemmys"
+]
+
+objects: dict[str, dict[str, str]] = {
+    "external_input": {},
+    "external_output": {},
+    "executor": {},
+    "node": {},
+    "host": {}
+}
 
 
-def validate_dds(dds) -> list[str]:
-    if dds not in DDS_IMPLEMENTATIONS:
-        return [f"dds '{dds}' not among {DDS_IMPLEMENTATIONS}"]
-    else:
-        return []
+def is_valid_value(typ: str, val: str):
+    valid_values = {
+        "dds": DDS_IMPLEMENTATIONS,
+        "distribution": DISTRIBUTIONS,
+        "os": OPERATING_SYSTEMS,
+        "architecture": ARCHITECTURES,
+        "executor": EXECUTORS,
+    }
+
+    if val not in valid_values[typ]:
+        return f"{typ} '{val}' not among {valid_values[typ]}"
+
+
+def register(obj, typ: str, parent) -> list[str]:
+    name = obj.name
+    if (name is None) or (name == ""):
+        return [f"{typ} is missing name. Skipping validation of branch. Full {typ}: {print(obj)}"]
+    if obj in objects[typ]:
+        return [f"{typ} '{name}' has multiple owners. Skipping validation of branch."]
+    objects[typ][name] = parent.name
+    return []
 
 
 def is_simple_subscriber(node: ros.Node) -> bool:
@@ -105,48 +172,129 @@ def is_simple_subscriber(node: ros.Node) -> bool:
     return True
 
 
-def validate_node(node: ros.Node) -> str:
+"""
+Callbacks own requests
+"""
+
+
+def validate_node(node: ros.Node, parent: ros.Executor) -> list[str]:
     """
-    A bk node is a ros node with one primary trigger, publisher and callback,
-    along with a list of secondary triggers, and callbacks.
-    bk nodes are of three different fundamental types:
-    Subscriber, Timer, and DataGenerator.
-    TODO: DataGenerator can be probabilistic
+    A node is well formed if:
+    - It has a name
+    - It is only owned by one executor
 
+    - TODO: actions are valid
+    - All external inputs are well formed
+    - All variables are well formed
     """
-    if node.name is None:
-        raise ValueError("All nodes must have names")
-    pass
+    feedback = register(node, "node", parent)
+    if feedback is not []:
+        return feedback
+
+    for input in system.external_inputs:
+        feedback.extend(register(input, "external_input"))
+
+    for output in system.external_outputs:
+        feedback.extend(register(input, "external_outputs"))
 
 
-def validate_host(host: ros.Host) -> list[str]:
-    feedback = []
-    if host.name is None:
-        feedback.append("Host must have a name")
-    if host.name == "":
-        feedback.append("Host must have a name")
-    if len(host.executors) < 1:
-        feedback.append("Host must have at least one host")
-        feedback.extend(validate_executor(executor))
-        if executor in global_executors:
-            feedback.append(
-                f"executor {executor.name} is owned by multiple hosts")
-    host.operating_system
+    # Unvalidated
+
+    # triggers
+    node.external_inputs
+    node.services
+    node.subscriptions
+    node.timers
+
+    # outputs
+    node.clients
+    node.publishers
+
+    # internal
+    node.callbacks
+    for variable in node.variables:
+        validate_variable(variable)
+
+    # TODO: Add support for actions
+    actions = node.actions
+
+    return feedback
+
+
+
+def validate_executor(executor: ros.Executor, parent: ros.Host) -> list[str]:
+    """
+    An executor is well formed if:
+    - It has a name
+    - It is only owned by one host
+    - It has a valid ros distribution
+    - It has a valid executor implementation
+    - It has at least one node
+    - All nodes are well formed
+    """
+    feedback = register(executor, "executor", parent)
+    if feedback is not []:
+        return feedback
+
+    feedback.append(is_valid_value("distribution", executor.distribution))
+    feedback.append(is_valid_value("executor", executor.implementation))
+
+    nodes = executor.nodes
+    if len(nodes) < 1:
+        feedback.append(f"Executor '{executor.name}' must have at least one node")
+
+    for node in nodes:
+        feedback.extend(validate_node(node, executor))
+    return feedback
+
+
+def validate_host(host: ros.Host, parent: ros.System) -> list[str]:
+    """
+    A host is well formed if:
+    - It has a name
+    - It has a valid operating system
+    - It has a valid architecture
+    - It has at least one executor
+    - All executors are well formed
+    """
+    feedback = register(host, "host", parent)
+    if feedback is not []:
+        return feedback
+
+    feedback.append(is_valid_value("os", host.operating_system))
+    feedback.append(is_valid_value("architecture", host.architecture))
+
+    executors = host.executors
+    if len(executors) < 1:
+        feedback.append(f"Host '{host.name}' must have at least one executor")
+
+    for executor in executors:
+        feedback.extend(validate_executor(executor, host))
+    return feedback
 
 
 def validate_system(system: ros.System) -> list[str]:
+    """
+    A system is well formed if:
+    - It has a name
+    - It has a valid dds
+    - It has at least one host
+    - All hosts are well formed
+    """
     feedback = []
-    if system.name is None:
+
+    if (system.name is None) or (system.name == ""):
         feedback.append("System must have a name")
-    if system.name == "":
-        feedback.append("System must have a name")
-    if len(system.hosts) < 1:
+
+    feedback.append(is_valid_value("dds", system.dds_implementation))
+
+    hosts = system.hosts
+    if len(hosts) < 1:
         feedback.append("System must have at least one host")
-    external_inputs = system.external_inputs
-    external_outputs = system.external_outputs
-    feedback.extend(validate_dds(system.dds_implementation))
-    for host in system.hosts:
-        feedback.extend(validate_host(host))
+
+    for host in hosts:
+        feedback.extend(validate_host(host), system)
+
     if feedback == []:
         return ["System is well formed"]
     else:
