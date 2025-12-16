@@ -11,15 +11,15 @@ with open('example_simpler.yaml','r') as file:
     yaml=YAML(typ='safe')   # default, if not specfied, is 'rt' (round-trip)
     yaml_object = yaml.load(file)
     ##debug ex
-    #print(yaml_object['System']['hosts'][0]['executors'][0]['implementation'])
+    print(yaml_object['System']['hosts'][0]['executors'][0]['implementation'])
     if(len(yaml_object)!=1 or not ('System' in yaml_object)):
         raise SyntaxError("file must have single outer-key 'System'")
     pprint(yaml_object, sort_dicts=False)
-    # try:
-    #     ros_sys = ros.System(name=yaml_object['system'],
-    #                          dds_implementation=yaml_object['dds_implementation'],
-    #                          default=)
-    # except:
+    try:
+        ros_sys = ros.System(yaml_object['System']['system'], yaml_object['System']['dds_implementation'])
+        
+    except (Exception) as e:
+        print(str(e))
 
 
 #TODO: check that argument order is preserved
