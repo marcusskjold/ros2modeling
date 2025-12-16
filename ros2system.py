@@ -13,14 +13,6 @@ DEFAULT_DISTRIBUTION = "Rolling" #TODO: Make this overridable inside system?
 UNSPECIFIED = "Generic" #When not specified in model
 
 
-EXECUTORS = ["SingleThreadedExecutor",
-             "SingleThreadedExecutorPreJazzy",
-             "SingleThreadedExecutorPreEloquent",
-             "MultiThreadedExecutor",
-             "StaticSingleThreadedExecutor",
-             "EventsExecutor"
-             ]
-
 
 @dataclass
 class Variable:
@@ -79,6 +71,7 @@ class Callback():
     calls: list[str]
     publishers: list[str]
     external_outputs: list[ExternalOutput]
+    requests: list[Request]
 
     def __init__(self,
                  name: str,
@@ -143,6 +136,7 @@ class Action():
 @dataclass
 class ExternalInput():
     name: str
+    callback: Callback
 
 
 @dataclass
@@ -336,6 +330,8 @@ class Host():
 
         if name is None:
             name = self.name + "_executor" + str(len(self.executors))
+        if (ros_distribution is None):
+            raise ValueError("Please provide distribution")
 
         executor = Executor(name=name, implementation=implementation, nodes=[], ros_distribution=ros_distribution)
         self.executors.append(executor)
@@ -372,8 +368,15 @@ class System:
         self.external_outputs.append(output)
         return output
 
-    def add_host(self, name: str = None, operating_system: str = UNSPECIFIED, architecture=UNSPECIFIED) -> Host:
+    def add_host(self,
+                 name: str = None,
+                 operating_system: str = UNSPECIFIED,
+                 architecture=UNSPECIFIED) -> Host:
 
+        if (operating_system is None):
+            raise ValueError("Please provide operating_system")
+        if (architecture is None):
+            raise ValueError("Please provide architecture")
         if name is None:
             name = "host" + str(len(self.hosts))
 

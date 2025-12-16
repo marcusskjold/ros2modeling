@@ -236,7 +236,7 @@ def validate_executor(executor: ros.Executor, parent: ros.Host) -> list[str]:
     if feedback is not []:
         return feedback
 
-    feedback.append(is_valid_value("distribution", executor.distribution))
+    feedback.append(is_valid_value("distribution", executor.ros_distribution))
     feedback.append(is_valid_value("executor", executor.implementation))
 
     nodes = executor.nodes
