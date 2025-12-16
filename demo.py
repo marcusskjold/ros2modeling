@@ -1,5 +1,38 @@
 import ros2system as ros
 from pprint import pprint
+import backeman.system as bk
+
+
+def validation_ss():
+    system = bk.System("ss")
+    system.add_datagenerator("SENSOR1", 360, 10, 0, True)
+    system.add_datagenerator("SENSOR2", 360, 20, 0, False)
+    system.add_subscriber("FILTER1", "SENSOR1", 10, [], [], "pd")
+    system.add_subscriber("FILTER2", "SENSOR2", 20, [], [], "pd")
+    system.add_subscriber("FUSION1", "SENSOR1", 30, ["SENSOR2"], [30], "pd")
+    system.add_subscriber("FILTER3", "FUSION1", 30, [], [], "pd")
+    system.add_subscriber("ACTUATOR1", "FILTER3", 30, [], [], "pd")
+    system.monitor("ACTUATOR1", 360)
+    return system
+
+
+sys1 = bk.System("sys")
+sys2 = ros.System("sys", dds_implementation="Standard")
+h = sys2.add_host(operating_system="Ubuntu")
+e = h.add_executor(implementation="SingleThreadedExecutor")
+
+
+def transform_system(system: ros.System) -> bk.System:
+    if len(system.hosts) != 1:
+        raise ValueError("must only have one host")
+    return sys1
+
+
+transform_system(sys2)
+print("First transformation successful")
+sys2.add_host(operating_system="Ubuntu")
+# transform_system(sys2)
+print("Second transformation successful")
 
 system = ros.System("test", dds_implementation="super")
 
