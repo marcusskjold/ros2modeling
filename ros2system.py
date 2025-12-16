@@ -4,11 +4,19 @@ from dataclasses import dataclass
 
 TimeUnit = int
 QualityOfService = dict
-Buffer = int
 Topic = str
 
 DEFAULT_EXECUTOR = "SingleThreadedExecutor"
-DEFAULT_QOS: QualityOfService = {"buffersize": 10}
+DEFAULT_QOS: QualityOfService = {
+    "history": "system_default",
+    "depth": 10,
+    "reliability": "system_default",
+    "durability": "system_default",
+    "deadline": 0,
+    "lifespan": 0,
+    "liveliness": "system_default",
+    "liveliness_lease_duration": 0
+}
 DEFAULT_DISTRIBUTION = "Rolling" #TODO: Make this overridable inside system?
 UNSPECIFIED = "Generic" #When not specified in model
 
@@ -37,7 +45,6 @@ class Publisher():
     name: str
     qos_offered: QualityOfService
     topic: Topic
-    buffer: Buffer
 
     def __init__(self,
                  name: str,
@@ -45,7 +52,6 @@ class Publisher():
                  qos_offered: QualityOfService = DEFAULT_QOS):
         self.name = name
         self.topic = topic
-        self.buffer = qos_offered["buffersize"]
         self.qos_offered = qos_offered
 
 
@@ -108,7 +114,6 @@ class Callback():
 @dataclass
 class Subscription():
     topic: Topic
-    buffer: Buffer
     qos_requested: QualityOfService
     callback: str
 
@@ -117,7 +122,6 @@ class Subscription():
                  qos_requested: QualityOfService = DEFAULT_QOS):
         self.topic = topic
         self.qos_requested = qos_requested
-        self.buffer = qos_requested["buffersize"]
         self.callback = callback.name
 
 
@@ -150,7 +154,27 @@ class Node():
     services: list[Service]
     actions: list[Action]
     external_inputs: list[ExternalInput]
+    external_outputs: list[ExternalOutput]
     clients: list[Client]
+
+    def add_external_input(self, name: str = None) -> ExternalInput:
+
+        if name is None:
+            name = self.name + "_input" + str(len(self.external_inputs))
+
+        input = ExternalInput(name)
+        self.external_inputs.append(input)
+        return input
+
+    def add_external_output(self, name: str = None) -> ExternalOutput:
+
+        if name is None:
+            name = self.name + "_output" + str(len(self.external_outputs))
+
+        output = ExternalOutput(name)
+        self.external_outputs.append(output)
+        return output
+
 
     def add_subscription(self,
                          topic: Topic,
@@ -276,7 +300,9 @@ class Executor():
                  variables=None, timers=None, services=None,
                  actions=None, external_inputs=None,
                  callbacks=None, publishers=None,
-                 clients=None) -> Node:
+                 clients=None,
+                 external_outputs=None
+                 ) -> Node:
 
         if name is None:
             name = self.name + "node" + str(len(self.nodes))
@@ -298,6 +324,8 @@ class Executor():
             publishers = []
         if clients is None:
             clients = []
+        if external_outputs is None:
+            external_outputs = []
 
         node = Node(name=name,
                     subscriptions=subscriptions,
@@ -308,7 +336,9 @@ class Executor():
                     external_inputs=external_inputs,
                     callbacks=callbacks,
                     publishers=publishers,
-                    clients=clients)
+                    clients=clients,
+                    external_outputs=external_outputs
+                    )
         node.name = name
         self.nodes.append(node)
         return node
@@ -346,27 +376,7 @@ class Host():
 class System:
     name: str
     dds_implementation: str
-    external_outputs: list[ExternalOutput]
-    external_inputs: list[ExternalInput]
     hosts: list[Host]
-
-    def add_external_input(self, name: str = None) -> ExternalInput:
-
-        if name is None:
-            name = "input" + str(len(self.external_inputs))
-
-        input = ExternalInput(name)
-        self.external_inputs.append(input)
-        return input
-
-    def add_external_output(self, name: str = None) -> ExternalOutput:
-
-        if name is None:
-            name = "output" + str(len(self.external_outputs))
-
-        output = ExternalOutput(name)
-        self.external_outputs.append(output)
-        return output
 
     def add_host(self,
                  name: str = None,
@@ -396,7 +406,5 @@ class System:
             raise ValueError("Please provide dds_implementation")
 
         self.name = name
-        self.external_outputs = []
         self.hosts = []
         self.dds_implementation = dds_implementation
-        self.external_inputs = []

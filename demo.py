@@ -1,6 +1,7 @@
 import ros2system as ros
 from pprint import pprint
 import backeman.system as bk
+import systemvalidator as sv
 
 
 def validation_ss():
@@ -29,15 +30,15 @@ def transform_system(system: ros.System) -> bk.System:
 
 
 transform_system(sys2)
-print("First transformation successful")
+# print("First transformation successful")
 sys2.add_host(operating_system="Ubuntu")
 # transform_system(sys2)
-print("Second transformation successful")
+# print("Second transformation successful")
 
-system = ros.System("test", dds_implementation="super")
+system = ros.System("test", dds_implementation="Generic")
 
-host = system.add_host(operating_system="ubuntu 1")
-executor = host.add_executor(implementation="EventExecutor")
+host = system.add_host(operating_system="Generic")
+executor = host.add_executor(implementation="EventsExecutor")
 
 # node1 = host.add_node("MIchael")
 
@@ -121,10 +122,12 @@ cb7 = f3.add_callback(wcet=30, publishers=[pub6])
 f3.add_subscription(topic="fusion", callback=cb7)
 # serv1 = f3.add_service()
 
-extout = system.add_external_output()
+extout = act.add_external_output()
 cb8 = act.add_callback(wcet=30, outputs=[extout])
-act.add_subscription(topic="filter3", callback=cb7)
+act.add_subscription(topic="filter3", callback=cb8)
 
 
-pprint(system, width=120, indent=1, compact=False)
-
+# pprint(system, width=120, indent=1, compact=False)
+# sv.validate_system(system)
+for ln in sv.validate_system(system):
+    print(ln)
