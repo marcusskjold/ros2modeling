@@ -373,10 +373,6 @@ class System:
                  operating_system: str = UNSPECIFIED,
                  architecture=UNSPECIFIED) -> Host:
 
-        if (operating_system is None):
-            raise ValueError("Please provide operating_system")
-        if (architecture is None):
-            raise ValueError("Please provide architecture")
         if name is None:
             name = "host" + str(len(self.hosts))
 
