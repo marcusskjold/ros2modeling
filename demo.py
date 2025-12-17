@@ -124,10 +124,14 @@ f3.add_subscription(topic="fusion", callback=cb7)
 
 extout = act.add_external_output()
 cb8 = act.add_callback(wcet=30, outputs=[extout])
-act.add_subscription(topic="filter3", callback=cb8)
+act.add_subscription(topic="filter3", callback=cb7)
 
 
 # pprint(system, width=120, indent=1, compact=False)
 # sv.validate_system(system)
-for ln in sv.validate_system(system):
+feedback, objects, interfaces = sv.validate_system(system)
+for ln in feedback:
     print(ln)
+
+# print(objects)
+# print(interfaces)
