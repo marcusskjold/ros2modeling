@@ -10,6 +10,10 @@ TODO: Make dicts to map executors to distributions (check for age)
       and operating systems to architectures
 TODO: Check if QOS policies are compatible between offer and request
 TODO: Add operating system versions
+TODO: Consider adding uniqueness checks to all lists
+      (that they are essentially sets)
+    # consider checking for infinite recursion in main validator
+    # callbacks calling each other in cycles
 
 """
 
@@ -364,6 +368,7 @@ def validate_node(node: ros.Node, parent: ros.Executor, objects, interfaces) -> 
         - Callbacks
 
     - All callbacks only call callbacks that are also owned by this node
+    - All publishers are used by at least one callback
     """
     feedback = register(node.name, "node", parent.name, objects)
     if feedback != []:
@@ -407,6 +412,12 @@ def validate_node(node: ros.Node, parent: ros.Executor, objects, interfaces) -> 
     for callback in node.callbacks:
         for called_name in callback.calls:
             feedback += verify_registration(called_name, "callback", node.name, callback.name, objects)
+
+    used_publishers = [publisher for publisher in
+                       callback.publishers for callback in node.callbacks]
+    for publisher in node.publishers:
+        if publisher.name not in used_publishers:
+            feedback += [f"Publisher '{publisher.name}' inside node '{node.name}' is unused"]
     return feedback
 
 
@@ -491,6 +502,7 @@ def validate_system(system: ros.System) -> tuple[list[str], dict[str, dict[str, 
         "client": {},
         "variable": {},
         "publisher": {},
+        "action": {}
     }
 
     if (system.name is None) or (system.name == ""):
