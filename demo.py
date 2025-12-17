@@ -2,6 +2,7 @@ import ros2system as ros
 from pprint import pprint
 import backeman.system as bk
 import systemvalidator as sv
+import transformer_backeman as tb
 
 
 def validation_ss():
@@ -22,18 +23,6 @@ sys2 = ros.System("sys", dds_implementation="Standard")
 h = sys2.add_host(operating_system="Ubuntu")
 e = h.add_executor(implementation="SingleThreadedExecutor")
 
-
-def transform_system(system: ros.System) -> bk.System:
-    if len(system.hosts) != 1:
-        raise ValueError("must only have one host")
-    return sys1
-
-
-transform_system(sys2)
-# print("First transformation successful")
-sys2.add_host(operating_system="Ubuntu")
-# transform_system(sys2)
-# print("Second transformation successful")
 
 system = ros.System("test", dds_implementation="Generic")
 
@@ -124,7 +113,7 @@ f3.add_subscription(topic="fusion", callback=cb7)
 
 extout = act.add_external_output()
 cb8 = act.add_callback(wcet=30, outputs=[extout])
-act.add_subscription(topic="filter3", callback=cb7)
+act.add_subscription(topic="filter3", callback=cb8)
 
 
 # pprint(system, width=120, indent=1, compact=False)
@@ -132,6 +121,8 @@ act.add_subscription(topic="filter3", callback=cb7)
 feedback, objects, interfaces = sv.validate_system(system)
 for ln in feedback:
     print(ln)
+
+print(tb.transform_system(system))
 
 # print(objects)
 # print(interfaces)
