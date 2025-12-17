@@ -7,7 +7,8 @@ Variables
 ExternalOutputs
 
 TODO: Make dicts to map executors to distributions (check for age)
-and operating systems to architectures
+      and operating systems to architectures
+TODO: Check if QOS policies are compatible between offer and request
 TODO: Add operating system versions
 
 """
