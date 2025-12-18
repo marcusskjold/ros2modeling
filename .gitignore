@@ -193,3 +193,9 @@ pyrightconfig.json
 .ionide
 
 # End of https://www.toptal.com/developers/gitignore/api/python,visualstudiocode
+
+## backeman additions
+tmp.xml
+tmp.xml.q
+template.xml
+verifyta
