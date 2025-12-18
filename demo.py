@@ -25,9 +25,10 @@ e = h.add_executor(implementation="SingleThreadedExecutor")
 
 
 system = ros.System("test", dds_implementation="Generic")
+system.default_qos["length"] = 20
 
 host = system.add_host(operating_system="Generic")
-executor = host.add_executor(implementation="EventsExecutor")
+executor = host.add_executor(implementation="SingleThreadedExecutor", ros_distribution="Eloquent")
 
 # node1 = host.add_node("MIchael")
 
@@ -39,9 +40,9 @@ s1 = executor.add_node(name="sensor1")
 s2 = executor.add_node(name="sensor2")
 f1 = executor.add_node(name="filter1")
 f2 = executor.add_node(name="filter2")
-fu = executor.add_node(name="fusion")
+fu = executor.add_node(name="fusion1")
 f3 = executor.add_node(name="filter3")
-act = executor.add_node(name="actuator")
+act = executor.add_node(name="actuator1")
 
 # One
 
@@ -70,27 +71,27 @@ act = executor.add_node(name="actuator")
 # case st
 
 pub1 = s1.add_publisher(topic="sensor1")
-cb1 = s1.add_callback(wcet=30, publishers=[pub1])
-s1.add_timer(period=50, callback=cb1)
+cb1 = s1.add_callback(wcet=10, publishers=[pub1])
+s1.add_timer(period=360, callback=cb1)
 
 pub2 = s2.add_publisher(topic="sensor2")
-cb2 = s2.add_callback(wcet=30, publishers=[pub2])
-s2.add_timer(period=50, callback=cb2)
+cb2 = s2.add_callback(wcet=20, publishers=[pub2])
+s2.add_timer(period=360, callback=cb2)
 
 pub3 = f1.add_publisher(topic="filter1")
-cb3 = f1.add_callback(wcet=30, publishers=[pub3])
+cb3 = f1.add_callback(wcet=10, publishers=[pub3])
 f1.add_subscription(topic="sensor1", callback=cb3)
 
 
 pub4 = f2.add_publisher(topic="filter2")
-cb4 = f2.add_callback(wcet=30, publishers=[pub4])
+cb4 = f2.add_callback(wcet=20, publishers=[pub4])
 f2.add_subscription(topic="sensor2", callback=cb4)
 
 # subscription variant
 var1 = fu.add_variable()
 cb5 = fu.add_callback(wcet=30, write_variables=[var1])
 fu.add_subscription(topic="filter2", callback=cb5)
-pub5 = fu.add_publisher(topic="fusion")
+pub5 = fu.add_publisher(topic="fusion1")
 cb6 = fu.add_callback(wcet=30, publishers=[pub5], read_variables=[var1])
 fu.add_subscription(topic="filter1", callback=cb6)
 
@@ -102,17 +103,19 @@ fu.add_subscription(topic="filter1", callback=cb6)
 # var2 = fu.add_variable()
 # cb6 = fu.add_callback(wcet=30, write_variables=[var2])
 # fu.add_subscription(topic="filter2", callback=cb6)
-# pub5 = fu.add_publisher(topic="fusion")
+# pub5 = fu.add_publisher(topic="fusion1")
 # cb61 = fu.add_callback(wcet=30, read_variables=[var1, var2], publisher=[pub5])
-# fu.add_timer(topic="fusion", period=100, callback=cb7)
+# fu.add_timer(topic="fusion1", period=100, callback=cb7)
 
 pub6 = f3.add_publisher(topic="filter3")
 cb7 = f3.add_callback(wcet=30, publishers=[pub6])
-f3.add_subscription(topic="fusion", callback=cb7)
+f3.add_subscription(topic="fusion1", callback=cb7)
 # serv1 = f3.add_service()
 
-extout = act.add_external_output()
-cb8 = act.add_callback(wcet=30, outputs=[extout])
+# extout = act.add_external_output()
+# cb8 = act.add_callback(wcet=30, outputs=[extout])
+pub7 = act.add_publisher(topic="actuator1")
+cb8 = act.add_callback(wcet=30, publishers=[pub7])
 act.add_subscription(topic="filter3", callback=cb8)
 
 
@@ -122,7 +125,14 @@ feedback, objects, interfaces = sv.validate_system(system)
 for ln in feedback:
     print(ln)
 
-print(tb.transform_system(system))
-
-# print(objects)
-# print(interfaces)
+errors, warnings, bksystem = tb.transform_system(system)
+for ln in errors:
+    print(ln)
+for ln in warnings:
+    print(ln)
+bksystem: bk.System
+tb.monitor(bksystem, "sensor1", "actuator1")
+print(bksystem.gen_declaration())
+print(bksystem.gen_system())
+mrt, _, _ = bksystem.max_reaction_time()
+print(mrt)
