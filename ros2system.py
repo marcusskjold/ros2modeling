@@ -156,6 +156,7 @@ class Node():
     external_inputs: list[ExternalInput]
     external_outputs: list[ExternalOutput]
     clients: list[Client]
+    default_qos: QualityOfService
 
     def add_external_input(self, name: str = None) -> ExternalInput:
 
@@ -175,12 +176,13 @@ class Node():
         self.external_outputs.append(output)
         return output
 
-
     def add_subscription(self,
                          topic: Topic,
                          callback: Callback,
                          qos_requested:
-                         QualityOfService = DEFAULT_QOS) -> Subscription:
+                         QualityOfService = None) -> Subscription:
+        if qos_requested is None:
+            qos_requested = self.default_qos
         self.subscriptions.append(
             Subscription(topic=topic,
                          callback=callback,
@@ -189,9 +191,10 @@ class Node():
     def add_service(self,
                     wcet: TimeUnit,
                     name: str = None,
-                    qos_requested: QualityOfService = DEFAULT_QOS,
-                    qos_offered: QualityOfService = DEFAULT_QOS,
+                    qos_profile: QualityOfService = None,
                     calls: list[Callback] = None) -> Service:
+        if qos_profile is None:
+            qos_profile = self.default_qos
         if calls is None:
             calls = []
         if name is None:
@@ -201,19 +204,21 @@ class Node():
             wcet=wcet,
             publishers=[self.add_publisher(
                 name=name + "_publisher",
-                qos_offered=qos_offered,
+                qos_offered=qos_profile,
                 topic=name
             )]
         )
         service = Service(name=name,
                           callback=callback,
-                          qos_requested=qos_requested)
+                          qos_requested=qos_profile)
         self.services.append(service)
         return service
 
     def add_client(self,
                    service: str,
-                   qos_profile: QualityOfService = DEFAULT_QOS) -> Client:
+                   qos_profile: QualityOfService = None) -> Client:
+        if qos_profile is None:
+            qos_profile = self.default_qos
         client = Client(service=service, qos_profile=qos_profile)
         self.clients.append(client)
         return client
@@ -251,8 +256,10 @@ class Node():
 
     def add_publisher(self,
                       name: str = None,
-                      qos_offered: QualityOfService = DEFAULT_QOS,
+                      qos_offered: QualityOfService = None,
                       topic: Topic = None) -> Publisher:
+        if qos_offered is None:
+            qos_offered = self.default_qos
         if name is None:
             name = self.name + "publisher" + str(len(self.publishers))
         if topic is None:
@@ -295,13 +302,15 @@ class Executor():
     ros_distribution: str
     implementation: str
     nodes: list[Node]
+    default_qos: QualityOfService
 
     def add_node(self, name: str = None, subscriptions=None,
                  variables=None, timers=None, services=None,
                  actions=None, external_inputs=None,
                  callbacks=None, publishers=None,
                  clients=None,
-                 external_outputs=None
+                 external_outputs=None,
+                 default_qos=DEFAULT_QOS
                  ) -> Node:
 
         if name is None:
@@ -337,7 +346,8 @@ class Executor():
                     callbacks=callbacks,
                     publishers=publishers,
                     clients=clients,
-                    external_outputs=external_outputs
+                    external_outputs=external_outputs,
+                    default_qos=default_qos
                     )
         node.name = name
         self.nodes.append(node)
@@ -353,17 +363,21 @@ class Host():
     operating_system: str
     architecture: str
     executors: list[Executor]
+    default_qos: QualityOfService
 
     def add_executor(self, name: str = None,
                      implementation: str = DEFAULT_EXECUTOR,
-                     ros_distribution = DEFAULT_DISTRIBUTION) -> Executor:
+                     ros_distribution: str = DEFAULT_DISTRIBUTION,
+                     default_qos: dict = DEFAULT_QOS) -> Executor:
 
         if name is None:
             name = self.name + "_executor" + str(len(self.executors))
         if (ros_distribution is None):
             raise ValueError("Please provide distribution")
 
-        executor = Executor(name=name, implementation=implementation, nodes=[], ros_distribution=ros_distribution)
+        executor = Executor(name=name, implementation=implementation, nodes=[],
+                            ros_distribution=ros_distribution,
+                            default_qos=default_qos)
         self.executors.append(executor)
         return executor
 
@@ -373,16 +387,19 @@ class Host():
 
 
 @dataclass
-class System:
+class System():
     name: str
     dds_implementation: str
     hosts: list[Host]
+    default_qos: QualityOfService
 
     def add_host(self,
                  name: str = None,
                  operating_system: str = UNSPECIFIED,
-                 architecture=UNSPECIFIED) -> Host:
-
+                 architecture=UNSPECIFIED,
+                 default_qos=None) -> Host:
+        if default_qos is None:
+            default_qos = self.default_qos
         if (operating_system is None):
             raise ValueError("Please provide operating_system")
         if (architecture is None):
@@ -390,7 +407,11 @@ class System:
         if name is None:
             name = "host" + str(len(self.hosts))
 
-        host = Host(executors=[], operating_system=operating_system, name=name, architecture=architecture)
+        host = Host(executors=[],
+                    operating_system=operating_system,
+                    name=name,
+                    architecture=architecture,
+                    default_qos=default_qos)
         self.hosts.append(host)
         return host
 
@@ -408,3 +429,4 @@ class System:
         self.name = name
         self.hosts = []
         self.dds_implementation = dds_implementation
+        self.default_qos = DEFAULT_QOS
