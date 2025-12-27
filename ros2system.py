@@ -277,7 +277,7 @@ class Node():
                   offset: TimeUnit = 0,
                   callback: Callback = None) -> Timer:
         if callback is None:
-            callback = self.add_callback()
+            raise ValueError("Please provide callback")
         if name is None:
             name = self.name + "_timer" + str(len(self.timers))
         timer = Timer(
