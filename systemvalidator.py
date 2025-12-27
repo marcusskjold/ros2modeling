@@ -247,11 +247,17 @@ def validate_callback(callback: ros.Callback, parent: ros.Node,
         feedback += verify_registration(
             publisher, "publisher", pname, name, objects)
     for read in callback.read_variables:
+        read: ros.Variable
         feedback += verify_registration(
             read.name, "variable", pname, name, objects)
+        feedback += add_interface(read.name, name, "variable",
+                                  "variables read from", interfaces)
     for write in callback.write_variables:
+        write: ros.Variable
         feedback += verify_registration(
             write.name, "variable", pname, name, objects)
+        feedback += add_interface(write.name, name, "variable",
+                                  "variables written to", interfaces)
     for output in callback.external_outputs:
         feedback += verify_registration(
             output.name, "external_output", pname, name, objects)
@@ -279,11 +285,14 @@ def validate_input(input: ros.ExternalInput, parent: ros.Node,
     if feedback != []:
         return feedback
 
-    feedback += verify_registration(input.callback, "callback", parent.name, input.name, objects)
+    feedback += verify_registration(input.callback, "callback",
+                                    parent.name, input.name, objects)
 
     return feedback
 
-def validate_subscription(subscription: ros.Subscription, parent: ros.Node, objects, interfaces) -> list[str]:
+
+def validate_subscription(subscription: ros.Subscription, parent: ros.Node,
+                          objects, interfaces) -> list[str]:
     """
     A subscription is well formed if:
     - It has a valid quality of service profile
@@ -293,12 +302,16 @@ def validate_subscription(subscription: ros.Subscription, parent: ros.Node, obje
     pname = parent.name
     feedback = []
     feedback += validate_qos(subscription.qos_requested, pname)
-    feedback += add_interface(subscription.topic, pname, "Topic", "topics subscribed to", interfaces)
-    feedback += verify_registration(subscription.callback, "callback", pname, pname, objects)
+    feedback += add_interface(subscription.topic, pname,
+                              "Topic", "topics subscribed to", interfaces)
+    feedback += verify_registration(subscription.callback,
+                                    "callback", pname, pname, objects)
 
     return feedback
 
-def validate_timer(timer: ros.Timer, parent: ros.Node, objects, interfaces) -> list[str]:
+
+def validate_timer(timer: ros.Timer, parent: ros.Node,
+                   objects, interfaces) -> list[str]:
     """
     A subscription is well formed if:
     - It has a name
@@ -313,11 +326,14 @@ def validate_timer(timer: ros.Timer, parent: ros.Node, objects, interfaces) -> l
     if timer.period < 0:
         feedback += [f"Timer '{timer.name}' must not have a negative period"]
 
-    feedback += verify_registration(timer.callback, "callback", parent.name, timer.name, objects)
+    feedback += verify_registration(timer.callback, "callback",
+                                    parent.name, timer.name, objects)
 
     return feedback
 
-def validate_service(service: ros.Service, parent: ros.node, objects, interfaces) -> list[str]:
+
+def validate_service(service: ros.Service, parent: ros.node,
+                     objects, interfaces) -> list[str]:
     """
     A service is well formed if:
     - It has a name
@@ -331,9 +347,11 @@ def validate_service(service: ros.Service, parent: ros.node, objects, interfaces
         return feedback
 
     feedback += validate_qos(service.qos_requested, service.name)
-    feedback += add_interface(service.name, node.name, "service", "services offered", interfaces)
+    feedback += add_interface(service.name, node.name, "service",
+                              "services offered", interfaces)
+    feedback += verify_registration(service.callback, "callback",
+                                    parent.name, service.name, objects)
 
-    feedback += verify_registration(service.callback, "callback", parent.name, service.name, objects)
     return feedback
 
 
@@ -344,7 +362,8 @@ def validate_action(action: ros.Action, parent: ros.Node) -> list[str]:
     return []
 
 
-def validate_node(node: ros.Node, parent: ros.Executor, objects, interfaces) -> list[str]:
+def validate_node(node: ros.Node, parent: ros.Executor,
+                  objects, interfaces) -> list[str]:
     """
     A node is well formed if:
     - It has a name
@@ -421,7 +440,8 @@ def validate_node(node: ros.Node, parent: ros.Executor, objects, interfaces) -> 
     return feedback
 
 
-def validate_executor(executor: ros.Executor, parent: ros.Host, objects, interfaces) -> list[str]:
+def validate_executor(executor: ros.Executor, parent: ros.Host,
+                      objects, interfaces) -> list[str]:
     """
     An executor is well formed if:
     - It has a name
@@ -446,7 +466,8 @@ def validate_executor(executor: ros.Executor, parent: ros.Host, objects, interfa
     return feedback
 
 
-def validate_host(host: ros.Host, parent: ros.System, objects, interfaces) -> list[str]:
+def validate_host(host: ros.Host, parent: ros.System,
+                  objects, interfaces) -> list[str]:
     """
     A host is well formed if:
     - It has a name
@@ -471,7 +492,10 @@ def validate_host(host: ros.Host, parent: ros.System, objects, interfaces) -> li
     return feedback
 
 
-def validate_system(system: ros.System) -> tuple[list[str], dict[str, dict[str, str], dict[str, dict[str, list[str]]]]]:
+def validate_system(system: ros.System) -> tuple[
+        list[str],
+        dict[str, dict[str, str]],
+        dict[str, dict[str, list[str]]]]:
     """
     A system is well formed if:
     - It has a name
@@ -488,6 +512,8 @@ def validate_system(system: ros.System) -> tuple[list[str], dict[str, dict[str, 
         "services offered": {},
         "topics subscribed to": {},
         "topics published to": {},
+        "variables written to": {},
+        "variables read from": {}
     }
 
     objects: dict[str, dict[str, str]] = {
@@ -522,3 +548,15 @@ def validate_system(system: ros.System) -> tuple[list[str], dict[str, dict[str, 
         return (["System is well formed"], objects, interfaces)
     else:
         return (feedback, objects, interfaces)
+
+# class SystemAnalyser():
+#     def construct_callback_graph(system: System) -> 
+#
+#         def get_processing_chains(system: System, source: Callback = None,
+#                               sink: Callback = None) -> list[Callback]:
+#         """
+#         source and sink refer to Casini et al 2019, 6:8
+#         """
+#         pass
+
+
