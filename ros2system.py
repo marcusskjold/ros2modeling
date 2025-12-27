@@ -198,7 +198,7 @@ class Node():
         if calls is None:
             calls = []
         if name is None:
-            name = self.name + "service" + str(len(self.services))
+            name = self.name + "_service" + str(len(self.services))
         callback = self.add_callback(
             name=name + "_cb",
             wcet=wcet,
@@ -241,7 +241,7 @@ class Node():
         if requests is None:
             requests = []
         if name is None:
-            name = self.name + "callback" + str(len(self.callbacks))
+            name = self.name + "_cb" + str(len(self.callbacks))
         if publishers is None:
             pnames = []
         else:
@@ -261,7 +261,7 @@ class Node():
         if qos_offered is None:
             qos_offered = self.default_qos
         if name is None:
-            name = self.name + "publisher" + str(len(self.publishers))
+            name = self.name + "_publisher" + str(len(self.publishers))
         if topic is None:
             raise ValueError("Please provide topic to publisher")
         publisher = Publisher(name=name,
@@ -279,7 +279,7 @@ class Node():
         if callback is None:
             callback = self.add_callback()
         if name is None:
-            name = self.name + "timer" + str(len(self.timers))
+            name = self.name + "_timer" + str(len(self.timers))
         timer = Timer(
             callback=callback.name,
             period=period,
@@ -290,7 +290,7 @@ class Node():
 
     def add_variable(self, name: str = None):
         if name is None:
-            name = self.name + "var" + str(len(self.variables))
+            name = self.name + "_var" + str(len(self.variables))
         var = Variable(name=name)
         self.variables.append(var)
         return var
@@ -314,7 +314,7 @@ class Executor():
                  ) -> Node:
 
         if name is None:
-            name = self.name + "node" + str(len(self.nodes))
+            name = self.name + "_node" + str(len(self.nodes))
         if subscriptions is None:
             subscriptions = []
         if variables is None:
@@ -405,7 +405,7 @@ class System():
         if (architecture is None):
             raise ValueError("Please provide architecture")
         if name is None:
-            name = "host" + str(len(self.hosts))
+            name = "_host" + str(len(self.hosts))
 
         host = Host(executors=[],
                     operating_system=operating_system,
