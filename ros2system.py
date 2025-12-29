@@ -335,7 +335,7 @@ class Executor():
             clients = []
         if external_outputs is None:
             external_outputs = []
-        if default_qos is None
+        if default_qos is None:
             default_qos = self.default_qos
 
         node = Node(name=name,
