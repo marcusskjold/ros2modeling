@@ -121,9 +121,9 @@ act.add_subscription(topic="filter3", callback=cb8)
 
 # pprint(system, width=120, indent=1, compact=False)
 # sv.validate_system(system)
-feedback, objects, interfaces = sv.validate_system(system)
-for ln in feedback:
-    print(ln)
+# feedback, objects, interfaces = sv.validate_system(system)
+# for ln in feedback:
+#     print(ln)
 
 errors, warnings, bksystem = tb.transform_system(system)
 for ln in errors:

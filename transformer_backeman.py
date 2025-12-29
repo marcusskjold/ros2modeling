@@ -46,6 +46,7 @@ otherwise according to their place in the list of nodes.
 # Previously, execution of callbacks of the same type in the wait set would be
 # ordered deterministically based on order of callback registration, but since,
 # it is nondeterministic, and order is only imposed between different callback types
+# TODO: Change to valid, such that future editions of ros do not have to be manually included
 INVALID_ROS_DISTRIBUTIONS = [
     "Rolling",
     "Kilted",
@@ -351,15 +352,15 @@ def validate_system(system: ros.System,
 
 # ============================== MAPPING ===============================
 
-def map_node(node: ros.Node) -> bk.Node:
-    """
-    bk has different node classes, ros has a single very expressive node class
-    """
+# def map_node(node: ros.Node) -> bk.Node:
+#     """
+#     bk has different node classes, ros has a single very expressive node class
+#     """
+#
+#     pass
 
-    pass
 
-
-def resolve_subscription_topic(subscriptions: [ros.Subscription],
+def resolve_subscription_topic(subscriptions: list[ros.Subscription],
                                callback: ros.Callback) -> str:
     # print("Resolving subscription topic")
     # print(subscriptions)
@@ -385,7 +386,7 @@ def map_subtasks(sub_tasks: list[ros.Callback],
         subscribers.append(subtopic.upper())
         wcets.append(sub.wcet)
         if sub.write_variables[0] == read_variable:
-            data_source = subtopic
+            data_source = subtopic.upper()
 
     # print(subscribers)
     # print(wcets)
@@ -406,10 +407,11 @@ def map_system(system: ros.System,
 
     out = bk.System(name.upper())
     out.deterministic_hosts(deterministic)
+    nodes = system.hosts[0].executors[0].nodes
 
-    max_priority = len(system.hosts[0].executors[0].nodes)
+    max_priority = len(nodes) # TODO: Does this need to be length of all callbacks rather than nodes?
 
-    for node in system.hosts[0].executors[0].nodes:
+    for node in nodes:
         node: ros.Node
         spec = nodemap[node.name]
         main_task = spec["main_task"]
@@ -464,7 +466,7 @@ def map_system(system: ros.System,
                                subscribers=subscribers,
                                wcets=wcets,
                                data_source="pd")
-            max_priority -= 1
+            # max_priority -= 1 # This is unnecessary but not wrong
 
     return out
 
@@ -487,7 +489,7 @@ def transform_system(
     if warnings == ["Warnings:"]:
         warnings = []
 
-    return [], [], map_system(system, nodemap)
+    return [], warnings, map_system(system, nodemap)
 
 # ========================== MONITORING ==========================
 
