@@ -166,7 +166,7 @@ class Node():
                     wcet: TimeUnit,
                     name: str = None,
                     qos_requested: QualityOfService = DEFAULT_QOS,
-                    qos_offered: QualityOfService = DEFAULT_QOS,
+                    qos_offered: QualityOfService = DEFAULT_QOS, #Should this be removed?
                     calls: list[Callback] = None) -> Service:
         if calls is None:
             calls = []

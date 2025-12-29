@@ -1,11 +1,10 @@
 System:
   system: mySystem
   dds_implementation: super
-  default_qos_profile: {buffersize: 10}
   external_outputs:
   - output0
   hosts:
-  - host: host0
+  - host: lolo
     operating_system: ubuntu 1
     executors: 
     - executor: host0_executor0
