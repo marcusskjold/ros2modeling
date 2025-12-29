@@ -310,7 +310,7 @@ class Executor():
                  callbacks=None, publishers=None,
                  clients=None,
                  external_outputs=None,
-                 default_qos=DEFAULT_QOS
+                 default_qos=None
                  ) -> Node:
 
         if name is None:
@@ -335,6 +335,8 @@ class Executor():
             clients = []
         if external_outputs is None:
             external_outputs = []
+        if default_qos is None
+            default_qos = self.default_qos
 
         node = Node(name=name,
                     subscriptions=subscriptions,
@@ -368,12 +370,14 @@ class Host():
     def add_executor(self, name: str = None,
                      implementation: str = DEFAULT_EXECUTOR,
                      ros_distribution: str = DEFAULT_DISTRIBUTION,
-                     default_qos: dict = DEFAULT_QOS) -> Executor:
+                     default_qos: dict = None) -> Executor:
 
         if name is None:
             name = self.name + "_executor" + str(len(self.executors))
         if (ros_distribution is None):
             raise ValueError("Please provide distribution")
+        if default_qos is None:
+            default_qos = self.default_qos
 
         executor = Executor(name=name, implementation=implementation, nodes=[],
                             ros_distribution=ros_distribution,
@@ -429,5 +433,5 @@ class System():
         self.name = name
         self.hosts = []
         self.dds_implementation = dds_implementation
-        self.default_qos = DEFAULT_QOS
+        self.default_qos = DEFAULT_QOS.copy()
 
