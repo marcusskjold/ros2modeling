@@ -117,12 +117,13 @@ class Subscription():
     qos_requested: QualityOfService
     callback: str
 
+    #TODO: something in constructor isn't adding up
     def __init__(self, topic: Topic,
-                 callback: Callback,
+                 callback: str,
                  qos_requested: QualityOfService = DEFAULT_QOS):
         self.topic = topic
         self.qos_requested = qos_requested
-        self.callback = callback.name
+        self.callback = callback
 
 
 @dataclass
@@ -185,7 +186,7 @@ class Node():
             qos_requested = self.default_qos
         self.subscriptions.append(
             Subscription(topic=topic,
-                         callback=callback,
+                         callback=callback.name,
                          qos_requested=qos_requested))
 
     def add_service(self,
@@ -231,7 +232,7 @@ class Node():
                      calls: list = None,
                      outputs: list[ExternalOutput] = None,
                      publishers: list[Publisher] = None,
-                     requests: list[Request] = None) -> Callback:
+                     requests: list[Request] = None) -> Callback: ###TODO: requests could be made from tuples instead???
         if read_variables is None:
             read_variables = []
         if write_variables is None:
@@ -301,8 +302,8 @@ class Executor():
     name: str
     ros_distribution: str
     implementation: str
-    nodes: list[Node]
     default_qos: QualityOfService
+    nodes: list[Node]
 
     def add_node(self, name: str = None, subscriptions=None,
                  variables=None, timers=None, services=None,
@@ -364,8 +365,8 @@ class Host():
     name: str
     operating_system: str
     architecture: str
-    executors: list[Executor]
     default_qos: QualityOfService
+    executors: list[Executor]
 
     def add_executor(self, name: str = None,
                      implementation: str = DEFAULT_EXECUTOR,
@@ -394,8 +395,8 @@ class Host():
 class System():
     name: str
     dds_implementation: str
-    hosts: list[Host]
     default_qos: QualityOfService
+    hosts: list[Host]
 
     def add_host(self,
                  name: str = None,
