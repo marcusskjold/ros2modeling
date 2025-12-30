@@ -295,6 +295,12 @@ class Node():
         self.variables.append(var)
         return var
 
+    def get_topic(self, publisher_name: str, default_value=None) -> str:
+        for pub in self.publishers:
+            if publisher_name == pub.name:
+                return pub.topic
+        return default_value
+
 
 @dataclass
 class Executor():
