@@ -17,6 +17,8 @@ TODO: Consider adding uniqueness checks to all lists
 
 """
 
+# ==================== CONSTANTS ===================================
+
 DDS_IMPLEMENTATIONS = [
     "Generic",
     "Cyclone",
@@ -99,6 +101,8 @@ VALID_VALUES = {
 }
 
 
+# ==================== FUNCTIONS ===================================
+
 def is_valid_value(typ: str, val: str) -> list[str]:
 
     if val not in VALID_VALUES[typ]:
@@ -143,6 +147,126 @@ def subset_check(key1: str, key2: str, sets) -> list[str]:
         return [f"Mismatched: Some {key1} are not among {key2}"]
 
 
+def add_interface(name: str, container_name: str,
+                  typ: str, interface_type: str, interfaces):
+    """
+    Checks if the name is not empty.
+    Registers the name inside the interfaces dict.
+    This is done to create a global, nonhierarchical overview of which topics,
+    services, etc. are read from and written to, such that it can be checked
+    at the end if any nodes read from a communication interface that no node
+    writes to.
+    """
+    if (name is None) or (name == ""):
+        return [f"{typ} inside '{container_name}' is missing name."]
+    else:
+        interfaces[interface_type].setdefault(name, [])
+        interfaces[interface_type][name].append(container_name)
+        return []
+
+
+# ==================== RESULT ======================================
+
+
+def check_for_cycles(graph: dict[str, dict], sources: list):
+    to_visit = set(graph.keys().copy())
+    visited = []
+
+    def visit(cb):
+        if cb not in to_visit:
+            return False
+        if cb in visited:
+            return True
+        visited.append(cb)
+        dependents = graph[cb]["subscribers"] + graph[cb]["readers"]
+        for dep in dependents:
+            if visit(dep):
+                return True
+        to_visit.remove(cb)
+
+    for s in sources:
+        if visit(s):
+            return True
+
+    return False
+
+
+def make_callback_graph(objects: dict[str, dict], interfaces):
+    callbacks = set(objects["callback"].keys())
+    sources = callbacks.copy()
+    sinks = callbacks.copy()
+    graph = {}
+    publishers = interfaces["topics published to"]
+    subscribers = interfaces["topics subscribed to"]
+    readers = interfaces["variables read from"]
+    writers = interfaces["variables written to"]
+    # clients = interfaces["services requested"]
+    # servers = interfaces["services offered"]
+
+    def visit(match, outputs, inputs):
+        for channel in outputs:
+            for outputter in outputs[channel]:
+                if outputter == match:
+                    sinks.discard(match)
+                    receivers = inputs[channel]
+                    sources.difference_update(receivers)
+                    graph[cb] += receivers
+
+    for cb in callbacks:
+        if cb in graph:
+            continue
+        graph[cb] = []
+        visit(cb, publishers, subscribers)
+        visit(cb, writers, readers)
+
+    return graph, sources, sinks
+
+
+def get_paths_from(graph, source, target):
+    next = [(source, [source])]
+    paths = []
+
+    if check_for_cycles(graph, source):
+        raise Exception(f"There is a cycle in the graph from {source} callback, cannot find chains")
+
+    while len(next) > 0:
+        current, path = next.pop()
+        if current == target:
+            paths.append(path)
+            continue
+        nexts = graph[current]["subscribers"] + graph[current]["readers"]
+        for n in nexts:
+            next.append(n, path + [n])
+
+    return paths
+
+
+class ValidationResult():
+    errors: list[str]
+    interfaces: dict[str, dict[str, list[str]]]
+    objects: dict[str, dict[str, str]]
+    graph: dict[str, list[str]]
+    sources: list[str]
+    sinks: list[str]
+
+    def __init__(self, errors, interfaces, objects):
+        self.errors = errors
+        self.interfaces = interfaces
+        self.objects = objects
+        if errors != []:
+            self.graph = None
+            self.sources = None
+            self.sinks = None
+        else:
+            graph, sources, sinks = make_callback_graph(objects, interfaces)
+            self.graph = graph
+            self.sources = sources
+            self.sinks = sinks
+
+
+# ==================== VALIDATORS ===================================
+
+
 def validate_qos(qos: ros.QualityOfService, parent: str) -> list[str]:
     feedback = []
     if qos["history"] not in QOS["history"]:
@@ -165,24 +289,6 @@ def validate_qos(qos: ros.QualityOfService, parent: str) -> list[str]:
     return feedback
 
 
-def add_interface(name: str, container_name: str,
-                  typ: str, interface_type: str, interfaces):
-    """
-    Checks if the name is not empty.
-    Registers the name inside the interfaces dict.
-    This is done to create a global, nonhierarchical overview of which topics,
-    services, etc. are read from and written to, such that it can be checked
-    at the end if any nodes read from a communication interface that no node
-    writes to.
-    """
-    if (name is None) or (name == ""):
-        return [f"{typ} inside '{container_name}' is missing name."]
-    else:
-        interfaces[interface_type].setdefault(name, [])
-        interfaces[interface_type][name].append(container_name)
-        return []
-
-
 def validate_client(client: ros.Client, parent: ros.Node,
                     objects, interfaces) -> list[str]:
     """
@@ -198,8 +304,9 @@ def validate_client(client: ros.Client, parent: ros.Node,
         return feedback
 
     feedback += validate_qos(client.qos_profile, client.name)
-    feedback += add_interface(client.service, client.name,
-                              "Service", "services requested", interfaces)
+    # TODO: Remove 2025-12-30
+    # feedback += add_interface(client.service, client.name,
+    #                           "Service", "services requested", interfaces)
 
     return feedback
 
@@ -219,8 +326,9 @@ def validate_publisher(publisher: ros.Publisher, parent: ros.Node,
         return feedback
 
     feedback += validate_qos(publisher.qos_offered, publisher.name)
-    feedback += add_interface(publisher.topic, publisher.name,
-                              "topic", "topics published to", interfaces)
+    # TODO: Remove 2025-12-30
+    # feedback += add_interface(publisher.topic, publisher.name,
+    #                           "topic", "topics published to", interfaces)
 
     return feedback
 
@@ -246,6 +354,8 @@ def validate_callback(callback: ros.Callback, parent: ros.Node,
     for publisher in callback.publishers:
         feedback += verify_registration(
             publisher, "publisher", pname, name, objects)
+        feedback += add_interface(parent.get_topic(publisher), name,
+                                  "topic", "topics published to", interfaces)
     for read in callback.read_variables:
         read: ros.Variable
         feedback += verify_registration(
@@ -267,6 +377,8 @@ def validate_callback(callback: ros.Callback, parent: ros.Node,
         if request.timeout < 0:
             feedback += [
                 f"A request of callback '{name}' has a negative timeout."]
+        feedback += add_interface(request.client.service, name,
+                                  "Service", "services requested", interfaces)
     if callback.wcet < 0:
         feedback += [f"Callback '{name}' has a negative wcet"]
 
@@ -302,7 +414,7 @@ def validate_subscription(subscription: ros.Subscription, parent: ros.Node,
     pname = parent.name
     feedback = []
     feedback += validate_qos(subscription.qos_requested, pname)
-    feedback += add_interface(subscription.topic, pname,
+    feedback += add_interface(subscription.topic, subscription.callback,
                               "Topic", "topics subscribed to", interfaces)
     feedback += verify_registration(subscription.callback,
                                     "callback", pname, pname, objects)
@@ -347,7 +459,7 @@ def validate_service(service: ros.Service, parent: ros.node,
         return feedback
 
     feedback += validate_qos(service.qos_requested, service.name)
-    feedback += add_interface(service.name, node.name, "service",
+    feedback += add_interface(service.name, service.callback, "service",
                               "services offered", interfaces)
     feedback += verify_registration(service.callback, "callback",
                                     parent.name, service.name, objects)
@@ -513,7 +625,7 @@ def validate_system(system: ros.System) -> tuple[
         "topics subscribed to": {},
         "topics published to": {},
         "variables written to": {},
-        "variables read from": {}
+        "variables read from": {},
     }
 
     objects: dict[str, dict[str, str]] = {
@@ -544,19 +656,4 @@ def validate_system(system: ros.System) -> tuple[
     feedback += subset_check("services requested", "services offered", interfaces)
     feedback += subset_check("topics subscribed to", "topics published to", interfaces)
 
-    if feedback == []:
-        return (["System is well formed"], objects, interfaces)
-    else:
-        return (feedback, objects, interfaces)
-
-# class SystemAnalyser():
-#     def construct_callback_graph(system: System) -> 
-#
-#         def get_processing_chains(system: System, source: Callback = None,
-#                               sink: Callback = None) -> list[Callback]:
-#         """
-#         source and sink refer to Casini et al 2019, 6:8
-#         """
-#         pass
-
-
+    return ValidationResult(errors=feedback, objects=objects, interfaces=interfaces)
