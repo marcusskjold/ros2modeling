@@ -109,47 +109,6 @@ def check_buffers(executor: ros.Executor) -> list[str]:
     return feedback
 
 
-def check_for_cycles(system: ros.System,
-                     objects: dict[str, dict[str, str]],
-                     interfaces: dict[str, dict[str, list[str]]]) -> bool:
-    """
-    validate_system() establishes that there is exactly one publisher per topic
-    validate_node() establishes that there is exactly one publisher per node
-    using https://en.wikipedia.org/wiki/Topological_sorting
-    """
-    nodes = list(objects["node"].keys())
-    subscribers = interfaces["topics subscribed to"].copy()
-    publishers = interfaces["topics published to"].copy()
-    visited = []
-    # settled = []
-
-    def visit(node: str):
-        # print(f"Visiting node {node}")
-        if node not in nodes:
-            # print(f"Node {node} already settled")
-            return False
-        if node in visited:
-            return True
-        visited.append(node)
-        # print(f"Node {node} worth visiting")
-        dependents = []
-        for topic in publishers:
-            if node == objects["publisher"][publishers[topic][0]]:
-                dependents = subscribers.get(topic, [])
-        # print(f"{dependents} depend on {node}")
-        for dep in dependents:
-            if visit(dep):
-                return True
-        # print(f"settled {node}")
-        nodes.remove(node)
-
-    while len(nodes) > 0:
-        if visit(nodes[0]):
-            return True
-
-    return False
-
-
 def is_valid_data_generator(node: ros.Node) -> bool:
     """
     Definition 3:
@@ -243,8 +202,6 @@ def validate_node(node: ros.Node) -> tuple[list[str], list[str]]:
         "main_task": None,
         "read_variable": None,
         "type": None,
-
-
     }
 
     main_tasks = 0
@@ -286,7 +243,6 @@ def validate_node(node: ros.Node) -> tuple[list[str], list[str]]:
                        "but does not read from any of them"]
         else:
             nodespec["read variable"] = main_task.read_variables[0]
-
 
     if is_valid_data_generator(node):
         nodespec["type"] = "data generator"
@@ -342,8 +298,6 @@ def validate_system(system: ros.System,
         warnings += warns
         nodemap[node.name] = nodespec
 
-    if check_for_cycles(executor, objects, interfaces):
-        errors += ["Cycles are not supported. There is a cycle among nodes"]
     warnings += check_buffers(executor)
 
     return errors, warnings, nodemap
@@ -482,7 +436,9 @@ def transform_system(
                   "Validation feedback:"] + feedback],
                 None)
 
-    errors, warnings, nodemap = validate_system(system, objects, interfaces)
+    errors, warnings, nodemap, graph = validate_system(system, objects, interfaces)
+    if validator.check_for_cycles(graph, graph.keys()):
+        errors += ["Cycles are not supported. There is a cycle among callbacks of source ros system"]
 
     if errors != ["Errors:"]:
         return errors, warnings, None
