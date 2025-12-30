@@ -31,7 +31,7 @@ System:
           - client: client1
             timeout: 10
         timers:
-        - timer: sensor1timer0
+        - timer: sensor1timer0lol
           callback: sensor1callback0
           period: 50
           offset: 0
