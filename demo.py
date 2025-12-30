@@ -121,18 +121,26 @@ act.add_subscription(topic="filter3", callback=cb8)
 
 # pprint(system, width=120, indent=1, compact=False)
 # sv.validate_system(system)
-# feedback, objects, interfaces = sv.validate_system(system)
-# for ln in feedback:
-#     print(ln)
+result = sv.validate_system(system)
+result: sv.ValidationResult
+if result.errors is not None:
+    for ln in result.errors:
+        print(ln)
+else:
+    pass
+    # todo
 
-errors, warnings, bksystem = tb.transform_system(system)
-for ln in errors:
-    print(ln)
-for ln in warnings:
-    print(ln)
-bksystem: bk.System
-tb.monitor(bksystem, "sensor1", "actuator1")
-print(bksystem.gen_declaration())
-print(bksystem.gen_system())
-mrt, _, _ = bksystem.max_reaction_time()
-print(mrt)
+
+
+
+# errors, warnings, bksystem = tb.transform_system(system)
+# for ln in errors:
+#     print(ln)
+# for ln in warnings:
+#     print(ln)
+# bksystem: bk.System
+# tb.monitor(bksystem, "sensor1", "actuator1")
+# print(bksystem.gen_declaration())
+# print(bksystem.gen_system())
+# mrt, _, _ = bksystem.max_reaction_time()
+# print(mrt)
