@@ -215,12 +215,13 @@ class Node():
         self.services.append(service)
         return service
 
-    def add_client(self,
+    def add_client(self, ####TODO: add name?!!!!
+                   name: str,
                    service: str,
                    qos_profile: QualityOfService = None) -> Client:
         if qos_profile is None:
             qos_profile = self.default_qos
-        client = Client(service=service, qos_profile=qos_profile)
+        client = Client(name=name, service=service, qos_profile=qos_profile)
         self.clients.append(client)
         return client
 
@@ -251,7 +252,8 @@ class Node():
                             read_variables=read_variables,
                             write_variables=write_variables,
                             calls=calls, publishers=pnames,
-                            external_outputs=outputs)
+                            external_outputs=outputs,
+                            requests=requests)
         self.callbacks.append(callback)
         return callback
 

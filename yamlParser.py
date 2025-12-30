@@ -26,21 +26,28 @@ def parse_callbacks(ros_node: ros.Node, yaml_callbacks: dict) -> None:
           if 'callback' in callback:
                callback_args['name'] = callback['callback']
           if 'external_outputs' in callback:
-               ##TODO: check that it works
-               ##TODO: consider for this (as well as below) whether we should accept (create instance) 
-                # in case of ext. output here but not in output field
-               ros_names = [external_output.name for external_output in ros_node.external_outputs]
+               #get list of output-names in current yaml-callback
                yaml_names = [external_output['external_output'] for external_output in callback['external_outputs']]
-               callback_args['external_output'] = [eo for eo in ros_names & yaml_names]
+               #add external outputs from node to args, if present among callbacks of the node
+               callback_args['outputs'] = [eo for eo in ros_node.external_outputs if eo.name in yaml_names]
           if 'read_variables' in callback:
-               ros_names = [read_variable.name for read_variable in ros_node.variables]
                yaml_names = [read_variable['read_variable'] for read_variable in callback['read_variables']]
-               callback_args['read_variable'] = [rv for rv in ros_names & yaml_names]
+               callback_args['read_variable'] = [rv for rv in ros_node.variables if rv.name in yaml_names]
           if 'write_variables' in callback:
-               ros_names = [write_variable.name for write_variable in ros_node.variables]
                yaml_names = [write_variable['write_variable'] for write_variable in callback['write_variables']]
-               callback_args['write_variable'] = [wv for wv in ros_names & yaml_names]
-          #if 'requests' in callback: ##TODO: implement
+               callback_args['write_variable'] = [wv for wv in ros_node.variables if wv.name in yaml_names]
+          if 'requests' in callback:
+               #callback_args['requests'] = [ros.Request(client=cli, timeout=service.timeout) for cli in ros_node.clients for service in callback['requests']]
+               #yaml_clients = [request['client'] for request in callback['requests']]
+               #1)
+               # callback_args['requests'] = []
+               # for request in callback['requests']:
+               #      for client in ros_node.clients:
+               #           if(client.name == request['client']):
+               #                callback_args['requests'].append(ros.Request(client=client, timeout=request['timeout']))
+               #                break #assumes no duplicate clients -> or redundant ones will be called??
+               #2)
+               callback_args['requests'] = [ros.Request(client=client, timeout=request['timeout']) for client in ros_node.clients for request in callback['requests'] if client.name == request['client']]
           ros_node.add_callback(**callback_args)
 
 def parse_external_outputs(ros_node: ros.Node, yaml_external__outputs: dict) -> None:
@@ -70,6 +77,8 @@ def parse_clients(ros_node: ros.Node, yaml_clients: dict) -> None:
           if 'client' in client:
                client_args['name'] = client['client']
           ros_node.add_client(**client_args)
+
+##TODO: parse services!!! -> and constraint that service shouldn't call itself!!!
 
 def parse_publishers(ros_node: ros.Node, yaml_publishers: dict) -> None:
      for publisher in yaml_publishers:
@@ -143,7 +152,7 @@ def parse_system(yaml_system: dict) -> ros.System:
     return ros_sys
 
 #load the yaml-file
-with open('example_simpler.yaml','r') as file:
+with open('example_debug_1.yaml','r') as file:
     #yaml_object = yaml.safe_load(file)
     yaml=YAML(typ='safe')   # default, if not specfied, is 'rt' (round-trip)
     yaml_object = yaml.load(file)
@@ -151,14 +160,14 @@ with open('example_simpler.yaml','r') as file:
     print(yaml_object['System']['hosts'][0]['executors'][0]['implementation'])
     if(len(yaml_object)!=1 or not ('System' in yaml_object)):
         raise SyntaxError("file must have single outer-key 'System'")
-    #pprint(yaml_object, sort_dicts=False)
+    pprint(yaml_object, sort_dicts=False)
     ##TODO: Make function for parsing system-part itself
-    try:
+    #try:
         #creating sys
-        yaml_system = yaml_object['System']
-        ros_system = parse_system(yaml_system)
-    except (Exception) as e:
-        print(str(e))
+    yaml_system = yaml_object['System']
+    ros_system = parse_system(yaml_system)
+    #except (Exception) as e:
+    #    print(str(e))
     pprint(ros_system)
 
 

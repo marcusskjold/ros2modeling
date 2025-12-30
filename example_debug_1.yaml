@@ -1,0 +1,61 @@
+System:
+  system: mySystem
+  dds_implementation: super
+  external_outputs:
+  - output0
+  hosts:
+  - host: lolo
+    operating_system: ubuntu 1
+    executors: 
+    - executor: host0_executor0
+      implementation: EventExecutor
+      nodes:
+      - node: sensor1
+        publishers: 
+        - publisher: sensor1publisher0
+          topic: sensor1
+        - publisher: sensor1service0publisher
+          topic: sensor1service0
+        callbacks:
+        - callback: sensor1callback0
+          wcet: 30
+          publisher: sensor1publisher0
+        - callback: sensor1service0_cb
+          wcet: 100
+          publisher: sensor1service0publisher
+          external_outputs:
+          - external_output: goLeft
+          requests:
+          - client: client1
+            timeout: 5
+          - client: client1
+            timeout: 10
+        timers:
+        - timer: sensor1timer0
+          callback: sensor1callback0
+          period: 50
+          offset: 0
+        services:
+        - service: sensor1service0
+          callback: sensor1service0_cb
+        external_outputs:
+        - external_output: goLeft
+        - external_output: goRight
+        clients: 
+        - client: client1
+          service: sensor1service0 
+
+      - node: sensor2
+        publishers:
+        - publisher: sensor2publisher0
+          topic: sensor2
+        callbacks:
+        - callback: sensor2callback0
+          wcet: 30
+          publisher: sensor2publisher0
+        timers:
+        - timer: sensor2timer0
+          value: 0
+          callback: sensor2callback0
+          period: 50
+          offset: 0
