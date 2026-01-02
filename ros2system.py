@@ -117,13 +117,13 @@ class Subscription():
     qos_requested: QualityOfService
     callback: str
 
-    #TODO: something in constructor isn't adding up
+    #TODO: something in constructor isn't adding up (maybe resolved)
     def __init__(self, topic: Topic,
                  callback: str,
                  qos_requested: QualityOfService = DEFAULT_QOS):
         self.topic = topic
         self.qos_requested = qos_requested
-        self.callback = callback
+        self.callback = callback.name
 
 
 @dataclass
@@ -303,6 +303,7 @@ class Executor():
     implementation: str
     default_qos: QualityOfService
     nodes: list[Node]
+
 
     def add_node(self, name: str = None, subscriptions=None,
                  variables=None, timers=None, services=None,
