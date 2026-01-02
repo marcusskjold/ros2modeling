@@ -44,6 +44,16 @@ System:
         clients: 
         - client: client1
           service: sensor1service0 
+        subscriptions:
+        - subscription: subscriber1
+          callback: sensor1service0_cb
+          topic: sensor2
+        variables:
+        - variable: v1
+        - variable: v3
+        external_inputs:
+        - external_input: howdy
+          callback: sensor1callback0
 
       - node: sensor2
         publishers:

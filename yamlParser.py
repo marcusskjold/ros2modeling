@@ -14,27 +14,49 @@ ATTRIBUTES = {
      'callback' : {},
 }
 
-##TODO: test
+def parse_services(ros_node: ros.Node, yaml_services: dict) -> None:
+     for service in yaml_services:
+          service_args = {k: service[k] for k in service.keys() & {'qos_requested'}}
+          if 'service' in service:
+               service_args['name'] = service['service']
+          if 'callback' in service:
+               service_args['callback'] = next((callback for callback in ros_node.callbacks if callback.name == service['callback']), None)
+          ros_node.add_service(**service_args)
+
 def parse_subscriptions(ros_node: ros.Node, yaml_subscriptions: dict) -> None:
      for subscription in yaml_subscriptions:
-          subscription_args = {k: subscription[k] for k in subscription.keys() & {'topic', 'qos_requested'}} ##TODO:should qos have another name?
-          if 'subscription' in subscription:
-               subscription_args['name'] = subscription['subscription']
-          subscription_args['callback'] = [callback for callback in ros_node.callbacks if callback.name == subscription['callback']][0]
+          subscription_args = {k: subscription[k] for k in subscription.keys() & {'topic', 'qos_requested'}}
+          #subscription_args['name'] = subscription.get('subscription') ##TODO: no name for subscription as of now?
+          if 'callback' in subscription:
+               subscription_args['callback'] = next((callback for callback in ros_node.callbacks if callback.name == subscription['callback']), None)
           ros_node.add_subscription(**subscription_args)
           
-
 def parse_timers(ros_node: ros.Node, yaml_timers: dict) -> None:
      for timer in yaml_timers:
           timer_args = {k: timer[k] for k in timer.keys() & {'period', 'offset'}}
-          ##TODO: rewrite other if-statements to remove one line
-          # if 'timer' in timer:
-          #      timer_args['name'] = timer['timer']
-          timer_args['name'] = timer.get('timer')
+          if 'timer' in timer:
+               timer_args['name'] = timer['timer']
           # find callback that has the specified name
-          timer_args['callback'] = [callback for callback in ros_node.callbacks if callback.name == timer['callback']][0]
+          if 'callback' in timer:
+               timer_args['callback'] = next((callback for callback in ros_node.callbacks if callback.name == timer['callback']), None)
           ros_node.add_timer(**timer_args)
 
+def parse_external_inputs(ros_node: ros.Node, yaml_external_inputs: dict) -> None:
+     for external_input in yaml_external_inputs:
+          external_input_args = {'name' : external_input['external_input']} if 'external_input' in external_input else {}
+          if 'callback' in external_input:
+               external_input_args['callback'] = next((callback for callback in ros_node.callbacks if callback.name == external_input['callback']), None)
+          ros_node.add_external_input(**external_input_args)
+
+def parse_external_outputs(ros_node: ros.Node, yaml_external__outputs: dict) -> None:
+     for external_output in yaml_external__outputs:
+          external_output_args = {'name' : external_output['external_output']} if 'external_output' in external_output else {}
+          ros_node.add_external_output(**external_output_args)
+
+def parse_variables(ros_node: ros.Node, yaml_variables: dict) -> None:
+     for variable in yaml_variables:
+          variable_args = {'name' : variable['variable']} if 'variable' in variable else {}
+          ros_node.add_variable(**variable_args)
 
 def parse_callbacks(ros_node: ros.Node, yaml_callbacks: dict) -> None:
      for callback in yaml_callbacks:
@@ -66,30 +88,6 @@ def parse_callbacks(ros_node: ros.Node, yaml_callbacks: dict) -> None:
                callback_args['requests'] = [ros.Request(client=client, timeout=request['timeout']) for client in ros_node.clients for request in callback['requests'] if client.name == request['client']]
           ros_node.add_callback(**callback_args)
 
-##TODO: test
-def parse_external_outputs(ros_node: ros.Node, yaml_external__outputs: dict) -> None:
-     for external_output in yaml_external__outputs:
-          external_output_args = {}
-          if 'external_output' in external_output:
-               external_output_args['name'] = external_output['external_output']
-          ros_node.add_external_output(**external_output_args)
-
-##TODO: test
-def parse_external_inputs(ros_node: ros.Node, yaml_external_inputs: dict) -> None:
-     for external_input in yaml_external_inputs:
-          external_input_args = {}
-          if 'external_input' in external_input:
-               external_input_args['name'] = external_input['external_input']
-          ros_node.add_external_input(**external_input_args)
-
-##TODO: test
-def parse_variables(ros_node: ros.Node, yaml_variables: dict) -> None:
-     for variable in yaml_variables:
-          variable_args = {}
-          if 'variable' in variable:
-               variable_args['name'] = variable['variable']
-          ros_node.add_variable(**variable_args)
-
 def parse_clients(ros_node: ros.Node, yaml_clients: dict) -> None:
      for client in yaml_clients:
           client_args = {k: client[k] for k in client.keys() & {'service', 'qos_profile'}}
@@ -97,20 +95,18 @@ def parse_clients(ros_node: ros.Node, yaml_clients: dict) -> None:
                client_args['name'] = client['client']
           ros_node.add_client(**client_args)
 
-##TODO: parse services!!! -> and constraint that service shouldn't call itself!!!
+##TODO: think about constraint that service shouldn't call itself!!!
 
 def parse_publishers(ros_node: ros.Node, yaml_publishers: dict) -> None:
      for publisher in yaml_publishers:
           publisher_args = {k: publisher[k] for k in publisher.keys() & {'qos_offered','topic'}}
           if 'publisher' in publisher:
-                publisher_args['name'] = publisher['publisher']
+               publisher_args['name'] = publisher['publisher']
           ros_node.add_publisher(**publisher_args)
 
 def parse_nodes(ros_executor: ros.Executor, yaml_nodes: dict) -> None:
      for node in yaml_nodes:
-        node_args = {}
-        if 'node' in node:
-                node_args['name'] = node['node']
+        node_args = {'name' : node['node']} if 'node' in node else {}
         ros_node = ros_executor.add_node(**node_args)
         if 'publishers' in node:
              yaml_publishers = node['publishers']
@@ -121,25 +117,24 @@ def parse_nodes(ros_executor: ros.Executor, yaml_nodes: dict) -> None:
         if 'variables' in node:
              yaml_variables = node['variables']
              parse_variables(ros_node, yaml_variables)
-        if 'external_inputs' in node:
-             yaml_external_inputs = node['external_inputs']
-             parse_external_inputs(ros_node, yaml_external_inputs)
         if 'external_outputs' in node:
              yaml_external_outputs = node['external_outputs']
              parse_external_outputs(ros_node, yaml_external_outputs)     
         if 'callbacks' in node:
              yaml_callbacks = node['callbacks']
              parse_callbacks(ros_node, yaml_callbacks)
+        if 'external_inputs' in node:
+             yaml_external_inputs = node['external_inputs']
+             parse_external_inputs(ros_node, yaml_external_inputs)
         if 'timers' in node:
              yaml_timers = node['timers']
              parse_timers(ros_node, yaml_timers)
         if 'subscriptions' in node:
              yaml_subscriptions = node['subscriptions']
              parse_subscriptions(ros_node, yaml_subscriptions)
-        #if ''
-        ##At this point maybe create a number of nodes and e.g. their publishers etc. (non-recursively),
-        #then go on to define other things for each (even before parsing node) -> in order for references to be there?
-        #the lazy evaluation stuff, where system could create these if not present would be nice feature here?
+        if 'services' in node:
+             yaml_services = node['services']
+             parse_services(ros_node, yaml_services)
 
 #recursively call this with current ros-object and current part of yaml-dict
 def parse_executors(ros_host: ros.Host, yaml_execs: dict) -> None:
@@ -154,7 +149,6 @@ def parse_executors(ros_host: ros.Host, yaml_execs: dict) -> None:
 def parse_hosts(ros_system, yaml_hosts) -> None:
      for host in yaml_hosts:
             #conditionally populating arguments for adding host
-            #host_args = {k: host.get(k,None) for k in ('operating_system', 'architecture')}
             host_args = {k: host[k] for k in host.keys() & {'operating_system', 'architecture', 'default_qos'}}
             #change key 'name' to 'host'
             if 'host' in host:
@@ -178,22 +172,19 @@ with open('example_debug_1.yaml','r') as file:
     #yaml_object = yaml.safe_load(file)
     yaml=YAML(typ='safe')   # default, if not specfied, is 'rt' (round-trip)
     yaml_object = yaml.load(file)
-    ##debug ex
-    print(yaml_object['System']['hosts'][0]['executors'][0]['implementation'])
+##debug ex
+#print(yaml_object['System']['hosts'][0]['executors'][0]['implementation'])
     if(len(yaml_object)!=1 or not ('System' in yaml_object)):
         raise SyntaxError("file must have single outer-key 'System'")
-    pprint(yaml_object, sort_dicts=False)
-    ##TODO: Make function for parsing system-part itself
-    #try:
-        #creating sys
+##debug
+#pprint(yaml_object, sort_dicts=False)
+    #creating sys
     yaml_system = yaml_object['System']
     ros_system = parse_system(yaml_system)
-    #except (Exception) as e:
-    #    print(str(e))
     pprint(ros_system)
 
 
 
 #TODO: check that argument order is preserved
     #check that using C-version of ruamel is okay(see website)
-    #check that white-space in front of field is treated as None
+    # maybe add actions to parser

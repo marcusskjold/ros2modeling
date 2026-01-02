@@ -74,7 +74,7 @@ class Callback():
     wcet: TimeUnit
     read_variables: list[Variable]
     write_variables: list[Variable]
-    calls: list[str]
+    calls: list[str] #TODO: what is this, or is it maintained fine as list of string?
     publishers: list[str]
     external_outputs: list[ExternalOutput]
     requests: list[Request]
@@ -159,12 +159,15 @@ class Node():
     clients: list[Client]
     default_qos: QualityOfService
 
-    def add_external_input(self, name: str = None) -> ExternalInput:
+    def add_external_input(self, callback: Callback=None, name: str = None) -> ExternalInput:
 
         if name is None:
             name = self.name + "_input" + str(len(self.external_inputs))
 
-        input = ExternalInput(name)
+        if callback is None:
+            raise ValueError("Please provide valid callback for external input")
+        
+        input = ExternalInput(name=name, callback=callback)
         self.external_inputs.append(input)
         return input
 
@@ -179,9 +182,11 @@ class Node():
 
     def add_subscription(self,
                          topic: Topic,
-                         callback: Callback,
+                         callback: Callback = None,
                          qos_requested:
                          QualityOfService = None) -> Subscription:
+        if callback is None:
+            raise ValueError("Please provide valid callback for subscription")
         if qos_requested is None:
             qos_requested = self.default_qos
         self.subscriptions.append(
@@ -190,35 +195,27 @@ class Node():
                          qos_requested=qos_requested))
 
     def add_service(self,
-                    wcet: TimeUnit,
+                    callback: Callback = None, #Can be alternative type, arguably, as it has specific interface
                     name: str = None,
-                    qos_profile: QualityOfService = None,
-                    calls: list[Callback] = None) -> Service:
+                    qos_profile: QualityOfService = None) -> Service: 
+        if callback is None:
+            raise ValueError("Please provide valid callback for service")
         if qos_profile is None:
             qos_profile = self.default_qos
-        if calls is None:
-            calls = []
         if name is None:
             name = self.name + "_service" + str(len(self.services))
-        callback = self.add_callback(
-            name=name + "_cb",
-            wcet=wcet,
-            publishers=[self.add_publisher(
-                name=name + "_publisher",
-                qos_offered=qos_profile,
-                topic=name
-            )]
-        )
         service = Service(name=name,
                           callback=callback,
                           qos_requested=qos_profile)
         self.services.append(service)
         return service
 
-    def add_client(self, ####TODO: add name?!!!!
-                   name: str,
+    def add_client(self,
                    service: str,
+                   name: str = None,
                    qos_profile: QualityOfService = None) -> Client:
+        if name is None:
+            name = self.name + "_client" + str(len(self.clients))
         if qos_profile is None:
             qos_profile = self.default_qos
         client = Client(name=name, service=service, qos_profile=qos_profile)
@@ -266,7 +263,7 @@ class Node():
         if name is None:
             name = self.name + "_publisher" + str(len(self.publishers))
         if topic is None:
-            raise ValueError("Please provide topic to publisher")
+            raise ValueError("Please provide topic for publisher")
         publisher = Publisher(name=name,
                               qos_offered=qos_offered,
                               topic=topic,
@@ -280,7 +277,7 @@ class Node():
                   offset: TimeUnit = 0,
                   callback: Callback = None) -> Timer:
         if callback is None:
-            raise ValueError("Please provide callback")
+            raise ValueError("Please provide valid callback for timer")
         if name is None:
             name = self.name + "_timer" + str(len(self.timers))
         timer = Timer(
