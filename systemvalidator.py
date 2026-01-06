@@ -207,10 +207,12 @@ def make_callback_graph(objects: dict[str, dict], interfaces):
         for channel in outputs:
             for outputter in outputs[channel]:
                 if outputter == match:
-                    sinks.discard(match)
-                    receivers = inputs[channel]
-                    sources.difference_update(receivers)
-                    graph[cb] += receivers
+                    receivers = inputs.get(channel)
+                    if receivers is not None:
+                        sinks.discard(match)
+                        sources.difference_update(receivers)
+                        graph[cb] += receivers
+
 
     for cb in callbacks:
         if cb in graph:
