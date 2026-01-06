@@ -74,7 +74,7 @@ class Callback():
     wcet: TimeUnit
     read_variables: list[Variable]
     write_variables: list[Variable]
-    calls: list[str]
+    calls: list[str] #TODO: what is this, or is it maintained fine as list of string?
     publishers: list[str]
     external_outputs: list[ExternalOutput]
     requests: list[Request]
@@ -117,12 +117,13 @@ class Subscription():
     qos_requested: QualityOfService
     callback: str
 
+    #TODO: something in constructor isn't adding up (maybe resolved)
     def __init__(self, topic: Topic,
-                 callback: Callback,
+                 callback: str,
                  qos_requested: QualityOfService = DEFAULT_QOS):
         self.topic = topic
         self.qos_requested = qos_requested
-        self.callback = callback.name
+        self.callback = callback
 
 
 @dataclass
@@ -158,12 +159,15 @@ class Node():
     clients: list[Client]
     default_qos: QualityOfService
 
-    def add_external_input(self, name: str = None) -> ExternalInput:
+    def add_external_input(self, callback: Callback=None, name: str = None) -> ExternalInput:
 
         if name is None:
             name = self.name + "_input" + str(len(self.external_inputs))
 
-        input = ExternalInput(name)
+        if callback is None:
+            raise ValueError("Please provide valid callback for external input")
+        
+        input = ExternalInput(name=name, callback=callback)
         self.external_inputs.append(input)
         return input
 
@@ -178,36 +182,28 @@ class Node():
 
     def add_subscription(self,
                          topic: Topic,
-                         callback: Callback,
+                         callback: Callback = None,
                          qos_requested:
                          QualityOfService = None) -> Subscription:
+        if callback is None:
+            raise ValueError("Please provide valid callback for subscription")
         if qos_requested is None:
             qos_requested = self.default_qos
         self.subscriptions.append(
             Subscription(topic=topic,
-                         callback=callback,
+                         callback=callback.name,
                          qos_requested=qos_requested))
 
     def add_service(self,
-                    wcet: TimeUnit,
+                    callback: Callback = None, #Can be alternative type, arguably, as it has specific interface
                     name: str = None,
-                    qos_profile: QualityOfService = None,
-                    calls: list[Callback] = None) -> Service:
+                    qos_profile: QualityOfService = None) -> Service: 
+        if callback is None:
+            raise ValueError("Please provide valid callback for service")
         if qos_profile is None:
             qos_profile = self.default_qos
-        if calls is None:
-            calls = []
         if name is None:
             name = self.name + "_service" + str(len(self.services))
-        callback = self.add_callback(
-            name=name + "_cb",
-            wcet=wcet,
-            publishers=[self.add_publisher(
-                name=name + "_publisher",
-                qos_offered=qos_profile,
-                topic=name
-            )]
-        )
         service = Service(name=name,
                           callback=callback,
                           qos_requested=qos_profile)
@@ -216,10 +212,13 @@ class Node():
 
     def add_client(self,
                    service: str,
+                   name: str = None,
                    qos_profile: QualityOfService = None) -> Client:
+        if name is None:
+            name = self.name + "_client" + str(len(self.clients))
         if qos_profile is None:
             qos_profile = self.default_qos
-        client = Client(service=service, qos_profile=qos_profile)
+        client = Client(name=name, service=service, qos_profile=qos_profile)
         self.clients.append(client)
         return client
 
@@ -231,7 +230,7 @@ class Node():
                      calls: list = None,
                      outputs: list[ExternalOutput] = None,
                      publishers: list[Publisher] = None,
-                     requests: list[Request] = None) -> Callback:
+                     requests: list[Request] = None) -> Callback: ###TODO: requests could be made from tuples instead???
         if read_variables is None:
             read_variables = []
         if write_variables is None:
@@ -250,7 +249,8 @@ class Node():
                             read_variables=read_variables,
                             write_variables=write_variables,
                             calls=calls, publishers=pnames,
-                            external_outputs=outputs)
+                            external_outputs=outputs,
+                            requests=requests)
         self.callbacks.append(callback)
         return callback
 
@@ -263,7 +263,7 @@ class Node():
         if name is None:
             name = self.name + "_publisher" + str(len(self.publishers))
         if topic is None:
-            raise ValueError("Please provide topic to publisher")
+            raise ValueError("Please provide topic for publisher")
         publisher = Publisher(name=name,
                               qos_offered=qos_offered,
                               topic=topic,
@@ -277,7 +277,7 @@ class Node():
                   offset: TimeUnit = 0,
                   callback: Callback = None) -> Timer:
         if callback is None:
-            raise ValueError("Please provide callback")
+            raise ValueError("Please provide valid callback for timer")
         if name is None:
             name = self.name + "_timer" + str(len(self.timers))
         timer = Timer(
@@ -301,8 +301,9 @@ class Executor():
     name: str
     ros_distribution: str
     implementation: str
-    nodes: list[Node]
     default_qos: QualityOfService
+    nodes: list[Node]
+
 
     def add_node(self, name: str = None, subscriptions=None,
                  variables=None, timers=None, services=None,
@@ -335,7 +336,7 @@ class Executor():
             clients = []
         if external_outputs is None:
             external_outputs = []
-        if default_qos is None
+        if default_qos is None:
             default_qos = self.default_qos
 
         node = Node(name=name,
@@ -364,8 +365,8 @@ class Host():
     name: str
     operating_system: str
     architecture: str
-    executors: list[Executor]
     default_qos: QualityOfService
+    executors: list[Executor]
 
     def add_executor(self, name: str = None,
                      implementation: str = DEFAULT_EXECUTOR,
@@ -394,8 +395,8 @@ class Host():
 class System():
     name: str
     dds_implementation: str
-    hosts: list[Host]
     default_qos: QualityOfService
+    hosts: list[Host]
 
     def add_host(self,
                  name: str = None,
@@ -404,10 +405,6 @@ class System():
                  default_qos=None) -> Host:
         if default_qos is None:
             default_qos = self.default_qos
-        if (operating_system is None):
-            raise ValueError("Please provide operating_system")
-        if (architecture is None):
-            raise ValueError("Please provide architecture")
         if name is None:
             name = "_host" + str(len(self.hosts))
 

@@ -23,14 +23,37 @@ System:
         - callback: sensor1service0_cb
           wcet: 100
           publisher: sensor1service0publisher
+          external_outputs:
+          - external_output: goLeft
+          requests:
+          - client: client1
+            timeout: 5
+          - client: client1
+            timeout: 10
         timers:
-        - timer: sensor1timer0
+        - timer: sensor1timer0lol
           callback: sensor1callback0
           period: 50
           offset: 0
         services:
         - service: sensor1service0
           callback: sensor1service0_cb
+        external_outputs:
+        - external_output: goLeft
+        - external_output: goRight
+        clients: 
+        - client: client1
+          service: sensor1service0 
+        subscriptions:
+        - subscription: subscriber1
+          callback: sensor1service0_cb
+          topic: sensor2
+        variables:
+        - variable: v1
+        - variable: v3
+        external_inputs:
+        - external_input: howdy
+          callback: sensor1callback0
 
       - node: sensor2
         publishers:
