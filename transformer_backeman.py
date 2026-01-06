@@ -180,7 +180,7 @@ def is_valid_subscriber(node: ros.Node) -> bool:
         return False
 
 
-def validate_node(node: ros.Node) -> tuple[list[str], list[str]]:
+def validate_node(node: ros.Node):
     """
     A bk node is a ros node with one primary trigger, publisher and callback,
     along with a list of secondary triggers, and callbacks.
@@ -192,6 +192,9 @@ def validate_node(node: ros.Node) -> tuple[list[str], list[str]]:
     errors = []
     warnings = []
 
+    if node.name != node.name.upper():
+        warnings += [f"Name of node '{node.name}' is not upper case, model "
+                     f"assumes upper case names. Name is forced to upper case"]
     if len(node.publishers) > 1:
         errors += [f"Node '{node.name}' publishes to more than one topic"]
     if len(node.publishers) < 1:
