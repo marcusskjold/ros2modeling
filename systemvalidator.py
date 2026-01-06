@@ -265,6 +265,16 @@ class ValidationResult():
             self.sources = sources
             self.sinks = sinks
 
+    def get_paths_from(self, source, target):
+        return get_paths_from(self.graph, source, target)
+
+    def get_all_cb_chains(self):
+        chains = []
+        for source in self.sources:
+            for sink in self.sinks:
+                chains += self.get_paths_from(source, sink)
+        return chains
+
 
 # ==================== VALIDATORS ===================================
 
