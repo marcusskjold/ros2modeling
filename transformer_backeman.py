@@ -430,15 +430,17 @@ def map_system(system: ros.System,
 def transform_system(
         system: ros.System) -> tuple[list[str], list[str], bk.System]:
 
-    feedback, objects, interfaces = validator.validate_system(system)
-    if feedback != ["System is well formed"]:
+    result = validator.validate_system(system)
+    result: validator.ValidationResult
+
+    if result.errors != []:
         return ([["System is not well formed, cannot start transformation. "
-                  "Validation feedback:"] + feedback],
+                  "Validation feedback:"] + result.errors],
                 None)
 
-    errors, warnings, nodemap, graph = validate_system(system, objects, interfaces)
-    if validator.check_for_cycles(graph, graph.keys()):
-        errors += ["Cycles are not supported. There is a cycle among callbacks of source ros system"]
+    errors, warnings, nodemap = validate_system(system, result.objects, result.interfaces)
+    # if validator.check_for_cycles(graph, graph.keys()):
+    #     errors += ["Cycles are not supported. There is a cycle among callbacks of source ros system"]
 
     if errors != ["Errors:"]:
         return errors, warnings, None

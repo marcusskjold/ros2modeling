@@ -116,6 +116,7 @@ f3.add_subscription(topic="fusion1", callback=cb7)
 # cb8 = act.add_callback(wcet=30, outputs=[extout])
 pub7 = act.add_publisher(topic="actuator1")
 cb8 = act.add_callback(wcet=30, publishers=[pub7])
+# cb8 = act.add_callback(wcet=30)
 act.add_subscription(topic="filter3", callback=cb8)
 
 
@@ -127,20 +128,17 @@ if result.errors is not None:
     for ln in result.errors:
         print(ln)
 else:
-    pass
-    # todo
+    errors, warnings, bksystem = tb.transform_system(system)
+    for ln in errors:
+        print(ln)
+    for ln in warnings:
+        print(ln)
+    bksystem: bk.System
+    tb.monitor(bksystem, "sensor1", "actuator1")
+    print(bksystem.gen_declaration())
+    print(bksystem.gen_system())
+    print(bksystem.max_reaction_time(gen_graph=False))
 
 
 
 
-# errors, warnings, bksystem = tb.transform_system(system)
-# for ln in errors:
-#     print(ln)
-# for ln in warnings:
-#     print(ln)
-# bksystem: bk.System
-# tb.monitor(bksystem, "sensor1", "actuator1")
-# print(bksystem.gen_declaration())
-# print(bksystem.gen_system())
-# mrt, _, _ = bksystem.max_reaction_time()
-# print(mrt)
