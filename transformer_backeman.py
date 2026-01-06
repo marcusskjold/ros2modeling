@@ -265,7 +265,8 @@ def validate_node(node: ros.Node):
 
 
 def validate_system(system: ros.System,
-                    objects, interfaces) -> tuple[list[str], list[str]]:
+                    objects,
+                    interfaces) -> tuple[list[str], list[str]]:
     errors = ["Errors:"]
     warnings = ["Warnings:"]
     for elem in LIMITED_ELEMENTS:
@@ -306,29 +307,26 @@ def validate_system(system: ros.System,
     return errors, warnings, nodemap
 
 
-
 # ============================== MAPPING ===============================
-
-# def map_node(node: ros.Node) -> bk.Node:
-#     """
-#     bk has different node classes, ros has a single very expressive node class
-#     """
-#
-#     pass
 
 
 def resolve_subscription_topic(subscriptions: list[ros.Subscription],
-                               callback: ros.Callback) -> str:
-    # print("Resolving subscription topic")
-    # print(subscriptions)
-    # print(callback)
+                               callback: str) -> str:
     for subscription in subscriptions:
         subscription: ros.Subscription
-        if subscription.callback == callback.name:
-            # print("Success!")
-            # print(subscription.topic)
+        if subscription.callback == callback:
             return subscription.topic
-    # print("Failure")
+
+def map_subtask(sub: ros.Callback,
+                read_variable: str,
+                subscriptions: list[ros.Subscription]) -> tuple[list[str], list[int], str]:
+    subtopic = resolve_subscription_topic(subscriptions, sub.name).upper()
+    wcet = sub.wcet
+    is_writer = False
+    if sub.write_variables[0] == read_variable:
+        is_writer = True
+
+    return subtopic, wcet, is_writer
 
 
 def map_subtasks(sub_tasks: list[ros.Callback],
@@ -336,31 +334,26 @@ def map_subtasks(sub_tasks: list[ros.Callback],
                  subscriptions: list[ros.Subscription]) -> tuple[list[str], list[int], str]:
     subscribers = []
     wcets = []
-    data_source = None
+    writer = None
 
     for sub in sub_tasks:
-        subtopic = resolve_subscription_topic(subscriptions, sub)
-        subscribers.append(subtopic.upper())
-        wcets.append(sub.wcet)
-        if sub.write_variables[0] == read_variable:
-            data_source = subtopic.upper()
+        subtopic, wcet, is_writer = map_subtask(sub, read_variable, subscriptions)
+        subscribers.append(subtopic)
+        wcets.append(wcet)
+        if is_writer:
+            writer = subtopic
 
-    # print(subscribers)
-    # print(wcets)
-    # print(sub_tasks)
-    # print(read_variable)
-    # print(subscriptions)
-    assert data_source is not None
+    assert writer is not None
 
-    return subscribers, wcets, data_source
+    return subscribers, wcets, writer
 
 
 def map_system(system: ros.System,
-               nodemap: dict[str, list[ros.Node]]) -> bk.System:
+               nodemap: dict[str, list[ros.Node]],
+               objects,
+               chain: list[str]) -> bk.System:
     name = system.name
     deterministic = True  # TODO: Support this
-    monitored_actuator = None  # TODO
-    monitor_period = 0  # TODO
 
     out = bk.System(name.upper())
     out.deterministic_hosts(deterministic)
@@ -405,25 +398,30 @@ def map_system(system: ros.System,
                           )
             max_priority -= 1
         elif node_type == "subscriber":
-            topic = resolve_subscription_topic(node.subscriptions, main_task)
+            topic = resolve_subscription_topic(node.subscriptions, main_task.name)
+            data_source = "pd"
 
             read_variable = spec.get("read variable")
             if read_variable is not None:
-                subscribers, wcets, data_source = map_subtasks(
+                subscribers, wcets, writer = map_subtasks(
                     sub_tasks, read_variable, node.subscriptions)
-                data_source = name.upper() + "x" + data_source.upper() + "_data"
+                if main_task.name in chain:
+                    prev = chain[chain.index(main_task.name)-1]
+                    prevnode = objects["callback"][prev]
+                    if prevnode == name:
+                        data_source = name.upper() + "x" + writer.upper() + "_data"
             else:
                 subscribers = []
                 wcets = []
-                data_source = "pd"
 
             out.add_subscriber(name=name.upper(),
                                topic=topic.upper(),
                                wcet=wcet,
                                subscribers=subscribers,
                                wcets=wcets,
-                               data_source="pd")
-            # max_priority -= 1 # This is unnecessary but not wrong
+                               data_source=data_source)
+
+    monitor(out, chain[0], chain[-1])
 
     return out
 
@@ -431,26 +429,29 @@ def map_system(system: ros.System,
 
 
 def transform_system(
-        system: ros.System) -> tuple[list[str], list[str], bk.System]:
+        system: ros.System,
+        chain: list[ros.Callback],
+        validationresult: validator.ValidationResult = None) -> tuple[list[str], list[str], bk.System]:
 
-    result = validator.validate_system(system)
-    result: validator.ValidationResult
-
-    if result.errors != []:
-        return ([["System is not well formed, cannot start transformation. "
-                  "Validation feedback:"] + result.errors],
+    if validationresult is None:
+        validationresult = validator.validate_system(system)
+        validationresult: validator.ValidationResult
+        if validationresult.errors != []:
+            return (
+                [["System is not well formed, cannot start transformation. "
+                    "Validation feedback:"] + validationresult.errors],
+                [],
                 None)
 
-    errors, warnings, nodemap = validate_system(system, result.objects, result.interfaces)
-    # if validator.check_for_cycles(graph, graph.keys()):
-    #     errors += ["Cycles are not supported. There is a cycle among callbacks of source ros system"]
+    errors, warnings, nodemap = validate_system(
+        system, validationresult.objects, validationresult.interfaces)
 
     if errors != ["Errors:"]:
         return errors, warnings, None
     if warnings == ["Warnings:"]:
         warnings = []
 
-    return [], warnings, map_system(system, nodemap)
+    return [], warnings, map_system(system, nodemap, validationresult.objects, chain)
 
 # ========================== MONITORING ==========================
 

@@ -124,11 +124,16 @@ act.add_subscription(topic="filter3", callback=cb8)
 # sv.validate_system(system)
 result = sv.validate_system(system)
 result: sv.ValidationResult
-if result.errors is not None:
+if result.errors != []:
     for ln in result.errors:
         print(ln)
 else:
-    errors, warnings, bksystem = tb.transform_system(system)
+    print(result.get_all_cb_chains())
+    print(result.sinks)
+    print(result.sources)
+    chain = result.get_paths_from("sensor1_cb0", "actuator1_cb0")[0]
+    print(chain)
+    errors, warnings, bksystem = tb.transform_system(system, chain)
     for ln in errors:
         print(ln)
     for ln in warnings:
