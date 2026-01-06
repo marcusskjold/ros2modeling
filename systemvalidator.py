@@ -169,7 +169,7 @@ def add_interface(name: str, container_name: str,
 
 
 def check_for_cycles(graph: dict[str, dict], sources: list):
-    to_visit = set(graph.keys().copy())
+    to_visit = set(graph.keys())
     visited = []
 
     def visit(cb):
@@ -203,6 +203,7 @@ def make_callback_graph(objects: dict[str, dict], interfaces):
     # clients = interfaces["services requested"]
     # servers = interfaces["services offered"]
 
+
     def visit(match, outputs, inputs):
         for channel in outputs:
             for outputter in outputs[channel]:
@@ -212,7 +213,6 @@ def make_callback_graph(objects: dict[str, dict], interfaces):
                         sinks.discard(match)
                         sources.difference_update(receivers)
                         graph[cb] += receivers
-
 
     for cb in callbacks:
         if cb in graph:
@@ -236,9 +236,9 @@ def get_paths_from(graph, source, target):
         if current == target:
             paths.append(path)
             continue
-        nexts = graph[current]["subscribers"] + graph[current]["readers"]
+        nexts = graph[current]
         for n in nexts:
-            next.append(n, path + [n])
+            next.append((n, path + [n]))
 
     return paths
 
@@ -302,7 +302,6 @@ def validate_client(client: ros.Client, parent: ros.Node,
     """
     feedback = register(client.name, "client", parent.name, objects)
     if feedback != []:
-        print(feedback)
         return feedback
 
     feedback += validate_qos(client.qos_profile, client.name)
