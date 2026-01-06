@@ -123,7 +123,7 @@ class Subscription():
                  qos_requested: QualityOfService = DEFAULT_QOS):
         self.topic = topic
         self.qos_requested = qos_requested
-        self.callback = callback.name
+        self.callback = callback
 
 
 @dataclass
