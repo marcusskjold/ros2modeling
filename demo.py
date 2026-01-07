@@ -1,4 +1,5 @@
 import ros2system as ros
+import yamlPrinter as yp
 from pprint import pprint
 import backeman.system as bk
 import systemvalidator as sv
@@ -145,5 +146,4 @@ else:
     print(bksystem.max_reaction_time(gen_graph=False))
 
 
-
-
+yp.save_to_yaml(system, "out")
