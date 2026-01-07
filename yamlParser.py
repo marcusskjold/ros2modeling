@@ -14,6 +14,11 @@ ATTRIBUTES = {
      'callback' : {},
 }
 
+def parse_qos(yaml_qos: dict) -> dict:
+     return {k: yaml_qos[k] for k in yaml_qos.keys() & \
+             {'history','depth','reliability','durability','deadline','lifespan','liveliness','liveliness_lease_duration'}}
+
+
 def parse_services(ros_node: ros.Node, yaml_services: dict) -> None:
      for service in yaml_services:
           service_args = {k: service[k] for k in service.keys() & {'qos_requested'}}
@@ -55,7 +60,7 @@ def parse_external_outputs(ros_node: ros.Node, yaml_external__outputs: dict) -> 
 
 def parse_variables(ros_node: ros.Node, yaml_variables: dict) -> None:
      for variable in yaml_variables:
-          variable_args = {'name' : variable['variable']} if 'variable' in variable else {}
+          variable_args = {'name' : variable}
           ros_node.add_variable(**variable_args)
 
 def parse_callbacks(ros_node: ros.Node, yaml_callbacks: dict) -> None:
@@ -69,11 +74,11 @@ def parse_callbacks(ros_node: ros.Node, yaml_callbacks: dict) -> None:
                #add external outputs from node to args, if present among callbacks of the node
                callback_args['outputs'] = [eo for eo in ros_node.external_outputs if eo.name in yaml_names]
           if 'read_variables' in callback:
-               yaml_names = [read_variable['read_variable'] for read_variable in callback['read_variables']]
-               callback_args['read_variable'] = [rv for rv in ros_node.variables if rv.name in yaml_names]
+               yaml_names = [read_variable for read_variable in callback['read_variables']]
+               callback_args['read_variables'] = [rv for rv in ros_node.variables if rv.name in yaml_names]
           if 'write_variables' in callback:
-               yaml_names = [write_variable['write_variable'] for write_variable in callback['write_variables']]
-               callback_args['write_variable'] = [wv for wv in ros_node.variables if wv.name in yaml_names]
+               yaml_names = [write_variable for write_variable in callback['write_variables']]
+               callback_args['write_variables'] = [wv for wv in ros_node.variables if wv.name in yaml_names]
           if 'requests' in callback:
                #callback_args['requests'] = [ros.Request(client=cli, timeout=service.timeout) for cli in ros_node.clients for service in callback['requests']]
                #yaml_clients = [request['client'] for request in callback['requests']]
@@ -85,7 +90,10 @@ def parse_callbacks(ros_node: ros.Node, yaml_callbacks: dict) -> None:
                #                callback_args['requests'].append(ros.Request(client=client, timeout=request['timeout']))
                #                break #assumes no duplicate clients -> or redundant ones will be called??
                #2)
-               callback_args['requests'] = [ros.Request(client=client, timeout=request['timeout']) for client in ros_node.clients for request in callback['requests'] if client.name == request['client']]
+               callback_args['requests'] = [
+                    ros.Request(client=client, timeout=request['timeout']) \
+                         for client in ros_node.clients \
+                              for request in callback['requests'] if client.name == request['client']]
           ros_node.add_callback(**callback_args)
 
 def parse_clients(ros_node: ros.Node, yaml_clients: dict) -> None:
@@ -149,10 +157,12 @@ def parse_executors(ros_host: ros.Host, yaml_execs: dict) -> None:
 def parse_hosts(ros_system, yaml_hosts) -> None:
      for host in yaml_hosts:
             #conditionally populating arguments for adding host
-            host_args = {k: host[k] for k in host.keys() & {'operating_system', 'architecture', 'default_qos'}}
+            host_args = {k: host[k] for k in host.keys() & {'operating_system', 'architecture'}}
             #change key 'name' to 'host'
             if 'host' in host:
                 host_args['name'] = host['host']
+            if 'qos' in host:
+                host_args['default_qos'] = parse_qos(host['qos'])
             #instantiate system-instance from args
             ros_host = ros_system.add_host(**host_args)
 
@@ -164,11 +174,10 @@ def parse_system(yaml_system: dict) -> ros.System:
     #adding hosts
     yaml_hosts = yaml_system['hosts']
     parse_hosts(ros_sys, yaml_hosts)
-
     return ros_sys
 
 #load the yaml-file
-with open('example_debug_1.yaml','r') as file:
+with open('example.yaml','r') as file:
     #yaml_object = yaml.safe_load(file)
     yaml=YAML(typ='safe')   # default, if not specfied, is 'rt' (round-trip)
     yaml_object = yaml.load(file)

@@ -1,4 +1,5 @@
 System:
+  system: backeman_ex
   dds_implementation: super
   default_qos_profile: {buffersize: 10}
   external_outputs:
@@ -6,6 +7,9 @@ System:
   hosts:
   - host: host0
     operating_system: ubuntu 1
+    qos: 
+      history: keep_last
+      depth: 5
     executors: 
     - executor: host0_executor0
       implementation: EventExecutor
@@ -115,4 +119,4 @@ System:
           publisher: None
         subscriptions:
         - topic: filter3
-          callback: filter3callback0
+          callback: actuatorcallback0

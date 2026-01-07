@@ -332,7 +332,7 @@ def validate_timer(timer: ros.Timer, parent: ros.Node,
     return feedback
 
 
-def validate_service(service: ros.Service, parent: ros.node,
+def validate_service(service: ros.Service, parent: ros.Node,
                      objects, interfaces) -> list[str]:
     """
     A service is well formed if:
