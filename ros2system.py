@@ -443,7 +443,7 @@ class System():
         else:
             default_qos = QoS(**default_qos)
         if name is None:
-            name = "_host" + str(len(self.hosts))
+            name = self.name + "_host" + str(len(self.hosts))
 
         host = Host(executors=[],
                     operating_system=operating_system,
