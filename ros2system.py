@@ -3,24 +3,52 @@ from dataclasses import dataclass
 #TODO: Make enums (in validator) available to the user of this class
 
 TimeUnit = int
-QualityOfService = dict
+
 Topic = str
 
 DEFAULT_EXECUTOR = "SingleThreadedExecutor"
-DEFAULT_QOS: QualityOfService = {
-    "history": "system_default",
-    "depth": 10,
-    "reliability": "system_default",
-    "durability": "system_default",
-    "deadline": 0,
-    "lifespan": 0,
-    "liveliness": "system_default",
-    "liveliness_lease_duration": 0
-}
+#Based on ROS2's own default topic/service QoS (see: https://github.com/ros2/rmw/blob/rolling/rmw/include/rmw/qos_profiles.h )#
+#For extendability, we could store it as a map of dict, mapping each kind of QoS-setting to a dict (e.g. service, parameter, sensor)
+
 DEFAULT_DISTRIBUTION = "Rolling" #TODO: Make this overridable inside system?
 UNSPECIFIED = "Generic" #When not specified in model
 
 
+@dataclass
+class QualityOfService:
+    history: str
+    depth: int | str
+    reliability: str
+    durability: str
+    deadline: int | str
+    lifespan: int | str
+    liveliness: str
+    liveliness_lease_duration: int | str
+
+    def __init__(self,
+                 history: str = "keep_last",
+                 depth: int | str = 10,
+                 reliability: str = "reliable",
+                 durability: str = "volatile",
+                 deadline: int | str = "default",
+                 lifespan: int | str = "default",
+                 liveliness: str = "system_default",
+                 liveliness_lease_duration = "default"
+                 ):
+        self.history=history
+        self.depth=depth
+        self.reliability=reliability
+        self.durability=durability
+        self.deadline=deadline
+        self.lifespan=lifespan
+        self.liveliness=liveliness
+        self.liveliness_lease_duration=liveliness_lease_duration
+
+#alias
+QoS = QualityOfService
+
+#default object
+DEFAULT_QOS = QoS()
 
 @dataclass
 class Variable:
@@ -409,8 +437,11 @@ class System():
                  operating_system: str = UNSPECIFIED,
                  architecture=UNSPECIFIED,
                  default_qos=None) -> Host:
+        #TODO: make this logic better and/or add it more places where relevant?
         if default_qos is None:
             default_qos = self.default_qos
+        else:
+            default_qos = QoS(**default_qos)
         if name is None:
             name = self.name + "_host" + str(len(self.hosts))
 
@@ -431,10 +462,9 @@ class System():
     def __init__(self, name: str, dds_implementation: str = None):
 
         if (dds_implementation is None):
-            raise ValueError("Please provide dds_implementation")
+            raise ValueError("Please provide dds_implementation") #TODO: should maybe not be mandatory?
 
         self.name = name
         self.hosts = []
         self.dds_implementation = dds_implementation
-        self.default_qos = DEFAULT_QOS.copy()
-
+        self.default_qos = QoS()
