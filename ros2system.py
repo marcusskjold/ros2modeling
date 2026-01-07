@@ -412,7 +412,7 @@ class System():
         if default_qos is None:
             default_qos = self.default_qos
         if name is None:
-            name = "_host" + str(len(self.hosts))
+            name = self.name + "_host" + str(len(self.hosts))
 
         host = Host(executors=[],
                     operating_system=operating_system,
