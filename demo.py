@@ -26,7 +26,7 @@ e = h.add_executor(implementation="SingleThreadedExecutor")
 
 
 system = ros.System("test", dds_implementation="Generic")
-system.default_qos["length"] = 20
+system.default_qos.depth = 20
 
 host = system.add_host(operating_system="Generic")
 executor = host.add_executor(implementation="SingleThreadedExecutor", ros_distribution="Eloquent")

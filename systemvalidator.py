@@ -146,7 +146,6 @@ def subset_check(key1: str, key2: str, sets) -> list[str]:
     else:
         return [f"Mismatched: Some {key1} are not among {key2}"]
 
-
 def add_interface(name: str, container_name: str,
                   typ: str, interface_type: str, interfaces):
     """
@@ -278,24 +277,160 @@ class ValidationResult():
 
 # ==================== VALIDATORS ===================================
 
+def validate_qos(qos: ros.QualityOfService, parent: str) -> list[str]:
+    feedback = []
+    if qos.history not in QOS["history"]:
+        feedback += [f"{parent} has invalid qos history policy"]
+    if qos.depth < 0:
+        feedback += [f"{parent} has invalid qos depth policy"]
+    if qos.reliability not in QOS["reliability"]:
+        feedback += [f"{parent} has invalid qos reliability policy"]
+    if qos.durability not in QOS["durability"]:
+        feedback += [f"{parent} has invalid qos durability policy"]
+    if qos.deadline < 0:
+        feedback += [f"{parent} has invalid qos deadline policy"]
+    if qos.lifespan < 0:
+        feedback += [f"{parent} has invalid qos lifespan policy"]
+    if qos.liveliness not in QOS["liveliness"]:
+        feedback += [f"{parent} has invalid qos liveliness policy"]
+    if qos.liveliness_lease_duration < 0:
+        feedback += [
+            f"{parent} has invalid qos liveliness_lease_duration policy"]
+    return feedback
+
+
+
+# ==================== RESULT ======================================
+
+
+def check_for_cycles(graph: dict[str, dict], sources: list):
+    to_visit = set(graph.keys())
+    visited = []
+
+    def visit(cb):
+        if cb not in to_visit:
+            return False
+        if cb in visited:
+            return True
+        visited.append(cb)
+        dependents = graph[cb]["subscribers"] + graph[cb]["readers"]
+        for dep in dependents:
+            if visit(dep):
+                return True
+        to_visit.remove(cb)
+
+    for s in sources:
+        if visit(s):
+            return True
+
+    return False
+
+
+def make_callback_graph(objects: dict[str, dict], interfaces):
+    callbacks = set(objects["callback"].keys())
+    sources = callbacks.copy()
+    sinks = callbacks.copy()
+    graph = {}
+    publishers = interfaces["topics published to"]
+    subscribers = interfaces["topics subscribed to"]
+    readers = interfaces["variables read from"]
+    writers = interfaces["variables written to"]
+    # clients = interfaces["services requested"]
+    # servers = interfaces["services offered"]
+
+
+    def visit(match, outputs, inputs):
+        for channel in outputs:
+            for outputter in outputs[channel]:
+                if outputter == match:
+                    receivers = inputs.get(channel)
+                    if receivers is not None:
+                        sinks.discard(match)
+                        sources.difference_update(receivers)
+                        graph[cb] += receivers
+
+    for cb in callbacks:
+        if cb in graph:
+            continue
+        graph[cb] = []
+        visit(cb, publishers, subscribers)
+        visit(cb, writers, readers)
+
+    return graph, sources, sinks
+
+
+def get_paths_from(graph, source, target):
+    next = [(source, [source])]
+    paths = []
+
+    if check_for_cycles(graph, source):
+        raise Exception(f"There is a cycle in the graph from {source} callback, cannot find chains")
+
+    while len(next) > 0:
+        current, path = next.pop()
+        if current == target:
+            paths.append(path)
+            continue
+        nexts = graph[current]
+        for n in nexts:
+            next.append((n, path + [n]))
+
+    return paths
+
+
+class ValidationResult():
+    errors: list[str]
+    interfaces: dict[str, dict[str, list[str]]]
+    objects: dict[str, dict[str, str]]
+    graph: dict[str, list[str]]
+    sources: list[str]
+    sinks: list[str]
+
+    def __init__(self, errors, interfaces, objects):
+        self.errors = errors
+        self.interfaces = interfaces
+        self.objects = objects
+        if errors != []:
+            self.graph = None
+            self.sources = None
+            self.sinks = None
+        else:
+            graph, sources, sinks = make_callback_graph(objects, interfaces)
+            self.graph = graph
+            self.sources = sources
+            self.sinks = sinks
+
+    def get_paths_from(self, source, target):
+        return get_paths_from(self.graph, source, target)
+
+    def get_all_cb_chains(self):
+        chains = []
+        for source in self.sources:
+            for sink in self.sinks:
+                chains += self.get_paths_from(source, sink)
+        return chains
+
+
+# ==================== VALIDATORS ===================================
+
 
 def validate_qos(qos: ros.QualityOfService, parent: str) -> list[str]:
     feedback = []
-    if qos["history"] not in QOS["history"]:
+    if qos.history not in QOS["history"]:
         feedback += [f"{parent} has invalid qos history policy"]
-    if qos["depth"] < 0:
+    if qos.depth < 0:
         feedback += [f"{parent} has invalid qos depth policy"]
-    if qos["reliability"] not in QOS["reliability"]:
+    if qos.reliability not in QOS["reliability"]:
         feedback += [f"{parent} has invalid qos reliability policy"]
-    if qos["durability"] not in QOS["durability"]:
+    if qos.durability not in QOS["durability"]:
         feedback += [f"{parent} has invalid qos durability policy"]
-    if qos["deadline"] < 0:
+    if qos.deadline < 0:
         feedback += [f"{parent} has invalid qos deadline policy"]
-    if qos["lifespan"] < 0:
+    if qos.lifespan < 0:
         feedback += [f"{parent} has invalid qos lifespan policy"]
-    if qos["liveliness"] not in QOS["liveliness"]:
+    if qos.liveliness not in QOS["liveliness"]:
         feedback += [f"{parent} has invalid qos liveliness policy"]
-    if qos["liveliness_lease_duration"] < 0:
+    if qos.liveliness_lease_duration < 0:
         feedback += [
             f"{parent} has invalid qos liveliness_lease_duration policy"]
     return feedback
@@ -314,10 +449,8 @@ def validate_client(client: ros.Client, parent: ros.Node,
     if feedback != []:
         return feedback
 
-    feedback += validate_qos(client.qos_profile, client.name)
-    # TODO: Remove 2025-12-30
-    # feedback += add_interface(client.service, client.name,
-    #                           "Service", "services requested", interfaces)
+    feedback += validate_qos(client.qos, client.name)
+
 
     return feedback
 
@@ -336,10 +469,7 @@ def validate_publisher(publisher: ros.Publisher, parent: ros.Node,
     if feedback != []:
         return feedback
 
-    feedback += validate_qos(publisher.qos_offered, publisher.name)
-    # TODO: Remove 2025-12-30
-    # feedback += add_interface(publisher.topic, publisher.name,
-    #                           "topic", "topics published to", interfaces)
+    feedback += validate_qos(publisher.qos, publisher.name)
 
     return feedback
 
@@ -424,7 +554,7 @@ def validate_subscription(subscription: ros.Subscription, parent: ros.Node,
     """
     pname = parent.name
     feedback = []
-    feedback += validate_qos(subscription.qos_requested, pname)
+    feedback += validate_qos(subscription.qos, pname)
     feedback += add_interface(subscription.topic, subscription.callback,
                               "Topic", "topics subscribed to", interfaces)
     feedback += verify_registration(subscription.callback,
@@ -469,7 +599,7 @@ def validate_service(service: ros.Service, parent: ros.Node,
     if feedback != []:
         return feedback
 
-    feedback += validate_qos(service.qos_requested, service.name)
+    feedback += validate_qos(service.qos, service.name)
     feedback += add_interface(service.name, service.callback, "service",
                               "services offered", interfaces)
     feedback += verify_registration(service.callback, "callback",
