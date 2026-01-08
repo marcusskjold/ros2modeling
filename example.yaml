@@ -1,15 +1,10 @@
 System:
   system: backeman_ex
-  dds_implementation: super
-  default_qos_profile: {buffersize: 10}
+  default_qos: {depth: 10}
   external_outputs:
   - output0
   hosts:
   - host: host0
-    operating_system: ubuntu 1
-    qos: 
-      history: keep_last
-      depth: 5
     executors: 
     - executor: host0_executor0
       implementation: EventExecutor

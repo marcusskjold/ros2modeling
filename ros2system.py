@@ -3,31 +3,30 @@ from dataclasses import dataclass
 #TODO: Make enums (in validator) available to the user of this class
 
 TimeUnit = int
-
 Topic = str
 
 DEFAULT_EXECUTOR = "SingleThreadedExecutor"
-#Based on ROS2's own default topic/service QoS (see: https://github.com/ros2/rmw/blob/rolling/rmw/include/rmw/qos_profiles.h )#
-#For extendability, we could store it as a map of dict, mapping each kind of QoS-setting to a dict (e.g. service, parameter, sensor)
-
 DEFAULT_DISTRIBUTION = "Rolling" #TODO: Make this overridable inside system?
 UNSPECIFIED = "Generic" #When not specified in model
 
 
+#Default-arguments based on ROS2's own default topic/service QoS (see: https://github.com/ros2/rmw/blob/rolling/rmw/include/rmw/qos_profiles.h )#
+#For extendability, we could store it as a map of dict, 
+# mapping each kind of QoS-setting to a dict (e.g. service, parameter, sensor)
 @dataclass
 class QualityOfService:
     history: str
-    depth: int | str
+    depth: int
     reliability: str
     durability: str
-    deadline: int | str
-    lifespan: int | str
+    deadline: int
+    lifespan: int
     liveliness: str
-    liveliness_lease_duration: int | str
+    liveliness_lease_duration: int
 
     def __init__(self,
                  history: str = "keep_last",
-                 depth: int | str = 10,
+                 depth: int = 10,
                  reliability: str = "reliable",
                  durability: str = "volatile",
                  deadline: int | str = "default",
@@ -35,14 +34,15 @@ class QualityOfService:
                  liveliness: str = "system_default",
                  liveliness_lease_duration = "default"
                  ):
+        #TODO: convert default to -1 here
         self.history=history
         self.depth=depth
         self.reliability=reliability
         self.durability=durability
-        self.deadline=deadline
-        self.lifespan=lifespan
+        self.deadline= 0 if deadline == "default" else deadline
+        self.lifespan= 0 if lifespan == "default" else lifespan
         self.liveliness=liveliness
-        self.liveliness_lease_duration=liveliness_lease_duration
+        self.liveliness_lease_duration= 0 if liveliness_lease_duration == "default" else liveliness_lease_duration
 
 #alias
 QoS = QualityOfService
@@ -71,23 +71,23 @@ class Timer():
 @dataclass
 class Publisher():
     name: str
-    qos_offered: QualityOfService
+    qos: QualityOfService
     topic: Topic
 
     def __init__(self,
                  name: str,
                  topic: Topic,
-                 qos_offered: QualityOfService = DEFAULT_QOS):
+                 qos: QualityOfService = DEFAULT_QOS):
         self.name = name
         self.topic = topic
-        self.qos_offered = qos_offered
+        self.qos = qos
 
 
 @dataclass
 class Client():
     name: str
     service: str
-    qos_profile: QualityOfService
+    qos: QualityOfService
 
 
 @dataclass
@@ -142,15 +142,14 @@ class Callback():
 @dataclass
 class Subscription():
     topic: Topic
-    qos_requested: QualityOfService
+    qos: QualityOfService
     callback: str
 
-    #TODO: something in constructor isn't adding up (maybe resolved)
     def __init__(self, topic: Topic,
                  callback: str,
-                 qos_requested: QualityOfService = DEFAULT_QOS):
+                 qos: QualityOfService = DEFAULT_QOS):
         self.topic = topic
-        self.qos_requested = qos_requested
+        self.qos = qos
         self.callback = callback
 
 
@@ -158,7 +157,7 @@ class Subscription():
 class Service():
     name: str
     callback: Callback
-    qos_requested: QualityOfService
+    qos: QualityOfService
 
 
 @dataclass
@@ -211,42 +210,48 @@ class Node():
     def add_subscription(self,
                          topic: Topic,
                          callback: Callback = None,
-                         qos_requested:
+                         qos:
                          QualityOfService = None) -> Subscription:
         if callback is None:
             raise ValueError("Please provide valid callback for subscription")
-        if qos_requested is None:
-            qos_requested = self.default_qos
+        if qos is None:
+            qos = self.default_qos
+        else: 
+            qos = QoS(**qos)
         self.subscriptions.append(
             Subscription(topic=topic,
                          callback=callback.name,
-                         qos_requested=qos_requested))
+                         qos=qos))
 
     def add_service(self,
                     callback: Callback = None, #Can be alternative type, arguably, as it has specific interface
                     name: str = None,
-                    qos_profile: QualityOfService = None) -> Service: 
+                    qos: QualityOfService = None) -> Service: 
         if callback is None:
             raise ValueError("Please provide valid callback for service")
-        if qos_profile is None:
-            qos_profile = self.default_qos
+        if qos is None:
+            qos = self.default_qos
+        else: 
+            qos = QoS(**qos)
         if name is None:
             name = self.name + "_service" + str(len(self.services))
         service = Service(name=name,
                           callback=callback,
-                          qos_requested=qos_profile)
+                          qos=qos)
         self.services.append(service)
         return service
 
     def add_client(self,
                    service: str,
                    name: str = None,
-                   qos_profile: QualityOfService = None) -> Client:
+                   qos: QualityOfService = None) -> Client:
         if name is None:
             name = self.name + "_client" + str(len(self.clients))
-        if qos_profile is None:
-            qos_profile = self.default_qos
-        client = Client(name=name, service=service, qos_profile=qos_profile)
+        if qos is None:
+            qos = self.default_qos
+        else: 
+            qos = QoS(**qos)
+        client = Client(name=name, service=service, qos=qos)
         self.clients.append(client)
         return client
 
@@ -284,16 +289,18 @@ class Node():
 
     def add_publisher(self,
                       name: str = None,
-                      qos_offered: QualityOfService = None,
+                      qos: QualityOfService = None,
                       topic: Topic = None) -> Publisher:
-        if qos_offered is None:
-            qos_offered = self.default_qos
         if name is None:
             name = self.name + "_publisher" + str(len(self.publishers))
+        if qos is None:
+            qos = self.default_qos
+        else: 
+            qos = QoS(**qos)
         if topic is None:
             raise ValueError("Please provide topic for publisher")
         publisher = Publisher(name=name,
-                              qos_offered=qos_offered,
+                              qos=qos,
                               topic=topic,
                               )
         self.publishers.append(publisher)
@@ -372,6 +379,8 @@ class Executor():
             external_outputs = []
         if default_qos is None:
             default_qos = self.default_qos
+        else: 
+            default_qos = QoS(**default_qos)
 
         node = Node(name=name,
                     subscriptions=subscriptions,
@@ -405,7 +414,7 @@ class Host():
     def add_executor(self, name: str = None,
                      implementation: str = DEFAULT_EXECUTOR,
                      ros_distribution: str = DEFAULT_DISTRIBUTION,
-                     default_qos: dict = None) -> Executor:
+                     default_qos: QualityOfService = None) -> Executor:
 
         if name is None:
             name = self.name + "_executor" + str(len(self.executors))
@@ -413,6 +422,8 @@ class Host():
             raise ValueError("Please provide distribution")
         if default_qos is None:
             default_qos = self.default_qos
+        else: 
+            default_qos = QoS(**default_qos)
 
         executor = Executor(name=name, implementation=implementation, nodes=[],
                             ros_distribution=ros_distribution,
@@ -437,14 +448,12 @@ class System():
                  operating_system: str = UNSPECIFIED,
                  architecture=UNSPECIFIED,
                  default_qos=None) -> Host:
-        #TODO: make this logic better and/or add it more places where relevant?
-        if default_qos is None:
-            default_qos = self.default_qos
-        else:
-            default_qos = QoS(**default_qos)
         if name is None:
             name = self.name + "_host" + str(len(self.hosts))
-
+        if default_qos is None:
+            default_qos = self.default_qos
+        else: 
+            default_qos = QoS(**default_qos)
         host = Host(executors=[],
                     operating_system=operating_system,
                     name=name,
@@ -459,12 +468,9 @@ class System():
     def add_topics(self, names: list[str] = None) -> list[Topic]:
         self.dds.add_topics(names=names)
 
-    def __init__(self, name: str, dds_implementation: str = None):
-
-        if (dds_implementation is None):
-            raise ValueError("Please provide dds_implementation") #TODO: should maybe not be mandatory?
+    def __init__(self, name: str, dds_implementation: str = UNSPECIFIED, default_qos=None):
 
         self.name = name
         self.hosts = []
         self.dds_implementation = dds_implementation
-        self.default_qos = QoS()
+        self.default_qos = DEFAULT_QOS if default_qos is None else QoS(**default_qos)
