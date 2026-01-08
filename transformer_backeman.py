@@ -93,12 +93,12 @@ def check_buffers(executor: ros.Executor) -> list[str]:
     feedback = []
     for node in executor.nodes:
         for publisher in node.publishers:
-            buffer = publisher.qos_offered["depth"]
+            buffer = publisher.qos.depth
             if buffer != 20:
                 feedback += [
                     f"'{publisher.name}' has buffersize {str(buffer)}"]
         for subscriber in node.subscriptions:
-            buffer = subscriber.qos_requested["depth"]
+            buffer = subscriber.qos.depth
             if buffer != 20:
                 feedback += [f"A subscription of '{node.name}' "
                              f"has buffersize {str(buffer)}"]

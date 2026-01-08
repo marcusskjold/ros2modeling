@@ -146,7 +146,6 @@ def subset_check(key1: str, key2: str, sets) -> list[str]:
     else:
         return [f"Mismatched: Some {key1} are not among {key2}"]
 
-
 def add_interface(name: str, container_name: str,
                   typ: str, interface_type: str, interfaces):
     """
@@ -281,21 +280,21 @@ class ValidationResult():
 
 def validate_qos(qos: ros.QualityOfService, parent: str) -> list[str]:
     feedback = []
-    if qos["history"] not in QOS["history"]:
+    if qos.history not in QOS["history"]:
         feedback += [f"{parent} has invalid qos history policy"]
-    if qos["depth"] < 0:
+    if qos.depth < 0:
         feedback += [f"{parent} has invalid qos depth policy"]
-    if qos["reliability"] not in QOS["reliability"]:
+    if qos.reliability not in QOS["reliability"]:
         feedback += [f"{parent} has invalid qos reliability policy"]
-    if qos["durability"] not in QOS["durability"]:
+    if qos.durability not in QOS["durability"]:
         feedback += [f"{parent} has invalid qos durability policy"]
-    if qos["deadline"] < 0:
+    if qos.deadline < 0:
         feedback += [f"{parent} has invalid qos deadline policy"]
-    if qos["lifespan"] < 0:
+    if qos.lifespan < 0:
         feedback += [f"{parent} has invalid qos lifespan policy"]
-    if qos["liveliness"] not in QOS["liveliness"]:
+    if qos.liveliness not in QOS["liveliness"]:
         feedback += [f"{parent} has invalid qos liveliness policy"]
-    if qos["liveliness_lease_duration"] < 0:
+    if qos.liveliness_lease_duration < 0:
         feedback += [
             f"{parent} has invalid qos liveliness_lease_duration policy"]
     return feedback
@@ -314,10 +313,8 @@ def validate_client(client: ros.Client, parent: ros.Node,
     if feedback != []:
         return feedback
 
-    feedback += validate_qos(client.qos_profile, client.name)
-    # TODO: Remove 2025-12-30
-    # feedback += add_interface(client.service, client.name,
-    #                           "Service", "services requested", interfaces)
+    feedback += validate_qos(client.qos, client.name)
+
 
     return feedback
 
@@ -336,10 +333,7 @@ def validate_publisher(publisher: ros.Publisher, parent: ros.Node,
     if feedback != []:
         return feedback
 
-    feedback += validate_qos(publisher.qos_offered, publisher.name)
-    # TODO: Remove 2025-12-30
-    # feedback += add_interface(publisher.topic, publisher.name,
-    #                           "topic", "topics published to", interfaces)
+    feedback += validate_qos(publisher.qos, publisher.name)
 
     return feedback
 
@@ -424,7 +418,7 @@ def validate_subscription(subscription: ros.Subscription, parent: ros.Node,
     """
     pname = parent.name
     feedback = []
-    feedback += validate_qos(subscription.qos_requested, pname)
+    feedback += validate_qos(subscription.qos, pname)
     feedback += add_interface(subscription.topic, subscription.callback,
                               "Topic", "topics subscribed to", interfaces)
     feedback += verify_registration(subscription.callback,
@@ -469,7 +463,7 @@ def validate_service(service: ros.Service, parent: ros.Node,
     if feedback != []:
         return feedback
 
-    feedback += validate_qos(service.qos_requested, service.name)
+    feedback += validate_qos(service.qos, service.name)
     feedback += add_interface(service.name, service.callback, "service",
                               "services offered", interfaces)
     feedback += verify_registration(service.callback, "callback",
