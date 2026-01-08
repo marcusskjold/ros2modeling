@@ -1,21 +1,27 @@
 System:
   system: mySystem
   dds_implementation: super
+  default_qos: {history: keep_all}
   external_outputs:
   - output0
   hosts:
   - host: lolo
     operating_system: ubuntu 1
+    default_qos: {depth: 9}
     executors: 
     - executor: host0_executor0
       implementation: EventExecutor
+      default_qos: {depth: 8}
       nodes:
       - node: sensor1
+        default_qos: {history: keep_all, depth: 5}
         publishers: 
         - publisher: sensor1publisher0
           topic: sensor1
+          qos: {depth: 50}
         - publisher: sensor1service0publisher
           topic: sensor1service0
+          qos: {lifespan: 100}
         callbacks:
         - callback: sensor1callback0
           wcet: 30
