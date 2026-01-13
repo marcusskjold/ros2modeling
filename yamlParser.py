@@ -158,7 +158,7 @@ def parse_executors(ros_host: ros.Host, yaml_execs: dict) -> None:
 def parse_hosts(ros_system, yaml_hosts) -> None:
      for host in yaml_hosts:
             #conditionally populating arguments for adding host
-            host_args = {k: host[k] for k in host.keys() & {'operating_system', 'architecture', 'default_qos'}}
+            host_args = {k: host[k] for k in host.keys() & {'operating_system', 'architecture', 'default_qos', 'default_distribution'}}
             #change key 'name' to 'host'
             if 'host' in host:
                 host_args['name'] = host['host']
@@ -170,7 +170,7 @@ def parse_hosts(ros_system, yaml_hosts) -> None:
             parse_executors(ros_host, yaml_executors)
 
 def parse_system(yaml_system: dict) -> ros.System:
-    system_args = {k: yaml_system[k] for k in yaml_system.keys() & {'dds_implementation', 'default_qos'}}
+    system_args = {k: yaml_system[k] for k in yaml_system.keys() & {'dds_implementation', 'default_qos', 'default_distribution'}}
     if 'system' in yaml_system:
          system_args['name'] = yaml_system['system']
     ros_sys = ros.System(**system_args)
@@ -180,8 +180,7 @@ def parse_system(yaml_system: dict) -> ros.System:
     return ros_sys
 
 #load the yaml-file
-with open('example.yaml','r') as file:
-    #yaml_object = yaml.safe_load(file)
+with open('example_debug_1.yaml','r') as file:
     yaml=YAML(typ='safe')   # default, if not specfied, is 'rt' (round-trip)
     yaml_object = yaml.load(file)
 ##debug ex
