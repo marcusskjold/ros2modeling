@@ -179,23 +179,6 @@ def parse_system(yaml_system: dict) -> ros.System:
     parse_hosts(ros_sys, yaml_hosts)
     return ros_sys
 
-#load the yaml-file
-with open('example_debug_1.yaml','r') as file:
-    yaml=YAML(typ='safe')   # default, if not specfied, is 'rt' (round-trip)
-    yaml_object = yaml.load(file)
-##debug ex
-#print(yaml_object['System']['hosts'][0]['executors'][0]['implementation'])
-    if(len(yaml_object)!=1 or not ('System' in yaml_object)):
-        raise SyntaxError("file must have single outer-key 'System'")
-##debug
-#pprint(yaml_object, sort_dicts=False)
-    #creating sys
-    yaml_system = yaml_object['System']
-    ros_system = parse_system(yaml_system)
-    pprint(ros_system)
-
-
-
 #TODO: check that argument order is preserved
     #check that using C-version of ruamel is okay(see website)
     # maybe add actions to parser
