@@ -6,7 +6,7 @@ TimeUnit = int
 Topic = str
 
 DEFAULT_EXECUTOR = "SingleThreadedExecutor"
-DEFAULT_DISTRIBUTION = "Rolling" #TODO: Make this overridable inside system?
+DEFAULT_DISTRIBUTION = "Rolling"
 UNSPECIFIED = "Generic" #When not specified in model
 
 
@@ -409,17 +409,18 @@ class Host():
     operating_system: str
     architecture: str
     default_qos: QualityOfService
+    default_distribution: str
     executors: list[Executor]
 
     def add_executor(self, name: str = None,
                      implementation: str = DEFAULT_EXECUTOR,
-                     ros_distribution: str = DEFAULT_DISTRIBUTION,
+                     ros_distribution: str = None,
                      default_qos: QualityOfService = None) -> Executor:
 
         if name is None:
             name = self.name + "_executor" + str(len(self.executors))
         if (ros_distribution is None):
-            raise ValueError("Please provide distribution")
+            ros_distribution = self.default_distribution
         if default_qos is None:
             default_qos = self.default_qos
         else: 
@@ -441,15 +442,19 @@ class System():
     name: str
     dds_implementation: str
     default_qos: QualityOfService
+    default_distribution: str
     hosts: list[Host]
 
     def add_host(self,
                  name: str = None,
                  operating_system: str = UNSPECIFIED,
                  architecture=UNSPECIFIED,
-                 default_qos=None) -> Host:
+                 default_qos=None,
+                 default_distribution=None) -> Host:
         if name is None:
             name = self.name + "_host" + str(len(self.hosts))
+        if default_distribution is None:
+            default_distribution = self.default_distribution
         if default_qos is None:
             default_qos = self.default_qos
         else: 
@@ -458,7 +463,8 @@ class System():
                     operating_system=operating_system,
                     name=name,
                     architecture=architecture,
-                    default_qos=default_qos)
+                    default_qos=default_qos,
+                    default_distribution=default_distribution)
         self.hosts.append(host)
         return host
 
@@ -468,9 +474,10 @@ class System():
     def add_topics(self, names: list[str] = None) -> list[Topic]:
         self.dds.add_topics(names=names)
 
-    def __init__(self, name: str, dds_implementation: str = UNSPECIFIED, default_qos=None):
+    def __init__(self, name: str, dds_implementation: str = UNSPECIFIED, default_qos=None, default_distribution=None):
 
         self.name = name
         self.hosts = []
         self.dds_implementation = dds_implementation
         self.default_qos = DEFAULT_QOS if default_qos is None else QoS(**default_qos)
+        self.default_distribution = DEFAULT_DISTRIBUTION if default_distribution is None else default_distribution

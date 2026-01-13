@@ -8,6 +8,7 @@ System:
   - host: lolo
     operating_system: ubuntu 1
     default_qos: {depth: 9}
+    default_distribution: Humble
     executors: 
     - executor: host0_executor0
       implementation: EventExecutor
