@@ -1,41 +1,16 @@
 import ros2system as ros
-import yamlPrinter as yp
+import yamlPrinter as yprint
+import yamlParser as yparse
 from pprint import pprint
 import backeman.system as bk
 import systemvalidator as sv
 import transformer_backeman as tb
-
-
-def validation_ss():
-    system = bk.System("ss")
-    system.add_datagenerator("SENSOR1", 360, 10, 0, True)
-    system.add_datagenerator("SENSOR2", 360, 20, 0, False)
-    system.add_subscriber("FILTER1", "SENSOR1", 10, [], [], "pd")
-    system.add_subscriber("FILTER2", "SENSOR2", 20, [], [], "pd")
-    system.add_subscriber("FUSION1", "SENSOR1", 30, ["SENSOR2"], [30], "pd")
-    system.add_subscriber("FILTER3", "FUSION1", 30, [], [], "pd")
-    system.add_subscriber("ACTUATOR1", "FILTER3", 30, [], [], "pd")
-    system.monitor("ACTUATOR1", 360)
-    return system
-
-
-sys1 = bk.System("sys")
-sys2 = ros.System("sys", dds_implementation="Standard")
-h = sys2.add_host(operating_system="Ubuntu")
-e = h.add_executor(implementation="SingleThreadedExecutor")
-
 
 system = ros.System("test", dds_implementation="Generic")
 system.default_qos.depth = 20
 
 host = system.add_host(operating_system="Generic")
 executor = host.add_executor(implementation="SingleThreadedExecutor", ros_distribution="Eloquent")
-
-# node1 = host.add_node("MIchael")
-
-# s1, s2, f1, f2, fu, f3, act = executor.add_nodes([
-#     "sensor1", "sensor2", "filter1", "filter2", "fusion", "filter3", "actuator"
-# ])
 
 s1 = executor.add_node(name="sensor1")
 s2 = executor.add_node(name="sensor2")
@@ -146,4 +121,14 @@ else:
     print(bksystem.max_reaction_time(gen_graph=False))
 
 
-yp.save_to_yaml(system, "out")
+yprint.save_to_yaml(system, "out")
+
+with open('example.yaml', 'r') as file:
+    yaml = YAML(typ='safe')
+    yaml_object = yaml.load(file)
+    if(len(yaml_object)!=1 or not ('System' in yaml_object)):
+        raise SyntaxError("file must have single outer-key 'System'")
+    yaml_system = yaml_object['System']
+    ros_system = parse_system(yaml_system)
+    pprint(ros_system)
+
