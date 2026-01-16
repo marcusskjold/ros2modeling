@@ -5,6 +5,7 @@ import roserer.systemvalidator as sv
 from pprint import pprint
 import roserer.backeman.system as bk
 import roserer.adapters.backeman_adapter as tb
+import roserer.backeman.dust_system as ds
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -126,3 +127,10 @@ else:
 
 yprint.save_to_yaml(system, "src/tests/output/out")
 yparse.parse_yaml("src/tests/input/example.yaml")
+
+Exv1 = ds.ExecutorV1(5, 10)
+PeriodicCallback = ds.PeriodicCallback(5, 5,5,1,2,10,10,[1,2,3],[1,2,3],5)
+print(Exv1.name())
+print(Exv1.system())
+print(PeriodicCallback.name())
+print(PeriodicCallback.system())
