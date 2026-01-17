@@ -1,0 +1,20 @@
+[project]
+name = "roserer"
+version = "0.1.0"
+description = "Model ROS2 systems in python and perform end-to-end real time latency model checking."
+readme = "README.md"
+authors = [
+    { name = "Marcus Skjold", email = "marcusskjold@gmail.com" },
+    { name = "Andreas Riget Bagge" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "ruamel-yaml>=0.19.1",
+]
+
+[build-system]
+requires = ["uv_build>=0.9.24,<0.10.0"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+pythonpath = "."

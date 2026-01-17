@@ -1,4 +1,4 @@
-import ros2system as ros
+import roserer.ros2system as ros
 
 """
 A ros2 system model consists of

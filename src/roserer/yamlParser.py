@@ -1,4 +1,4 @@
-import ros2system as ros
+import roserer.ros2system as ros
 ##old version (handles order of dict improperly and overwrites in case of duplicates)
 #import yaml #external library for parsing yaml into object (defacto standard, it seems)
 from ruamel.yaml import YAML
