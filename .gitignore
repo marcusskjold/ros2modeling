@@ -198,9 +198,9 @@ pyrightconfig.json
 ## backeman additions
 tmp.xml
 tmp.xml.q
-template.xml
+# template.xml
 verifyta
-backeman/
+# backeman/
 
 ## Others
 out.yaml
