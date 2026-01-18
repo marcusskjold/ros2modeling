@@ -18,8 +18,7 @@
 ## Component names not case-sensitive
 
 
-from system import System
-from grapher import Grapher
+from roserer.backeman.system import System
 import time
 
 
@@ -85,7 +84,6 @@ def validation():
         mrt, _, graph = system.max_reaction_time()
         print(name, "\t", mrt)
         # print('\n'.join(graph))
-
 
 
 def prio_inversion():
@@ -299,23 +297,33 @@ def fusion_study():
 #example()
 #validation()
 
-latex = first_study()
-fout = open("results_first_study.txt", 'w')
-fout.write(latex)
-fout.close()
 
-latex = ten_fold()
-fout = open("results_ten_fold.txt", 'w')
-fout.write(latex)
-fout.close()
+def fixlatex(latex):
+    return "\\documentclass{article}\n\\begin{document}\n"\
+        + latex + "\n\\end{document}"
 
-latex = subscription()
-fout = open("results_subscription.txt", 'w')
-fout.write(latex)
-fout.close()
 
-latex = fusion_study()
-fout = open("results_fusion_study.txt", 'w')
-fout.write(latex)
-fout.close()
+dir = "results/"
 
+def run_experiments():
+    latex = fixlatex(first_study())
+    fout = open(dir + "results_first_study.tex", 'w')
+    fout.write(latex)
+    fout.close()
+
+    latex = fixlatex(ten_fold())
+    fout = open(dir + "results_ten_fold.tex", 'w')
+    fout.write(latex)
+    fout.close()
+
+    latex = fixlatex(subscription())
+    fout = open(dir + "results_subscription.tex", 'w')
+    fout.write(latex)
+    fout.close()
+
+    latex = fixlatex(fusion_study())
+    fout = open(dir + "results_fusion_study.tex", 'w')
+    fout.write(latex)
+    fout.close()
+
+validation_tt().write("validation_tt.xml")
