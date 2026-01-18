@@ -121,14 +121,5 @@ else:
     print(bksystem.max_reaction_time(gen_graph=False))
 
 
-yprint.save_to_yaml(system, "out")
-
-with open('example.yaml', 'r') as file:
-    yaml = YAML(typ='safe')
-    yaml_object = yaml.load(file)
-    if(len(yaml_object)!=1 or not ('System' in yaml_object)):
-        raise SyntaxError("file must have single outer-key 'System'")
-    yaml_system = yaml_object['System']
-    ros_system = parse_system(yaml_system)
-    pprint(ros_system)
-
+yprint.save_to_yaml(system, "src/tests/output/out")
+yparse.parse_yaml("src/tests/input/example.yaml")

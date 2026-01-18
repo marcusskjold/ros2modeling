@@ -182,3 +182,14 @@ def parse_system(yaml_system: dict) -> ros.System:
 #TODO: check that argument order is preserved
     #check that using C-version of ruamel is okay(see website)
     # maybe add actions to parser
+
+def parse_yaml(file: str):
+    with open(file, 'r') as f:
+        yaml = YAML(typ='safe')
+        yaml_object = yaml.load(f)
+        if(len(yaml_object)!=1 or not ('System' in yaml_object)):
+            raise SyntaxError("file must have single outer-key 'System'")
+        yaml_system = yaml_object['System']
+        ros_system = parse_system(yaml_system)
+        pprint(ros_system)
+
