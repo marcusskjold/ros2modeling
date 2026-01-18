@@ -11,7 +11,6 @@
 ## Provides functions to perform various UPPAAL tasks.
 
 import subprocess
-import itertools
 import re
 
 # Class containing static functions for interacting with UPPAAL

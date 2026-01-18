@@ -8,8 +8,8 @@
 # out of, or in connection with the software or the use or other dealings in the software.
 
 
-from uppaal import UPPAAL
-from grapher import Grapher
+from roserer.backeman.uppaal import UPPAAL
+from roserer.backeman.grapher import Grapher
 
 import time
 
