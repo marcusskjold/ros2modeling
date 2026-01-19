@@ -19,7 +19,12 @@ build-backend = "uv_build"
 [tool.pytest.ini_options]
 pythonpath = "src"
 
+[tool.ruff]
+line-length = 88
+extend-select = ["E501"]
+
 [dependency-groups]
 dev = [
     "pytest>=9.0.2",
+    "ruff>=0.14.13",
 ]
