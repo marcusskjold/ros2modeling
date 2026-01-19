@@ -8,6 +8,8 @@
 # out of, or in connection with the software or the use or other dealings in the software.
 
 
+import roserer.backeman
+import importlib.resources
 from roserer.backeman.uppaal import UPPAAL
 from roserer.backeman.grapher import Grapher
 
@@ -281,7 +283,9 @@ class System():
         declarations_xml = self.gen_declaration()
         system_xml = self.gen_system()
 
-        f = open("template.xml", 'r')
+        f = importlib.resources.open_text(roserer.backeman, 'template.xml')
+        # f = open("template.xml", 'r')
+        # for l in f:
         for l in f.readlines():
             if "!!!DECLARATIONS!!!" in l:
                 output += declarations_xml
