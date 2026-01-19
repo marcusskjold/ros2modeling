@@ -23,7 +23,7 @@ DDS_IMPLEMENTATIONS = [
     "Generic",
     "Cyclone",
     "Fast",
-    "RTI connext",
+    "RTI Connext",
     "Gurum"
 ]
 
