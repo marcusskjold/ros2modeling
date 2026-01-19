@@ -7,7 +7,7 @@ authors = [
     { name = "Marcus Skjold", email = "marcusskjold@gmail.com" },
     { name = "Andreas Riget Bagge" }
 ]
-requires-python = ">=3.12"
+requires-python = ">=3.10"
 dependencies = [
     "ruamel-yaml>=0.19.1",
 ]
