@@ -21,7 +21,7 @@ pythonpath = "src"
 
 [tool.ruff]
 line-length = 88
-extend-select = ["E501"]
+extend-select = ["E501", "E305"]
 
 [dependency-groups]
 dev = [

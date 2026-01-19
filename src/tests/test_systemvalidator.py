@@ -29,6 +29,6 @@ def test_is_valid_value_executor_positive() -> None:
     https://docs.ros.org/en/rolling/Releases/Release-Iron-Irwini.html#introduction-of-a-new-executor-type-the-events-executor
     Accessed 2026-01-19
     """
-    assert is_valid_value("executor", "SignleThreadedExecutor") == []
+    assert is_valid_value("executor", "SingleThreadedExecutor") == []
     assert is_valid_value("executor", "MultiThreadedExecutor") == []
     assert is_valid_value("executor", "EventsExecutor") == []
