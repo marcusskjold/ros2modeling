@@ -15,23 +15,44 @@ from abc import ABC, abstractmethod # for creating abstract class
 
 import time
 
-############From Backeman########################
 
+# common functionality for all python-UPPAAL-mappings
 class UppaalTemplate(ABC):
-    #the name of template (must be implemented in subclass)
+    # the name of template (must be implemented in subclass)
     @abstractmethod
     def name(self):
         pass
-
-    #get template-instance for system-declaration
-    def system(self):
-        s = self.name() + "=" + type(self).__name__ + "("
-        variables = vars(self)
-        for var in variables.values():
-            s += str(var) + ","
-        return s[:-1] + ");"
     
-    #TODO: reformat a list
+    # the name of given list-parameter, list_param
+    def param_name(self, list_param: list) -> str:
+        return self.name() + "_" + list_param
+
+    # convert python list-param to UPPAAL-style array
+    def toUpArray(self, list_param: list) -> str:
+        ar = "{"
+        ar += ",".join([str(elem) for elem in list_param])
+        return ar + "}"
+    
+    # generate declaration for declarations-file in UPPAAL
+    def declaration(self) -> str:
+        decl = ""
+        variables = vars(self).items()
+        for var, val in variables:
+            if type(val) is list:
+                decl += self.param_name(var) + "=" + self.toUpArray(val) + ";\n"
+        return decl
+
+    # get template-instance for system-declaration
+    def system(self) -> str: 
+        s = self.name() + "=" + type(self).__name__ + "("
+        variables = vars(self).items()
+        #1)
+        for var, val in variables:
+            if type(val) is list:
+                s+= self.param_name(var) + ","
+            else:
+                s+= str(val) + ","
+        return s[:-1] + ");"
 
 
 class ExecutorV1(UppaalTemplate):
@@ -49,9 +70,6 @@ class ExecutorV2(UppaalTemplate):
     
     def name(self):
         return "ExecV2_" + str(self.id)
-    
-    # def system(self):
-    #     return self.name() + " = " + "ExecutorV2(" + self.id + "," + self.stopTime + ");"
 
 class Topic(UppaalTemplate):
     def __init__(self, receiver_id, sender_id, delay, max_jitter, buffersize):
@@ -60,7 +78,7 @@ class Topic(UppaalTemplate):
         self.delay = delay
         self.max_jitter = max_jitter
         self.buffersize = buffersize
-    
+
     def name(self):
         return "Topic_" + str(self.sender_id) + "to" + str(self.receiver_id)
 
@@ -77,7 +95,7 @@ class PeriodicCallback(UppaalTemplate):
         self.publisher_release_time = publisher_release_time
         self.publisher_id = publisher_id
         self.executorID = executorID
-    
+
     def name(self):
         return "PeriodicCallback" + str(self.id)
 
@@ -117,6 +135,7 @@ class DataCallback(UppaalTemplate):
         return "DataCallback" + str(self.id)
 
         
+############From Backeman########################
 
 ## Class representing a Node in the ROS system
 # class Node():
