@@ -609,10 +609,7 @@ def validate_host(host: ros.Host, parent: ros.System,
     return feedback
 
 
-def validate_system(system: ros.System) -> tuple[
-        list[str],
-        dict[str, dict[str, str]],
-        dict[str, dict[str, list[str]]]]:
+def validate_system(system: ros.System) -> ValidationResult:
     """
     A system is well formed if:
     - It has a name
