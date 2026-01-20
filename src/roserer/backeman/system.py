@@ -6,6 +6,7 @@ from roserer.backeman.grapher import Grapher
 import time
 
 Trace = list[tuple[str, str, str, str]]
+TMP_FILE = "-backeman.xml"
 
 ## Class representing a Node in the ROS system
 class Node():
@@ -215,7 +216,7 @@ class System():
     node: list[Node]
     det_hosts: bool
 
-    def __init__(self, name):
+    def __init__(self, name: str):
         self.name = name
         self.nodes = []
         self.det_hosts = True
@@ -328,13 +329,12 @@ class System():
     # Lets find the reaction time, also with a trace so we can generate a graph
     def max_reaction_time(self, gen_graph=True
                           ) -> tuple[int | None, Trace | None, list[str] | None]:
-        modelfile = "tmp.xml"
-        self.write(modelfile)
-        mrt: int | None = UPPAAL.sup(modelfile)
+        self.write(self.name + TMP_FILE)
+        mrt: int | None = UPPAAL.sup(self.name + TMP_FILE)
         trace, graph = None, None
         if gen_graph:
             query = "E<> monitor.measure && monitor.x[lm] == " + str(mrt)
-            trace: Trace = UPPAAL.get_trace(modelfile, query)
+            trace: Trace = UPPAAL.get_trace(self.name + TMP_FILE, query)
             nodes: list[str] = list(map(lambda x : x.name, self.nodes))
             graph = Grapher.gen_mrt(nodes, trace)
         return mrt, trace, graph
@@ -342,11 +342,11 @@ class System():
     def get_graph(self, mrt: int) -> tuple[int, Trace, list[str]]:
         print("Get graph...")
         start = time.time()
-        modelfile = "tmp.xml"
-        self.write(modelfile)
+        self.write(self.name
+                   )
         trace, graph = None, None
         query = "E<> monitor.measure && monitor.x[lm] >= " + str(mrt)
-        trace = UPPAAL.get_trace(modelfile, query)
+        trace = UPPAAL.get_trace(self.name + TMP_FILE, query)
         nodes = list(map(lambda x : x.name, self.nodes))
         graph = Grapher.gen_mrt(nodes, trace)
         end = time.time()
@@ -355,21 +355,19 @@ class System():
 
     def measure_load(self, load_threshold: int, percentage: int, upper_limit: int
                      ) -> tuple[str, bool | str]:
-        modelfile = "tmp.xml"
-        self.write(modelfile)
-        data = UPPAAL.measure_load(modelfile, load_threshold, percentage, upper_limit)
+        self.write(self.name + TMP_FILE)
+        data = UPPAAL.measure_load(
+            self.name + TMP_FILE, load_threshold, percentage, upper_limit)
 
         return data
 
     def trace(self, query: str) -> Trace:
-        modelfile = "tmp.xml"
-        self.write(modelfile)
-        return UPPAAL.get_trace(modelfile, query)
+        self.write(self.name + TMP_FILE)
+        return UPPAAL.get_trace(self.name + TMP_FILE, query)
 
     def random_trace(self, upper_limit: int) -> Trace:
-        modelfile = "tmp.xml"
-        self.write(modelfile)
-        return UPPAAL.random_trace(modelfile, upper_limit)
+        self.write(self.name + TMP_FILE)
+        return UPPAAL.random_trace(self.name + TMP_FILE, upper_limit)
 
     def write(self, outfile: str) -> None:
         output = ""
@@ -377,8 +375,6 @@ class System():
         system_xml = self.gen_system()
 
         f = importlib.resources.open_text(roserer.backeman, 'template.xml')
-        # f = open("template.xml", 'r')
-        # for l in f:
         for ln in f.readlines():
             if "!!!DECLARATIONS!!!" in ln:
                 output += declarations_xml

@@ -196,11 +196,9 @@ pyrightconfig.json
 # End of https://www.toptal.com/developers/gitignore/api/python,visualstudiocode
 
 ## backeman additions
-tmp.xml
-tmp.xml.q
+*-backeman.xml
+*-backeman.xml.q
 # template.xml
 verifyta
 # backeman/
 
-## Others
-out.yaml
