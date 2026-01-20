@@ -2,7 +2,6 @@ import roserer.ros2system as ros
 ##old version (handles order of dict improperly and overwrites in case of duplicates)
 #import yaml #external library for parsing yaml into object (defacto standard, it seems)
 from ruamel.yaml import YAML
-from pprint import pprint
 
 #TODO:might integrate this
 #non-object and non-name attributes
@@ -183,13 +182,12 @@ def parse_system(yaml_system: dict) -> ros.System:
     #check that using C-version of ruamel is okay(see website)
     # maybe add actions to parser
 
-def parse_yaml(file: str):
+def parse_yaml(file: str) -> ros.System:
     with open(file, 'r') as f:
         yaml = YAML(typ='safe')
         yaml_object = yaml.load(f)
         if(len(yaml_object)!=1 or not ('System' in yaml_object)):
             raise SyntaxError("file must have single outer-key 'System'")
         yaml_system = yaml_object['System']
-        ros_system = parse_system(yaml_system)
-        pprint(ros_system)
+        return parse_system(yaml_system)
 
