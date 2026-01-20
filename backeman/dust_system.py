@@ -22,7 +22,7 @@ class UppaalTemplate(ABC):
     @abstractmethod
     def name(self):
         pass
-    
+
     # the name of given list-parameter, list_param
     def param_name(self, list_param: list) -> str:
         return self.name() + "_" + list_param
@@ -46,17 +46,27 @@ class UppaalTemplate(ABC):
     def system(self) -> str: 
         s = self.name() + "=" + type(self).__name__ + "("
         variables = vars(self).items()
-        #1)
         for var, val in variables:
             if type(val) is list:
                 s+= self.param_name(var) + ","
             else:
                 s+= str(val) + ","
-        return s[:-1] + ");"
+        return s[:-1] + ");\n"
+    
+    # for printing
+    def __str__(self):
+        s = "" +type(self).__name__ + "("
+        variables = vars(self).items()
+        for var, val in variables:
+            if type(val) is list:
+                s+= self.param_name(var) + ","
+            else:
+                s+= str(val) + ","
+        return s[:-1] + ");\n"
 
 
 class ExecutorV1(UppaalTemplate):
-    def __init__(self, id, stopTime):
+    def __init__(self, id : int, stopTime : int):
         self.id = id
         self.stopTime = stopTime
     
@@ -64,7 +74,7 @@ class ExecutorV1(UppaalTemplate):
         return "ExecV1_" + str(self.id)
 
 class ExecutorV2(UppaalTemplate):
-    def __init__(self, id, stopTime):
+    def __init__(self, id : int, stopTime : int):
         self.id = id
         self.stopTime = stopTime
     
@@ -72,7 +82,8 @@ class ExecutorV2(UppaalTemplate):
         return "ExecV2_" + str(self.id)
 
 class Topic(UppaalTemplate):
-    def __init__(self, receiver_id, sender_id, delay, max_jitter, buffersize):
+    def __init__(self, receiver_id : int, sender_id : int,
+                  delay : int, max_jitter : int, buffersize : int):
         self.receiver_id = receiver_id
         self.sender_id = sender_id
         self.delay = delay
@@ -83,8 +94,9 @@ class Topic(UppaalTemplate):
         return "Topic_" + str(self.sender_id) + "to" + str(self.receiver_id)
 
 class PeriodicCallback(UppaalTemplate):
-    def __init__(self, id, exec_time, period, type, offset, buffersize,
-                  amount_of_publishers, publisher_release_time, publisher_id, executorID):
+    def __init__(self, id : int, exec_time : int, period : int, type : int, offset : int, buffersize : int,
+                  amount_of_publishers : int, publisher_release_time : list[int],
+                    publisher_id : list[int], executorID : int):
         self.id = id
         self.exec_time = exec_time
         self.period = period
@@ -102,12 +114,13 @@ class PeriodicCallback(UppaalTemplate):
 
 #TODO: consider just correcting period-attr-name here and in UPPAAL-template (see my notes in Template)
 class SporadicCallback(UppaalTemplate):
-    def __init__(self, id, exec_time, length, period, type, buffersize,
-                  amount_of_publishers, publisher_release_time, publisher_id, executorID):
+    def __init__(self, id : int, exec_time : int, length : int, releases : list[int], type : int, buffersize : int,
+                  amount_of_publishers : int, publisher_release_time : list[int], 
+                  publisher_id : list[int], executorID : int):
         self.id = id
         self.exec_time = exec_time
         self.length = length
-        self.period = period
+        self.releases = releases
         self.type = type
         self.buffersize = buffersize
         self.amount_of_publishers = amount_of_publishers
@@ -119,8 +132,9 @@ class SporadicCallback(UppaalTemplate):
         return "SporadicCallback" + str(self.id)
 
 class DataCallback(UppaalTemplate):
-    def __init__(self, id, exec_time, topicID, type, buffersize,
-                  amount_of_publishers, publisher_release_time, publisher_id, executorID):
+    def __init__(self, id : int, exec_time : int, topicID : int, type : int, buffersize : int,
+                  amount_of_publishers : int, publisher_release_time : list[int],
+                    publisher_id : list[int], executorID : int):
         self.id = id
         self.exec_time = exec_time
         self.topicID = topicID
@@ -133,6 +147,164 @@ class DataCallback(UppaalTemplate):
     
     def name(self):
         return "DataCallback" + str(self.id)
+
+
+## Class representing a ROS system
+class System():
+    def __init__(self, name):
+        self.name = name
+        self.components = []
+
+    # for printing
+    def __str__(self):
+        s = "System: "
+        for c in self.components:
+            s += "\n  -" + str(c)
+        return s
+    
+
+    #TODO: maybe use kwargs (**) instead for less error-prone
+        # Or use enum
+    def add_component(self, component_t, *args):
+        match component_t:
+            case "executor_v1":
+                self.components.append(ExecutorV1(*args))
+            case "executor_v2":
+                self.components.append(ExecutorV2(*args))
+            case "topic":
+                self.components.append(Topic(*args))
+            case "periodic_callback":
+                self.components.append(PeriodicCallback(*args))
+            case "sporadic_callback":
+                self.components.append(SporadicCallback(*args))
+            case "data_callback":
+                self.components.append(DataCallback(*args))
+            case _:
+                raise ValueError("provided component_type not included among templates in this model!")
+
+    def next_id(self):
+        return len(self.components)
+
+    def add_executor_v1(self, id : int, stoptime : int):
+        self.components.append(ExecutorV1(id, stoptime))
+
+    def add_executor_v2(self, id : int, stoptime : int):
+        self.components.append(ExecutorV2(id, stoptime))
+    
+    def add_topic(self, receiver_id : int, sender_id : int, delay : int, max_jitter : int, buffersize : int):
+        self.components.append(Topic(receiver_id=receiver_id, sender_id=sender_id,
+                                     delay=delay,max_jitter=max_jitter, buffersize=buffersize))
+
+    def add_periodic_callback(self, id : int, exec_time : int, period : int, type : int, offset : int, 
+                              buffersize : int, amount_of_publishers : int, publisher_release_time : list[int],
+                                publisher_id : list[int], executorID : int):
+        self.components.append(PeriodicCallback(id, exec_time, period, type, offset, buffersize,
+                  amount_of_publishers, publisher_release_time, publisher_id, executorID))
+        
+    def add_sporadic_callback(self, id : int, exec_time : int, length : int, releases : list[int], type : int,
+                               buffersize : int, amount_of_publishers : int, publisher_release_time : list[int],
+                                 publisher_id : list[int], executorID : int):
+        self.components.append(SporadicCallback(id, exec_time, length, releases, type, buffersize,
+                  amount_of_publishers, publisher_release_time, publisher_id, executorID))
+    
+    def add_data_callback(self, id : int, exec_time : int, topicID : int, type : int, buffersize : int,
+                  amount_of_publishers : int, publisher_release_time : list[int],
+                    publisher_id : list[int], executorID : int):
+        self.components.append(DataCallback(id, exec_time, topicID, type, buffersize,
+                  amount_of_publishers, publisher_release_time, publisher_id, executorID))
+        
+
+    def gen_declaration(self):
+        s = ""
+        s += "const int C = " + str(len(self.nodes)) + ";\n"
+        for c in self.components:
+            s += c.declaration()
+        return s
+
+    # TODO: test this
+    def gen_system(self) -> str:
+        s = ""
+        for c in self.components:
+            s += c.system()
+        component_names = [c.name() for c in self.components]
+        s += "system " + ','.join(component_names) + ";\n"
+        return s
+
+    # Lets find the reaction time, also with a trace so we can generate a graph
+    def max_reaction_time(self, gen_graph=True):
+        modelfile = "tmp.xml"
+        self.write(modelfile)
+        mrt = UPPAAL.sup(modelfile)
+        trace, graph = None, None
+        if gen_graph:
+            query = "E<> monitor.measure && monitor.x[lm] == " + str(mrt)
+            trace = UPPAAL.get_trace(modelfile, query)
+            nodes = list(map(lambda x : x.name, self.nodes))
+            graph = Grapher.gen_mrt(nodes, trace)
+        return mrt, trace, graph
+
+    def get_graph(self, mrt):
+        print("Get graph...")
+        start = time.time()
+        modelfile = "tmp.xml"
+        self.write(modelfile)
+        trace, graph = None, None
+        query = "E<> monitor.measure && monitor.x[lm] >= " + str(mrt)
+        trace = UPPAAL.get_trace(modelfile, query)
+        nodes = list(map(lambda x : x.name, self.nodes))
+        graph = Grapher.gen_mrt(nodes, trace)
+        end = time.time()
+        print("Query time: ", end - start)
+        return mrt, trace, graph
+
+
+
+
+    def measure_load(self, load_threshold, percentage, upper_limit):
+        modelfile = "tmp.xml"
+        self.write(modelfile)
+        data = UPPAAL.measure_load(modelfile, load_threshold, percentage, upper_limit)
+
+        return data
+
+    def trace(self, query):
+        modelfile = "tmp.xml"
+        self.write(modelfile)
+        return UPPAAL.get_trace(modelfile, query)
+
+    def random_trace(self, upper_limit):
+        modelfile = "tmp.xml"
+        self.write(modelfile)
+        return UPPAAL.random_trace(modelfile, upper_limit)
+
+
+    def write(self, outfile):
+        output = ""
+        declarations_xml = self.gen_declaration()
+        system_xml = self.gen_system()
+
+        # *Added to make sure location is read properly as per
+        __location__ = os.path.realpath(
+        os.path.join(os.getcwd(), os.path.dirname(__file__)))
+
+        f = open(os.path.join(__location__, 'template.xml'), 'r')
+        for l in f.readlines():
+            if "!!!DECLARATIONS!!!" in l:
+                output += declarations_xml
+            elif "!!!SYSTEM!!!" in l:
+                output += system_xml
+            else:
+                output += l
+
+
+        fout = open(outfile, 'w')
+        for o in output:
+            fout.write(o)
+        fout.close()
+
+    def print_nodes(self):
+        for c in self.components:
+            print("-", c)
 
         
 ############From Backeman########################
@@ -277,153 +449,3 @@ class DataCallback(UppaalTemplate):
 #     def __str__(self):
 #         return "Timer(" + str(self.nid) + "," + self.name + ", " + str(self.period) + ", " + str(self.delay) + ", " + str(self.wcet) + ", " + self.data_source + ")"
 
-
-
-# ## Class representing a ROS system
-# class System():
-#     def __init__(self, name):
-#         self.name = name
-#         self.nodes = []
-#         self.det_hosts = True
-
-#     def __str__(self):
-#         s = "System: " + self.name
-#         for n in self.nodes:
-#             s += "\n  -" + str(n)
-#         s += "\n  Monitoring: " + self.actuator + " (+" + str(self.period) + ")"
-#         return s
-
-
-#     def next_id(self):
-#         return len(self.nodes)
-
-#     def deterministic_hosts(self, det_hosts):
-#         self.det_hosts = det_hosts
-
-#     def add_dependencies(self, name, subscribers, wcets, subprios):
-#         if not subprios:
-#             subprios = [None]*len(subscribers)
-#         for s, w, p in zip(subscribers, wcets, subprios):
-#            self.nodes.append(Subscriber(self.next_id(), name + "x" + s, s, w, "pd", p))
-
-#     def add_datagenerator(self, name, period, wcet, delay, monitored=False, prio=None):
-#         self.nodes.append(DataGenerator(self.next_id(), name, period, wcet, delay, monitored, prio))
-
-#     def add_probalisticdatagenerator(self, name, period, wcet, delay, prob, monitored=False, prio=None):
-#         self.nodes.append(ProbabilisticDataGenerator(self.next_id(), name, period, wcet, delay, prob, monitored, prio))
-
-
-#     def add_subscriber(self, name, topic, wcet, subscribers, wcets, data_source, prio=None, subprios=None):
-#         self.add_dependencies(name, subscribers, wcets, subprios)
-#         self.nodes.append(Subscriber(self.next_id(), name, topic, wcet, data_source, prio))
-
-#     def add_timer(self, name, period, delay, wcet, subscribers, wcets, data_source, prio=None, subprios=None):
-#         self.nodes.append(Timer(self.next_id(), name, period, delay, wcet, data_source, prio))
-#         self.add_dependencies(name, subscribers, wcets, subprios)
-
-
-#     def monitor(self, actuator, period):
-#         self.actuator = actuator
-#         self.period = period
-
-#     def gen_declaration(self):
-#         s = ""
-#         if self.det_hosts:
-#             s += "const int deterministic_host = true;\n"
-#         else:
-#             s += "const int deterministic_host = false;\n"
-#         s += "const int C = " + str(len(self.nodes)) + ";\n"
-#         for n in self.nodes:
-#             s += n.declaration()
-
-#         s += "int DATA[C] = {" + ','.join(["EMPTY"]*len(self.nodes)) + "};\n"
-#         s += "int PRIO[C] = {" + ','.join([str(n.priority()) for n in self.nodes]) + "};\n"
-#         s += "int WCET[C] = {" + ','.join([n.name + "_WCET" for n in self.nodes]) + "};\n"
-#         return s
-
-#     def gen_system(self):
-#         s = ""
-#         for n in self.nodes:
-#             s += n.system()
-#         s += "monitor = Monitor(" + self.actuator + ", " + str(self.period) + ");\n"
-#         node_names = [n.name.lower() for n in self.nodes]
-#         node_names += ['host', 'monitor']
-#         s += "system " + ','.join(node_names) + ";\n"
-
-#         return s
-
-#     # Lets find the reaction time, also with a trace so we can generate a graph
-#     def max_reaction_time(self, gen_graph=True):
-#         modelfile = "tmp.xml"
-#         self.write(modelfile)
-#         mrt = UPPAAL.sup(modelfile)
-#         trace, graph = None, None
-#         if gen_graph:
-#             query = "E<> monitor.measure && monitor.x[lm] == " + str(mrt)
-#             trace = UPPAAL.get_trace(modelfile, query)
-#             nodes = list(map(lambda x : x.name, self.nodes))
-#             graph = Grapher.gen_mrt(nodes, trace)
-#         return mrt, trace, graph
-
-#     def get_graph(self, mrt):
-#         print("Get graph...")
-#         start = time.time()
-#         modelfile = "tmp.xml"
-#         self.write(modelfile)
-#         trace, graph = None, None
-#         query = "E<> monitor.measure && monitor.x[lm] >= " + str(mrt)
-#         trace = UPPAAL.get_trace(modelfile, query)
-#         nodes = list(map(lambda x : x.name, self.nodes))
-#         graph = Grapher.gen_mrt(nodes, trace)
-#         end = time.time()
-#         print("Query time: ", end - start)
-#         return mrt, trace, graph
-
-
-
-
-#     def measure_load(self, load_threshold, percentage, upper_limit):
-#         modelfile = "tmp.xml"
-#         self.write(modelfile)
-#         data = UPPAAL.measure_load(modelfile, load_threshold, percentage, upper_limit)
-
-#         return data
-
-#     def trace(self, query):
-#         modelfile = "tmp.xml"
-#         self.write(modelfile)
-#         return UPPAAL.get_trace(modelfile, query)
-
-#     def random_trace(self, upper_limit):
-#         modelfile = "tmp.xml"
-#         self.write(modelfile)
-#         return UPPAAL.random_trace(modelfile, upper_limit)
-
-
-#     def write(self, outfile):
-#         output = ""
-#         declarations_xml = self.gen_declaration()
-#         system_xml = self.gen_system()
-
-#         # *Added to make sure location is read properly as per
-#         __location__ = os.path.realpath(
-#         os.path.join(os.getcwd(), os.path.dirname(__file__)))
-
-#         f = open(os.path.join(__location__, 'template.xml'), 'r')
-#         for l in f.readlines():
-#             if "!!!DECLARATIONS!!!" in l:
-#                 output += declarations_xml
-#             elif "!!!SYSTEM!!!" in l:
-#                 output += system_xml
-#             else:
-#                 output += l
-
-
-#         fout = open(outfile, 'w')
-#         for o in output:
-#             fout.write(o)
-#         fout.close()
-
-#     def print_nodes(self):
-#         for n in self.nodes:
-#             print("-", n)
