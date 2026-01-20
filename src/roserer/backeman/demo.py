@@ -1,7 +1,8 @@
 ###
 ## This script allows to generate a ROS system and check the maxmimum reaction time
 ##
-## Usage: At the bottom of the script, three functions are called, example, validation and use_case.
+## Usage: At the bottom of the script, three functions are called, example, validation 
+## and use_case.
 ##
 ## Comments:
 ## No component can be named pd
@@ -118,11 +119,29 @@ def case_study(cameras, prob, mcamera, subscription, fusion_period=500):
 
     if subscription:
         if 0 == mcamera:
-            system.add_subscriber("FUSION", "OBJDET0", FUSIONSUBWCET, ["OBJDET" + str(i) for i in range(1,cameras)], [FUSIONSUB]*(cameras-1), "pd")
+            system.add_subscriber(
+                "FUSION",
+                "OBJDET0",
+                FUSIONSUBWCET,
+                ["OBJDET" + str(i) for i in range(1,cameras)],
+                [FUSIONSUB]*(cameras-1),
+                "pd")
         else:
-            system.add_subscriber("FUSION", "OBJDET0", FUSIONSUBWCET, ["OBJDET" + str(i) for i in range(1,cameras)], [FUSIONSUB]*(cameras-1), "FUSIONxOBJDET" + str(mcamera) + "_data")
+            system.add_subscriber(
+                "FUSION",
+                "OBJDET0",
+                FUSIONSUBWCET,
+                ["OBJDET" + str(i) for i in range(1,cameras)],
+                [FUSIONSUB]*(cameras-1),
+                "FUSIONxOBJDET" + str(mcamera) + "_data")
     else:
-        system.add_timer("FUSION", fusion_period, 0, FUSIONTIMERWCET, ["OBJDET" + str(i) for i in range(cameras)], [FUSIONSUB]*cameras, "FUSIONxOBJDET" + str(mcamera) + "_data")
+        system.add_timer(
+            "FUSION",
+            fusion_period,
+            0,
+            FUSIONTIMERWCET,
+            ["OBJDET" + str(i) for i in range(cameras)],
+            [FUSIONSUB]*cameras, "FUSIONxOBJDET" + str(mcamera) + "_data")
     system.add_subscriber("ACTUATOR", "FUSION", ACTUATORWCET, [], [], "pd")
     system.monitor("ACTUATOR", 0)
 
@@ -219,14 +238,19 @@ def test_system(max_cameras, mcamera, subscription, upper_limit, fusion_period):
                 lines[row].append(fmt)
                 #print("NEWLINE: ", row, "--->", lines[row])
         i += 1
-        for l in lines:
-            result.append(' & '.join(l) + "\\\\")
+        for ln in lines:
+            result.append(' & '.join(ln) + "\\\\")
         result.append("\\hline")
     result.append("\\end{tabular}")
     if subscription:
-        result.append("\\caption{Use case monitoring " + str(mcamera+1) + ", with subscription-based fusion analysing " + str(upper_limit) + " time steps.}")
+        result.append("\\caption{Use case monitoring " \
+            + str(mcamera+1) + ", with subscription-based fusion analysing " \
+            + str(upper_limit) + " time steps.}")
     else:
-        result.append("\\caption{Use case monitoring " + str(mcamera+1) + ", with timer-based fusion (period of " + str(fusion_period) + ") analysing " + str(upper_limit) + " time steps.}")
+        result.append("\\caption{Use case monitoring " \
+            + str(mcamera+1) + ", with timer-based fusion (period of " \
+            + str(fusion_period) + ") analysing " \
+            + str(upper_limit) + " time steps.}")
     result.append("\\end{table}")
     latex = '\n'.join(result)
     return latex
