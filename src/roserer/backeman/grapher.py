@@ -2,18 +2,19 @@
 ## Class with statics functions to generate latex-graphs from UPPAAL traces.
 #
 
+Trace = list[tuple[str, str, str, str]]
+
 class Grapher:
 
     # Finds upper bound on time for a trace
-    def get_ul(trace: list[tuple[str, str, str, str]]) -> int:
+    def get_ul(trace: Trace) -> int:
        # print("UL")
        # print(trace)
        (time, act, idd, data) = trace[-1]
        return int(time)
 
-
     # Fills in missing data by traversing the trace backwards
-    def fill_trace(trace: list[tuple[str, str, str, str]]) -> None:
+    def fill_trace(trace: Trace) -> None:
         last_data = ""
         last_idd = ""
         for i in range(len(trace)-1, -1, -1):
@@ -24,17 +25,14 @@ class Grapher:
             if act == "START":
                 trace[i] = (time, act, last_idd, last_data)
 
-
-
     # Make sure trace is filled
     # Final part of trace should be a monitor:
-    def find_mrt_path(trace: list[tuple[str, str, str, str]]
-                      ) -> list[tuple[str, str, str, str]]:
+    def find_mrt_path(trace: Trace) -> Trace:
         (ftime, fact, farg, fdata) = trace[-1]
         assert(fact == "MONITOR")
         final_data = farg
 
-        path: list[tuple[str, str, str, str]] = []
+        path: Trace = []
         # Go through trace and only keep bits using final_data
 
         last_id = None
@@ -62,9 +60,7 @@ class Grapher:
 
         return path
 
-
-    def gen_mrt(nodes: list[str], trace: list[tuple[str, str, str, str]]) -> list[str]:
-
+    def gen_mrt(nodes: list[str], trace: Trace) -> list[str]:
         ul: int = Grapher.get_ul(trace)
         Grapher.fill_trace(trace)
         path = Grapher.find_mrt_path(trace)
