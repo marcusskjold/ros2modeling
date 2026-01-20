@@ -2,6 +2,8 @@
 import subprocess
 import re
 
+Trace = list[tuple[str, str, str, str]]
+
 # Class containing static functions for interacting with UPPAAL
 class UPPAAL():
     def run_uppaal(
@@ -57,14 +59,14 @@ class UPPAAL():
         fout.close()
 
     # Also returns final data...
-    def parse_random_trace_query(output: str) -> list[str]:
+    def parse_random_trace_query(output: str) -> Trace:
         # Current idea:
         # - We register whenever a task starts executing (host.takenext->host.executing)
         # - We register whenever a task finished executing (host.executing->host.done)
         #      then we also store which jobs was done (host.job)
         # - Also register when data-sources are firing
-        def parse_state(s: str, v: str, t: list[str]) -> list[tuple[str, str, str, str]]:
-            actions: list[tuple[str, str, str, str]] = []
+        def parse_state(s: str, v: str, t: list[str]) -> Trace:
+            actions: Trace = []
             string: str = "<<<STATE>>>\n"
             string += s[2:-2] + "\n"
             for ln in s[2:-2].split(" "):
@@ -124,7 +126,7 @@ class UPPAAL():
 
         i = 0
         lines = output.split("\n")
-        actions = []
+        actions: Trace = []
         while i < len(lines):
             ln = lines[i].strip()
             if "State:" == ln:
@@ -183,7 +185,7 @@ class UPPAAL():
         return UPPAAL.parse_sup_query(output)
 
     # Gets a trace satisfying query
-    def get_trace(modelfile: str, query: str) -> list[str]:
+    def get_trace(modelfile: str, query: str) -> Trace:
         queryfile = modelfile + ".q"
         f = open(queryfile, 'w')
         f.write(query + '\n')
@@ -193,7 +195,7 @@ class UPPAAL():
 
 
     # Gets a random trace until time upper_limit
-    def random_trace(modelfile: str, upper_limit: int) -> list[str]:
+    def random_trace(modelfile: str, upper_limit: int) -> Trace:
         queryfile = modelfile + ".q"
         UPPAAL.write_random_trace_query(queryfile, upper_limit)
         output = UPPAAL.run_uppaal(modelfile, queryfile, ['-t', '1'])
