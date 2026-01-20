@@ -6,6 +6,10 @@ The version vendored here is taken from commit b280c82e6bc78aaa7a5b2bb1b1ca5e516
 Any modifications, bug fixes and improvements are by Marcus Skjold Pedersen.
 Notable changes will be noted here:
 
+- Added type annotations
+- Change the output format of latex tables
+- Read package file from package instead of current working directory
+
 ## Changes
 
 - None
