@@ -1,4 +1,5 @@
 # Provides functions to perform various UPPAAL tasks.
+import roserer.verifyta_resolver
 import subprocess
 import re
 
@@ -6,6 +7,9 @@ Trace = list[tuple[str, str, str, str]]
 
 # Class containing static functions for interacting with UPPAAL
 class UPPAAL():
+
+    verifyta_path: str = roserer.verifyta_resolver.find_verifyta()
+
     def run_uppaal(
         modelfile: str,
         queryfile: str,
@@ -15,8 +19,9 @@ class UPPAAL():
             extra_args = []
         try:
             output = subprocess.check_output(
+                [UPPAAL.verifyta_path] + extra_args + [modelfile, queryfile], text=True)
                 # TODO: Fix verifyta local reading
-                ["./verifyta"] + extra_args + [modelfile, queryfile], text=True)
+                # ["./verifyta"] + extra_args + [modelfile, queryfile], text=True)
 
             return output
         except Exception:
@@ -201,7 +206,6 @@ class UPPAAL():
         output = UPPAAL.run_uppaal(modelfile, queryfile, ['-t', '1'])
         return UPPAAL.parse_random_trace_query(output)
 
-
     # Used for use case, checks if the system is under load_threshold, 
     # with percentage chance
     def measure_load(
@@ -219,3 +223,4 @@ class UPPAAL():
 
         data = UPPAAL.parse_load_query(output)
         return formula, data
+
