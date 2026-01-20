@@ -1,6 +1,4 @@
 # Provides functions to perform various UPPAAL tasks.
-from argparse import ArgumentError
-
 import subprocess
 import re
 
@@ -65,33 +63,32 @@ class UPPAAL():
         # - We register whenever a task finished executing (host.executing->host.done)
         #      then we also store which jobs was done (host.job)
         # - Also register when data-sources are firing
-        def parse_state(s: str, v: str, t: list[str]) -> list[str]:
-            actions = []
-            # string = ""
-            string = "<<<STATE>>>\n"
+        def parse_state(s: str, v: str, t: list[str]) -> list[tuple[str, str, str, str]]:
+            actions: list[tuple[str, str, str, str]] = []
+            string: str = "<<<STATE>>>\n"
             string += s[2:-2] + "\n"
             for ln in s[2:-2].split(" "):
                 string += "  " + ln + "\n"
             string += v + "\n"
             string += str(t) + "\n"
 
-            values = {}
+            values: dict[str, str] = {}
             for vv in v.split(" "):
-                split = vv.strip().split("=")
+                split: list[str] = vv.strip().split("=")
                 values[split[0]] = split[1]
 
             for tt in t:
-                fire_pattern = r"(\w+)\.monitored_fire->\1\.wait"
-                match = re.search(fire_pattern, tt)
+                fire_pattern: str = r"(\w+)\.monitored_fire->\1\.wait"
+                match: re.Match[str] | None = re.search(fire_pattern, tt)
                 if match:
-                    source_id = values[match.group(1) + ".id"]
+                    source_id: str = values[match.group(1) + ".id"]
                     actions.append(
                         (values['global'], "FIRE", source_id, values["PAYLOAD"]))
 
                 fire_pattern = r"(\w+)\.fire->\1\.wait"
                 match = re.search(fire_pattern, tt)
                 if match:
-                    source_id = values[match.group(1) + ".id"]
+                    source_id: str = values[match.group(1) + ".id"]
                     # Here -1 is hard-coded:
                     actions.append((values['global'], "FIRE", source_id, "-1")) 
 
