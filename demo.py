@@ -6,6 +6,9 @@ from pprint import pprint
 import roserer.backeman.system as bk
 import roserer.adapters.backeman_adapter as tb
 
+from dotenv import load_dotenv
+load_dotenv()
+
 system = ros.System("test", dds_implementation="Generic")
 system.default_qos.depth = 20
 

@@ -8,7 +8,7 @@ Trace = list[tuple[str, str, str, str]]
 # Class containing static functions for interacting with UPPAAL
 class UPPAAL():
 
-    verifyta_path: str = roserer.verifyta_resolver.find_verifyta()
+    # verifyta_path: str = roserer.verifyta_resolver.find_verifyta()
 
     def run_uppaal(
         modelfile: str,
@@ -19,7 +19,7 @@ class UPPAAL():
             extra_args = []
         try:
             output = subprocess.check_output(
-                [UPPAAL.verifyta_path] + extra_args + [modelfile, queryfile], text=True)
+                [roserer.verifyta_resolver.find_verifyta()] + extra_args + [modelfile, queryfile], text=True)
                 # TODO: Fix verifyta local reading
                 # ["./verifyta"] + extra_args + [modelfile, queryfile], text=True)
 
