@@ -13,20 +13,21 @@
 import subprocess
 import itertools
 import re
+import roserer.verifyta_resolver
 
 # Class containing static functions for interacting with UPPAAL
 class UPPAAL():
-    def run_uppaal(modelfile, queryfile, extra_args = []):
+    def run_uppaal(
+        modelfile: str,
+        queryfile: str,
+        extra_args: list[str] | None = None
+    ) -> str:
+        if extra_args is None:
+            extra_args = []
         try:
             output = subprocess.check_output(
-                [
-                    "verifyta" # *changed to my env-path
-                ] + extra_args + [
-                    modelfile,
-                    queryfile
-                ],
-                text=True,
-            )
+                [roserer.verifyta_resolver.find_verifyta()] + extra_args + [modelfile, queryfile], text=True)
+                # ["./verifyta"] + extra_args + [modelfile, queryfile], text=True)
 
             return output
         except Exception:
@@ -35,6 +36,7 @@ class UPPAAL():
             10/0
             return "Overflow"
 
+    # TODO: try to loop here to create dict of results or something like that -> manage more checkables
     # query 2) from paper
     def buffer_overflow(modelfile, checkables):
         queryfile = modelfile + '.q'
@@ -50,8 +52,18 @@ class UPPAAL():
         fout.write(q)
         return q
 
-    def parse_buffer_overflow_query():
-        return ""
+    def parse_buffer_overflow_query(output):
+        satisfied = None
+        lines = output.split("\n")
+        idx = 0
+        while "Verifying formula" not in lines[idx]:
+            idx += 1
+        l2 = lines[idx+1].strip() # Formula is/NOT satisfied
+        if "Formula is NOT satisfied" in l2:
+            satisfied = False
+        elif "Formula is satisfied" in l2:
+            satisfied = True
+        return satisfied
 
     # query 3) from paper
     def max_buffer_size(modelfile, checkables):
@@ -59,6 +71,8 @@ class UPPAAL():
         UPPAAL.write_max_buffer_size_query(queryfile, checkables)
         output = UPPAAL.run_uppaal(modelfile, queryfile)
         return UPPAAL.parse_max_buffer_size_query(output)
+        ## debug
+        #return output
 
     def write_max_buffer_size_query(queryfile, checkables):
         fout = open(queryfile, 'w')
@@ -68,8 +82,8 @@ class UPPAAL():
         fout.write(q)
         return q
 
-    def parse_max_buffer_size_query():
-        return ""
+    def parse_max_buffer_size_query(output):
+        return UPPAAL.parse_sup_query(output)
 
     # query 4) from paper
     def max_latency(modelfile, checkables):
@@ -86,8 +100,9 @@ class UPPAAL():
         fout.write(q)
         return q
 
-    def parse_max_latency_query():
-        return ""
+    #TODO: This could probably return a mapping from checkable to result, which could then be used in query 5!!
+    def parse_max_latency_query(output):
+        return UPPAAL.parse_sup_query(output)
     
     # query 5) from paper
     def max_latency_trace(modelfile, checkables):
@@ -105,6 +120,12 @@ class UPPAAL():
         return ""
 
 
+    def parse_sup_query(output):
+        lines = output.split("\n")
+        for l in lines:
+            if "sup:" in l:
+                return int(l[5:-1])
+
 #     def write_sup_query(queryfile):
 #         fout = open(queryfile, 'w')
 #         fout.write("sup{monitor.measure}: monitor.x[lm]\n")
@@ -117,13 +138,6 @@ class UPPAAL():
 #         fout.write(formula + "\n")
 #         fout.close()
 #         return formula
-
-
-#     def parse_sup_query(output):
-#         lines = output.split("\n")
-#         for l in lines:
-#             if "sup:" in l:
-#                 return int(l[5:-1])
 
 #     def write_random_trace_query(queryfile, upper_limit):
 #         fout = open(queryfile, 'w')

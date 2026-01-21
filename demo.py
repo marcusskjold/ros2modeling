@@ -6,6 +6,7 @@ from pprint import pprint
 import roserer.backeman.system as bk
 import roserer.adapters.backeman_adapter as tb
 import roserer.dust.dust_system as ds
+import roserer.dust.dust_uppaal as du
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -138,5 +139,13 @@ yparse.parse_yaml("src/tests/input/example.yaml")
 sys = ds.System("mySystem")
 sys.add_component("executor_v1",1,90)
 sys.add_component("executor_v2",2,90)
-sys.add_sporadic_callback(1,50,1,1,5,0,[0,1,2,3],[0,1,2,3],5,7)
+sys.add_sporadic_callback(id=1,exec_time=50,length=10,releases=[10,20,30,40,50,60,70,80,90,100],type=2,
+                          buffersize=10,amount_of_publishers=0,publisher_release_time=[0,0,0,0,0,0,0,0,0,0]
+                          ,publisher_id=[0,0,0,0,0,0,0,0,0,0],executorID=1)
+sys.add_sporadic_callback(id=2,exec_time=100,length=10,releases=[10,20,30,40,50,60,70,80,90,100],type=2,
+                          buffersize=10,amount_of_publishers=0,publisher_release_time=[0,0,0,0,0,0,0,0,0,0]
+                          ,publisher_id=[0,0,0,0,0,0,0,0,0,0],executorID=2)
 print(sys)
+print(sys.buffer_overflow())
+print(sys.max_buffer_size())
+print(sys.max_latency())
