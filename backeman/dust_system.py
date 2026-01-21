@@ -170,7 +170,7 @@ class System():
 
     #TODO: maybe use kwargs (**) instead for less error-prone
         # Or use enum
-    def add_component(self, component_t, *args):
+    def add_component(self, component_t : str, *args):
         match component_t:
             case "executor_v1":
                 self.executors.append(ExecutorV1(*args))
@@ -219,7 +219,7 @@ class System():
     def gen_declaration(self) -> str:
         s = ""
         s += "const int C = " + str(len(self.nodes)) + ";\n"
-        components = list(set(self.executors) | set(self.topics) | set(self.callbacks))
+        components : list[UppaalTemplate] = list(set(self.executors) | set(self.topics) | set(self.callbacks))
         for c in components:
             s += c.declaration()
         return s
@@ -227,7 +227,7 @@ class System():
     # TODO: test this
     def gen_system(self) -> str:
         s = ""
-        components = list(set(self.executors) | set(self.topics) | set(self.callbacks))
+        components : list[UppaalTemplate] = list(set(self.executors) | set(self.topics) | set(self.callbacks))
         for c in components:
             s += c.system()
         component_names = [c.name() for c in components]
@@ -237,10 +237,11 @@ class System():
     # TODO: implement (maybe)
     def buffer_overflow(self):
         self.write(INPUT_UPPAAL_FILE, OUTPUT_UPPAAL_FILE)
-        checkables = list(set(self.topics) | set(self.callbacks))
+        checkables : list[UppaalTemplate] = list(set(self.topics) | set(self.callbacks))
         return UPPAAL.buffer_overflow(OUTPUT_UPPAAL_FILE, checkables)
     
     # TODO: implement (maybe)
+    # assumes NO bufferoverflow or result will be trivially the size of the buffer
     def max_buffer_size(self):
         self.write(INPUT_UPPAAL_FILE, OUTPUT_UPPAAL_FILE)
         checkables = list(set(self.topics) | set(self.callbacks))

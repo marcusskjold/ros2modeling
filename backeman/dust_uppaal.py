@@ -36,52 +36,69 @@ class UPPAAL():
             return "Overflow"
 
     # query 2) from paper
-    def buffer_overflow(modelfile, components):
+    def buffer_overflow(modelfile, checkables):
         queryfile = modelfile + '.q'
-        UPPAAL.write_buffer_overflow_query(queryfile)
+        UPPAAL.write_buffer_overflow_query(queryfile, checkables)
         output = UPPAAL.run_uppaal(modelfile, queryfile)
         return UPPAAL.parse_buffer_overflow_query(output)
 
-    def write_buffer_overflow_query(queryfile, components):
-        return ""
+    def write_buffer_overflow_query(queryfile, checkables) -> str:
+        fout = open(queryfile, 'w')
+        q = ""
+        for checkable in checkables:
+            q += f"A[] {checkable}.Overflow == false\n"
+        fout.write(q)
+        return q
 
     def parse_buffer_overflow_query():
         return ""
 
     # query 3) from paper
-    def max_buffer_size(modelfile, components):
+    def max_buffer_size(modelfile, checkables):
         queryfile = modelfile + '.q'
-        UPPAAL.write_max_buffer_size_query(queryfile)
+        UPPAAL.write_max_buffer_size_query(queryfile, checkables)
         output = UPPAAL.run_uppaal(modelfile, queryfile)
         return UPPAAL.parse_max_buffer_size_query(output)
 
-    def write_max_buffer_size_query(queryfile, components):
-        return ""
+    def write_max_buffer_size_query(queryfile, checkables):
+        fout = open(queryfile, 'w')
+        q = ""
+        for checkable in checkables:
+            q += f"sup:{checkable}.bufferUtil\n"
+        fout.write(q)
+        return q
 
     def parse_max_buffer_size_query():
         return ""
 
     # query 4) from paper
-    def max_latency(modelfile, components):
+    def max_latency(modelfile, checkables):
         queryfile = modelfile + '.q'
-        UPPAAL.write_max_latency_query(queryfile)
+        UPPAAL.write_max_latency_query(queryfile, checkables)
         output = UPPAAL.run_uppaal(modelfile, queryfile)
         return UPPAAL.parse_max_latency_query(output)
 
-    def write_max_latency_query(queryfile, components):
-        return ""
+    def write_max_latency_query(queryfile, checkables):
+        fout = open(queryfile, 'w')
+        q = ""
+        for checkable in checkables:
+            q += f"sup {{{checkable}.ExecutionFinished}}: {checkable}.relTim[{checkable}.relcnt-1]\n"
+        fout.write(q)
+        return q
 
     def parse_max_latency_query():
         return ""
     
     # query 5) from paper
-    def max_latency_trace(modelfile, components):
+    def max_latency_trace(modelfile, checkables):
         queryfile = modelfile + '.q'
-        UPPAAL.write_max_latency_trace_query(queryfile)
+        UPPAAL.write_max_latency_trace_query(queryfile, checkables)
         output = UPPAAL.run_uppaal(modelfile, queryfile)
         return UPPAAL.parse_max_latency_trace_query(output)
 
-    def write_max_latency_trace_query(queryfile, components):
+    #TODO: this requires result from query 4 on a per checkable basis
+        # -> figure out smart way to implement this
+    def write_max_latency_trace_query(queryfile, checkables):
         return ""
 
     def parse_max_latency_trace_query():
