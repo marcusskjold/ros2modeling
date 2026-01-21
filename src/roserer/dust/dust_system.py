@@ -8,8 +8,8 @@
 # out of, or in connection with the software or the use or other dealings in the software.
 
 
-from .dust_uppaal import UPPAAL # * added '.' in front of imports
-from .grapher import Grapher
+from roserer.dust.dust_uppaal import UPPAAL # * added '.' in front of imports
+from roserer.backeman.grapher import Grapher
 import os # * added to support proper pathing
 from abc import ABC, abstractmethod # for creating abstract class
 
