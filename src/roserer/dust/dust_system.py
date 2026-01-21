@@ -15,8 +15,16 @@ from abc import ABC, abstractmethod # for creating abstract class
 
 import time
 
+# input- and output-files for creating UPPAAL-system
 INPUT_UPPAAL_FILE = 'STTT_Full.xml'
 OUTPUT_UPPAAL_FILE = 'tmp.xml'
+
+# the size for a given array-parameter
+ARRAY_SIZES = {
+    'releases' : 'MAXX',
+    'publisher_release_time' : 'MAXPUB',
+    'publisher_id' : 'MAXPUB'
+}
 
 # common functionality for all python-UPPAAL-mappings
 class UppaalTemplate(ABC):
@@ -41,7 +49,7 @@ class UppaalTemplate(ABC):
         variables = vars(self).items()
         for var, val in variables:
             if type(val) is list:
-                decl += self.param_name(var) + "=" + self.toUpArray(val) + ";\n"
+                decl += "const int " + self.param_name(var) + "[" + ARRAY_SIZES[str(var)] + "]" + "=" + self.toUpArray(val) + ";\n"
         return decl
 
     # get template-instance for system-declaration
@@ -218,7 +226,6 @@ class System():
 
     def gen_declaration(self) -> str:
         s = ""
-        s += "const int C = " + str(len(self.nodes)) + ";\n"
         components : list[UppaalTemplate] = list(set(self.executors) | set(self.topics) | set(self.callbacks))
         for c in components:
             s += c.declaration()
@@ -234,28 +241,33 @@ class System():
         s += "system " + ','.join(component_names) + ";\n"
         return s
 
-    # TODO: implement (maybe)
+    # TODO: maybe return more comprehensive message
+    # We could make an interface with write, run and parse
     def buffer_overflow(self):
         self.write(INPUT_UPPAAL_FILE, OUTPUT_UPPAAL_FILE)
         checkables : list[UppaalTemplate] = list(set(self.topics) | set(self.callbacks))
-        return UPPAAL.buffer_overflow(OUTPUT_UPPAAL_FILE, checkables)
+        checkables_names = [c.name() for c in checkables]
+        return UPPAAL.buffer_overflow(OUTPUT_UPPAAL_FILE, checkables_names)
     
     # TODO: implement (maybe)
     # assumes NO bufferoverflow or result will be trivially the size of the buffer
     def max_buffer_size(self):
         self.write(INPUT_UPPAAL_FILE, OUTPUT_UPPAAL_FILE)
         checkables = list(set(self.topics) | set(self.callbacks))
-        return UPPAAL.max_buffer_size(OUTPUT_UPPAAL_FILE, checkables)
+        checkables_names = [c.name() for c in checkables]
+        return UPPAAL.max_buffer_size(OUTPUT_UPPAAL_FILE, checkables_names)
     
     # TODO: implement
     def max_latency(self):
         self.write(INPUT_UPPAAL_FILE, OUTPUT_UPPAAL_FILE)
-        return UPPAAL.max_latency(OUTPUT_UPPAAL_FILE, self.callbacks)
+        checkables_names = [c.name() for c in self.callbacks]
+        return UPPAAL.max_latency(OUTPUT_UPPAAL_FILE, checkables_names)
     
     # TODO: implement
     def max_latency_trace(self):
         self.write(INPUT_UPPAAL_FILE, OUTPUT_UPPAAL_FILE)
-        return UPPAAL.max_latency_trace(OUTPUT_UPPAAL_FILE, self.callbacks)
+        checkables_names = [c.name() for c in self.callbacks]
+        return UPPAAL.max_latency_trace(OUTPUT_UPPAAL_FILE, checkables_names)
 
 ############FROM BACKEMAN####################################
 
