@@ -166,7 +166,7 @@ class System():
     # for printing
     def __str__(self):
         s = "System: "
-        components = list(set(self.executors) | set(self.topics) | set(self.callbacks))
+        components = self.executors + self.topics + self.callbacks
         for c in components:
             s += "\n  -" + str(c)
         return s
@@ -220,14 +220,14 @@ class System():
 
     def gen_declaration(self) -> str:
         s = ""
-        components : list[UppaalTemplate] = list(set(self.executors) | set(self.topics) | set(self.callbacks))
+        components : list[UppaalTemplate] = self.executors + self.topics + self.callbacks
         for c in components:
             s += c.declaration()
         return s
 
     def gen_system(self) -> str:
         s = ""
-        components : list[UppaalTemplate] = list(set(self.executors) | set(self.topics) | set(self.callbacks))
+        components : list[UppaalTemplate] = self.executors + self.topics + self.callbacks
         for c in components:
             s += c.system()
         component_names = [c.name() for c in components]
@@ -236,14 +236,14 @@ class System():
 
     def buffer_overflow(self):
         self.write(INPUT_UPPAAL_FILE, OUTPUT_UPPAAL_FILE)
-        checkables : list[UppaalTemplate] = list(set(self.topics) | set(self.callbacks))
+        checkables : list[UppaalTemplate] = self.topics + self.callbacks
         checkables_names = [c.name() for c in checkables]
         return UPPAAL.buffer_overflow(OUTPUT_UPPAAL_FILE, checkables_names)
     
     # assumes NO bufferoverflow or result will be trivially the size of the buffer
     def max_buffer_size(self):
         self.write(INPUT_UPPAAL_FILE, OUTPUT_UPPAAL_FILE)
-        checkables = list(set(self.topics) | set(self.callbacks))
+        checkables = self.topics + self.callbacks
         checkables_names = [c.name() for c in checkables]
         return UPPAAL.max_buffer_size(OUTPUT_UPPAAL_FILE, checkables_names)
     
