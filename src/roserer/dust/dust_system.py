@@ -9,15 +9,12 @@
 
 
 from roserer.dust.dust_uppaal import UPPAAL # * added '.' in front of imports
-from roserer.backeman.grapher import Grapher
-import os # * added to support proper pathing
 from abc import ABC, abstractmethod # for creating abstract class
-
-import time
+import os # * added to support proper pathing
 
 # input- and output-files for creating UPPAAL-system
 INPUT_UPPAAL_FILE = 'STTT_Full.xml'
-OUTPUT_UPPAAL_FILE = 'tmp.xml'
+OUTPUT_UPPAAL_FILE = 'TEST-dust.xml'
 
 # the size for a given array-parameter
 ARRAY_SIZES = {

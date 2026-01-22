@@ -198,6 +198,8 @@ pyrightconfig.json
 ## backeman additions
 *-backeman.xml
 *-backeman.xml.q
+*-dust.xml
+*-dust.xml.q
 # template.xml
 verifyta
 # backeman/
