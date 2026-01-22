@@ -264,10 +264,10 @@ class System():
         return UPPAAL.max_latency(OUTPUT_UPPAAL_FILE, checkables_names)
     
     # TODO: implement
-    def max_latency_trace(self):
+    def max_latency_trace(self, max_latencies : dict = None):
         self.write(INPUT_UPPAAL_FILE, OUTPUT_UPPAAL_FILE)
         checkables_names = [c.name() for c in self.callbacks]
-        return UPPAAL.max_latency_trace(OUTPUT_UPPAAL_FILE, checkables_names)
+        return UPPAAL.max_latency_trace(OUTPUT_UPPAAL_FILE, checkables_names, max_latencies)
 
 ############FROM BACKEMAN####################################
 
