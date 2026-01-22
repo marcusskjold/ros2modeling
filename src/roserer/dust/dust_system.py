@@ -119,7 +119,6 @@ class PeriodicCallback(UppaalTemplate):
         return "PeriodicCallback" + str(self.id)
 
 
-#TODO: consider just correcting period-attr-name here and in UPPAAL-template (see my notes in Template)
 class SporadicCallback(UppaalTemplate):
     def __init__(self, id : int, exec_time : int, length : int, releases : list[int], type : int, buffersize : int,
                   amount_of_publishers : int, publisher_release_time : list[int], 
@@ -172,9 +171,7 @@ class System():
             s += "\n  -" + str(c)
         return s
     
-
-    #TODO: maybe use kwargs (**) instead for less error-prone
-        # Or use enum
+    # generalized version of below methods (harder to use)
     def add_component(self, component_t : str, *args):
         match component_t:
             case "executor_v1":
@@ -228,7 +225,6 @@ class System():
             s += c.declaration()
         return s
 
-    # TODO: test this
     def gen_system(self) -> str:
         s = ""
         components : list[UppaalTemplate] = list(set(self.executors) | set(self.topics) | set(self.callbacks))
@@ -238,15 +234,12 @@ class System():
         s += "system " + ','.join(component_names) + ";\n"
         return s
 
-    # TODO: maybe return more comprehensive message
-    # We could make an interface with write, run and parse
     def buffer_overflow(self):
         self.write(INPUT_UPPAAL_FILE, OUTPUT_UPPAAL_FILE)
         checkables : list[UppaalTemplate] = list(set(self.topics) | set(self.callbacks))
         checkables_names = [c.name() for c in checkables]
         return UPPAAL.buffer_overflow(OUTPUT_UPPAAL_FILE, checkables_names)
     
-    # TODO: implement (maybe)
     # assumes NO bufferoverflow or result will be trivially the size of the buffer
     def max_buffer_size(self):
         self.write(INPUT_UPPAAL_FILE, OUTPUT_UPPAAL_FILE)
@@ -254,70 +247,16 @@ class System():
         checkables_names = [c.name() for c in checkables]
         return UPPAAL.max_buffer_size(OUTPUT_UPPAAL_FILE, checkables_names)
     
-    # TODO: implement
     def max_latency(self):
         self.write(INPUT_UPPAAL_FILE, OUTPUT_UPPAAL_FILE)
         checkables_names = [c.name() for c in self.callbacks]
         return UPPAAL.max_latency(OUTPUT_UPPAAL_FILE, checkables_names)
     
-    # TODO: implement
     def max_latency_trace(self, max_latencies : dict = None):
         self.write(INPUT_UPPAAL_FILE, OUTPUT_UPPAAL_FILE)
         checkables_names = [c.name() for c in self.callbacks]
         return UPPAAL.max_latency_trace(OUTPUT_UPPAAL_FILE, checkables_names, max_latencies)
-
-############FROM BACKEMAN####################################
-
-
-
-    # Lets find the reaction time, also with a trace so we can generate a graph
-    def max_reaction_time(self, gen_graph=True):
-        modelfile = "tmp.xml"
-        self.write('template.xml', modelfile)
-        mrt = UPPAAL.sup(modelfile)
-        trace, graph = None, None
-        if gen_graph:
-            query = "E<> monitor.measure && monitor.x[lm] == " + str(mrt)
-            trace = UPPAAL.get_trace(modelfile, query)
-            nodes = list(map(lambda x : x.name, self.nodes))
-            graph = Grapher.gen_mrt(nodes, trace)
-        return mrt, trace, graph
-
-    def get_graph(self, mrt):
-        print("Get graph...")
-        start = time.time()
-        modelfile = "tmp.xml"
-        self.write(modelfile)
-        trace, graph = None, None
-        query = "E<> monitor.measure && monitor.x[lm] >= " + str(mrt)
-        trace = UPPAAL.get_trace(modelfile, query)
-        nodes = list(map(lambda x : x.name, self.nodes))
-        graph = Grapher.gen_mrt(nodes, trace)
-        end = time.time()
-        print("Query time: ", end - start)
-        return mrt, trace, graph
-
-
-
-
-    def measure_load(self, load_threshold, percentage, upper_limit):
-        modelfile = "tmp.xml"
-        self.write('template.xml', modelfile)
-        data = UPPAAL.measure_load(modelfile, load_threshold, percentage, upper_limit)
-
-        return data
-
-    def trace(self, query):
-        modelfile = "tmp.xml"
-        self.write('template.xml', modelfile)
-        return UPPAAL.get_trace(modelfile, query)
-
-    def random_trace(self, upper_limit):
-        modelfile = "tmp.xml"
-        self.write('template.xml', modelfile)
-        return UPPAAL.random_trace(modelfile, upper_limit)
-
-
+    
     def write(self, infile : str, outfile : str):
         output = ""
         declarations_xml = self.gen_declaration()
@@ -341,7 +280,3 @@ class System():
         for o in output:
             fout.write(o)
         fout.close()
-
-    # def print_components(self):
-    #     for c in self.executors:
-    #         print("-", c)
