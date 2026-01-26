@@ -1,4 +1,5 @@
 import roserer.ros2system as ros
+import roserer.qos as qos
 
 """
 A ros2 system model consists of
@@ -79,6 +80,7 @@ DISTRIBUTIONS = [
 ]
 
 # See rmw/rmw/src/qos_string_conversions.c
+# TODO: Delete this, it is unnescessary
 QOS = {
     "history": ["system_default", "keep_last", "keep_all"],
     "depth": int,
@@ -282,23 +284,20 @@ class ValidationResult():
 # ==================== VALIDATORS ===================================
 
 
-def validate_qos(qos: ros.QualityOfService, parent: str) -> list[str]:
+def validate_qos(qos: qos.QoS, parent: str) -> list[str]:
+    """
+    Notice that deadline and lifespan are not used in any models currently
+    """
     feedback = []
-    if qos.history not in QOS["history"]:
-        feedback += [f"{parent} has invalid qos history policy"]
     if qos.depth < 0:
         feedback += [f"{parent} has invalid qos depth policy"]
-    if qos.reliability not in QOS["reliability"]:
-        feedback += [f"{parent} has invalid qos reliability policy"]
-    if qos.durability not in QOS["durability"]:
-        feedback += [f"{parent} has invalid qos durability policy"]
-    if qos.deadline < 0:
+    # TODO create proper comparison functions for durations
+    # Not a current priority, because they are unused
+    if qos.deadline < (0, 0):
         feedback += [f"{parent} has invalid qos deadline policy"]
-    if qos.lifespan < 0:
+    if qos.lifespan < (0, 0):
         feedback += [f"{parent} has invalid qos lifespan policy"]
-    if qos.liveliness not in QOS["liveliness"]:
-        feedback += [f"{parent} has invalid qos liveliness policy"]
-    if qos.liveliness_lease_duration < 0:
+    if qos.liveliness_lease_duration < (0, 0):
         feedback += [
             f"{parent} has invalid qos liveliness_lease_duration policy"]
     return feedback
