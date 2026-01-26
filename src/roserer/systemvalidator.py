@@ -14,6 +14,7 @@ TODO: Consider adding uniqueness checks to all lists
       (that they are essentially sets)
     # consider checking for infinite recursion in main validator
     # callbacks calling each other in cycles
+TODO: Make constant dicts into enums in separate package
 
 """
 
@@ -228,7 +229,8 @@ def get_paths_from(graph, source, target):
     paths = []
 
     if check_for_cycles(graph, source):
-        raise Exception(f"There is a cycle in the graph from {source} callback, cannot find chains")
+        raise Exception(f"There is a cycle in the graph from {source} callback, "
+                        "cannot find chains")
 
     while len(next) > 0:
         current, path = next.pop()
@@ -246,9 +248,9 @@ class ValidationResult():
     errors: list[str]
     interfaces: dict[str, dict[str, list[str]]]
     objects: dict[str, dict[str, str]]
-    graph: dict[str, list[str]]
-    sources: list[str]
-    sinks: list[str]
+    graph: dict[str, list[str]] | None
+    sources: list[str] | None
+    sinks: list[str] | None
 
     def __init__(self, errors, interfaces, objects):
         self.errors = errors
@@ -269,6 +271,8 @@ class ValidationResult():
 
     def get_all_cb_chains(self):
         chains = []
+        if self.sources is None or self.sinks is None:
+            return chains
         for source in self.sources:
             for sink in self.sinks:
                 chains += self.get_paths_from(source, sink)
@@ -359,7 +363,7 @@ def validate_callback(callback: ros.Callback, parent: ros.Node,
     for publisher in callback.publishers:
         feedback += verify_registration(
             publisher, "publisher", pname, name, objects)
-        feedback += add_interface(parent.get_topic(publisher), name,
+        feedback += add_interface(parent.get_publisher(publisher).topic, name,
                                   "topic", "topics published to", interfaces)
     for read in callback.read_variables:
         read: ros.Variable
@@ -378,12 +382,13 @@ def validate_callback(callback: ros.Callback, parent: ros.Node,
             output.name, "external_output", pname, name, objects)
     for request in callback.requests:
         feedback += verify_registration(
-            request.client.name, "client", pname, name, objects)
+            request.client, "client", pname, name, objects)
         if request.timeout < 0:
             feedback += [
                 f"A request of callback '{name}' has a negative timeout."]
-        feedback += add_interface(request.client.service, name,
-                                  "Service", "services requested", interfaces)
+        feedback += add_interface(
+                parent.get_client(request.client).service,
+                name, "Service", "services requested", interfaces)
     if callback.wcet < 0:
         feedback += [f"Callback '{name}' has a negative wcet"]
 
@@ -547,13 +552,15 @@ def validate_node(node: ros.Node, parent: ros.Executor,
 
     for callback in node.callbacks:
         for called_name in callback.calls:
-            feedback += verify_registration(called_name, "callback", node.name, callback.name, objects)
+            feedback += verify_registration(
+                    called_name, "callback", node.name, callback.name, objects)
 
     used_publishers = [publisher for publisher in
                        callback.publishers for callback in node.callbacks]
     for publisher in node.publishers:
         if publisher.name not in used_publishers:
-            feedback += [f"Publisher '{publisher.name}' inside node '{node.name}' is unused"]
+            feedback += [f"Publisher '{publisher.name}' inside node '{node.name}' "
+                         "is unused"]
     return feedback
 
 
