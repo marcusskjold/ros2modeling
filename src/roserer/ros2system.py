@@ -268,15 +268,23 @@ class Node():
         self.variables.append(var)
         return var
 
-    def get_topic(
+    def get_publisher(
             self,
-            publisher_name: str,
-            default_value: str | None = None
-            ) -> str | None:
+            publisher_name: str
+            ) -> Publisher:
         for pub in self.publishers:
             if publisher_name == pub.name:
-                return pub.topic
-        return default_value
+                return pub
+        raise ValueError("Publisher requested is not contained in this node")
+
+    def get_client(
+            self,
+            client_name: str
+            ) -> Client:
+        for cli in self.clients:
+            if client_name == cli.name:
+                return cli
+        raise ValueError("Client requested is not contained in this node")
 
 
 @dataclass
