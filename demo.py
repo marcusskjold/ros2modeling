@@ -1,9 +1,8 @@
+from pprint import pprint
 import roserer.ros2system as ros
 import roserer.yamlPrinter as yprint
 import roserer.yamlParser as yparse
 import roserer.systemvalidator as sv
-from pprint import pprint
-import roserer.backeman.system as bk
 import roserer.adapters.backeman_adapter as tb
 import roserer.dust.dust_system as ds
 import roserer.dust.dust_uppaal as du
@@ -15,7 +14,8 @@ system = ros.System("test", dds_implementation="Generic")
 system.default_qos.depth = 20
 
 host = system.add_host(operating_system="Generic")
-executor = host.add_executor(implementation="SingleThreadedExecutor", ros_distribution="Eloquent")
+executor = host.add_executor(
+        implementation="SingleThreadedExecutor", ros_distribution="Eloquent")
 
 s1 = executor.add_node(name="sensor1")
 s2 = executor.add_node(name="sensor2")
@@ -119,11 +119,11 @@ else:
         print(ln)
     for ln in warnings:
         print(ln)
-    bksystem: bk.System
-    tb.monitor(bksystem, "sensor1", "actuator1")
-    print(bksystem.gen_declaration())
-    print(bksystem.gen_system())
-    print(bksystem.max_reaction_time(gen_graph=False))
+    if bksystem is not None:
+        tb.monitor(bksystem, "sensor1", "actuator1")
+        print(bksystem.gen_declaration())
+        print(bksystem.gen_system())
+        print(bksystem.max_reaction_time(gen_graph=False))
 
 
 yprint.save_to_yaml(system, "src/tests/output/out")
