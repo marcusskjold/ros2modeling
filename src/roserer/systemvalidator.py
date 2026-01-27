@@ -104,6 +104,51 @@ VALID_VALUES = {
 }
 
 
+"""
+Each entry maps an object type to a dict that maps the name of an object of that type
+to the name of it's containing object / parent.
+Example:
+    {
+    'node': {
+        'node1': 'executor1',
+        },
+        ...
+    'callback': {
+        'callback1': 'node1',
+        ...
+        },
+    ...
+    }
+"""
+ObjectReference = dict[str, dict[str, str]]
+
+"""
+Each entry maps an type of interface to a dict that maps the name of an interface to a
+list of names of object that engage in that interface.
+The interface types are directional.
+Example:
+    {
+    'topic published to': {
+        'topic1': [
+            'node1',
+            ...
+            ],
+        ...
+        }
+    ...
+    'topic subscribed to': {
+        'topic1': [
+            'node2',
+            ...
+            ],
+        ...
+        }
+    }
+"""
+Interfaces = dict[str, dict[str, list[str]]]
+
+Graph = dict[str, list[str]]
+
 # ==================== FUNCTIONS ===================================
 
 def is_valid_value(typ: str, val: str) -> list[str]:
@@ -114,8 +159,12 @@ def is_valid_value(typ: str, val: str) -> list[str]:
         return []
 
 
-def register(object_name, object_type: str,
-             parent_name: str, objects) -> list[str]:
+def register(
+        object_name: str,
+        object_type: str,
+        parent_name: str, 
+        objects: ObjectReference
+        ) -> list[str]:
     if (object_name is None) or (object_name == ""):
         return [f"{object_type} owned by {parent_name} is missing name. "
                 "Skipping validation of branch."]
@@ -128,8 +177,13 @@ def register(object_name, object_type: str,
         return []
 
 
-def verify_registration(object_name: str, object_type: str,
-                        parent_name: str, expector: str, objects) -> list[str]:
+def verify_registration(
+        object_name: str,
+        object_type: str,
+        parent_name: str,
+        expector: str,
+        objects: ObjectReference
+        ) -> list[str]:
     if object_name not in objects[object_type]:
         return [f"Even though {expector} expected so, {object_type} "
                 f"'{object_name}' is not registered to any parent."]
@@ -141,7 +195,7 @@ def verify_registration(object_name: str, object_type: str,
         return []
 
 
-def subset_check(key1: str, key2: str, sets) -> list[str]:
+def subset_check(key1: str, key2: str, sets: dict[str, dict]) -> list[str]:
     keyset1 = sets[key1].keys()
     keyset2 = sets[key2].keys()
     if keyset1 <= keyset2:
@@ -149,8 +203,13 @@ def subset_check(key1: str, key2: str, sets) -> list[str]:
     else:
         return [f"Mismatched: Some {key1} are not among {key2}"]
 
-def add_interface(name: str, container_name: str,
-                  typ: str, interface_type: str, interfaces):
+def add_interface(
+        name: str,
+        container_name: str,
+        typ: str,
+        interface_type: str,
+        interfaces: Interfaces
+        ) -> list[str]:
     """
     Checks if the name is not empty.
     Registers the name inside the interfaces dict.
@@ -170,9 +229,13 @@ def add_interface(name: str, container_name: str,
 # ==================== RESULT ======================================
 
 
-def check_for_cycles(graph: dict[str, dict], sources: list):
+def check_for_cycles(
+        graph: Graph,
+        sources: list[str]
+        ) -> bool:
+    
     to_visit = set(graph.keys())
-    visited = []
+    visited: list[str] = []
 
     def visit(cb):
         if cb not in to_visit:
@@ -180,7 +243,7 @@ def check_for_cycles(graph: dict[str, dict], sources: list):
         if cb in visited:
             return True
         visited.append(cb)
-        dependents = graph[cb]["subscribers"] + graph[cb]["readers"]
+        dependents = graph[cb] + graph[cb]
         for dep in dependents:
             if visit(dep):
                 return True
@@ -193,11 +256,14 @@ def check_for_cycles(graph: dict[str, dict], sources: list):
     return False
 
 
-def make_callback_graph(objects: dict[str, dict], interfaces):
+def make_callback_graph(
+        objects: ObjectReference,
+        interfaces: Interfaces
+        ) -> tuple[Graph, set[str], set[str]]:
     callbacks = set(objects["callback"].keys())
     sources = callbacks.copy()
     sinks = callbacks.copy()
-    graph = {}
+    graph: Graph = {}
     publishers = interfaces["topics published to"]
     subscribers = interfaces["topics subscribed to"]
     readers = interfaces["variables read from"]
@@ -226,11 +292,15 @@ def make_callback_graph(objects: dict[str, dict], interfaces):
     return graph, sources, sinks
 
 
-def get_paths_from(graph, source, target):
+def get_paths_from(
+        graph: Graph,
+        source: str,
+        target: str
+        ) -> list[list[str]]:
     next = [(source, [source])]
     paths = []
 
-    if check_for_cycles(graph, source):
+    if check_for_cycles(graph, [source]):
         raise Exception(f"There is a cycle in the graph from {source} callback, "
                         "cannot find chains")
 
@@ -248,13 +318,18 @@ def get_paths_from(graph, source, target):
 
 class ValidationResult():
     errors: list[str]
-    interfaces: dict[str, dict[str, list[str]]]
-    objects: dict[str, dict[str, str]]
-    graph: dict[str, list[str]] | None
-    sources: list[str] | None
-    sinks: list[str] | None
+    interfaces: Interfaces
+    objects: ObjectReference
+    graph: Graph | None
+    sources: set[str] | None
+    sinks: set[str] | None
 
-    def __init__(self, errors, interfaces, objects):
+    def __init__(
+            self,
+            errors: list[str],
+            interfaces: Interfaces,
+            objects: ObjectReference
+            ) -> None:
         self.errors = errors
         self.interfaces = interfaces
         self.objects = objects
@@ -268,10 +343,12 @@ class ValidationResult():
             self.sources = sources
             self.sinks = sinks
 
-    def get_paths_from(self, source, target):
+    def get_paths_from(self, source: str, target: str) -> list[list[str]]:
+        if self.graph is None:
+            raise ValueError("ValidationResult does not have graph")
         return get_paths_from(self.graph, source, target)
 
-    def get_all_cb_chains(self):
+    def get_all_cb_chains(self) -> list[list[str]]:
         chains = []
         if self.sources is None or self.sinks is None:
             return chains
@@ -303,8 +380,12 @@ def validate_qos(qos: qos.QoS, parent: str) -> list[str]:
     return feedback
 
 
-def validate_client(client: ros.Client, parent: ros.Node,
-                    objects, interfaces) -> list[str]:
+def validate_client(
+        client: ros.Client,
+        parent: ros.Node,
+        objects: ObjectReference, 
+        interfaces: Interfaces
+        ) -> list[str]:
     """
     A client is well formed if:
     - It has a name
@@ -322,8 +403,12 @@ def validate_client(client: ros.Client, parent: ros.Node,
     return feedback
 
 
-def validate_publisher(publisher: ros.Publisher, parent: ros.Node,
-                       objects, interfaces) -> list[str]:
+def validate_publisher(
+        publisher: ros.Publisher, 
+        parent: ros.Node,
+        objects: ObjectReference, 
+        interfaces: Interfaces
+        ) -> list[str]:
     """
     A publisher is well formed if:
     - It has a name
@@ -341,8 +426,12 @@ def validate_publisher(publisher: ros.Publisher, parent: ros.Node,
     return feedback
 
 
-def validate_callback(callback: ros.Callback, parent: ros.Node,
-                      objects, interfaces) -> list[str]:
+def validate_callback(
+        callback: ros.Callback,
+        parent: ros.Node,
+        objects: ObjectReference, 
+        interfaces: Interfaces
+        ) -> list[str]:
     """
     A callback is well formed if:
     - It has a name
@@ -394,8 +483,12 @@ def validate_callback(callback: ros.Callback, parent: ros.Node,
     return feedback
 
 
-def validate_input(input: ros.ExternalInput, parent: ros.Node,
-                   objects, interfaces) -> list[str]:
+def validate_input(
+        input: ros.ExternalInput,
+        parent: ros.Node,
+        objects: ObjectReference,
+        interfaces: Interfaces
+        ) -> list[str]:
     """
     An external input is well formed if:
     - It has a name
@@ -412,8 +505,12 @@ def validate_input(input: ros.ExternalInput, parent: ros.Node,
     return feedback
 
 
-def validate_subscription(subscription: ros.Subscription, parent: ros.Node,
-                          objects, interfaces) -> list[str]:
+def validate_subscription(
+        subscription: ros.Subscription,
+        parent: ros.Node,
+        objects: ObjectReference,
+        interfaces: Interfaces
+        ) -> list[str]:
     """
     A subscription is well formed if:
     - It has a valid quality of service profile
@@ -431,8 +528,12 @@ def validate_subscription(subscription: ros.Subscription, parent: ros.Node,
     return feedback
 
 
-def validate_timer(timer: ros.Timer, parent: ros.Node,
-                   objects, interfaces) -> list[str]:
+def validate_timer(
+        timer: ros.Timer,
+        parent: ros.Node,
+        objects: ObjectReference, 
+        interfaces: Interfaces
+        ) -> list[str]:
     """
     A subscription is well formed if:
     - It has a name
@@ -453,8 +554,12 @@ def validate_timer(timer: ros.Timer, parent: ros.Node,
     return feedback
 
 
-def validate_service(service: ros.Service, parent: ros.Node,
-                     objects, interfaces) -> list[str]:
+def validate_service(
+        service: ros.Service,
+        parent: ros.Node,
+        objects: ObjectReference,
+        interfaces: Interfaces
+        ) -> list[str]:
     """
     A service is well formed if:
     - It has a name
@@ -483,8 +588,12 @@ def validate_action(action: ros.Action, parent: ros.Node) -> list[str]:
     return []
 
 
-def validate_node(node: ros.Node, parent: ros.Executor,
-                  objects, interfaces) -> list[str]:
+def validate_node(
+        node: ros.Node,
+        parent: ros.Executor,
+        objects: ObjectReference,
+        interfaces: Interfaces
+        ) -> list[str]:
     """
     A node is well formed if:
     - It has a name
@@ -563,8 +672,12 @@ def validate_node(node: ros.Node, parent: ros.Executor,
     return feedback
 
 
-def validate_executor(executor: ros.Executor, parent: ros.Host,
-                      objects, interfaces) -> list[str]:
+def validate_executor(
+        executor: ros.Executor,
+        parent: ros.Host,
+        objects: ObjectReference,
+        interfaces: Interfaces
+        ) -> list[str]:
     """
     An executor is well formed if:
     - It has a name
@@ -589,8 +702,12 @@ def validate_executor(executor: ros.Executor, parent: ros.Host,
     return feedback
 
 
-def validate_host(host: ros.Host, parent: ros.System,
-                  objects, interfaces) -> list[str]:
+def validate_host(
+        host: ros.Host,
+        parent: ros.System,
+        objects: ObjectReference, 
+        interfaces: Interfaces
+        ) -> list[str]:
     """
     A host is well formed if:
     - It has a name
@@ -625,9 +742,9 @@ def validate_system(system: ros.System) -> ValidationResult:
     - There is a server offering each service that a client requests
     - There is a publisher to each topic that a subscriber subscribes to
     """
-    feedback = []
+    feedback: list[str] = []
 
-    interfaces: dict[str, dict[str, list[str]]] = {
+    interfaces: Interfaces = {
         "services requested": {},
         "services offered": {},
         "topics subscribed to": {},
@@ -636,7 +753,7 @@ def validate_system(system: ros.System) -> ValidationResult:
         "variables read from": {},
     }
 
-    objects: dict[str, dict[str, str]] = {
+    objects: ObjectReference = {
         "callback": {},
         "external_input": {},
         "external_output": {},
