@@ -67,7 +67,7 @@ def parse_external_outputs(ros_node: ros.Node, yaml_external__outputs: dict) -> 
 
 def parse_variables(ros_node: ros.Node, yaml_variables: dict) -> None:
     for variable in yaml_variables:
-        variable_args = {'nrme' : variable}
+        variable_args = {'name' : variable}
         ros_node.add_variable(**variable_args)
 
 
