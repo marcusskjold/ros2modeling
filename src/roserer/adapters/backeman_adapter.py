@@ -377,7 +377,7 @@ def map_subtasks(
 def map_system(system: ros.System,
                nodemap: dict[str, Nodespec],
                objects,
-               chain: list[ros.Callback]) -> bk.System:
+               chain: list[str]) -> bk.System:
     name = system.name
     deterministic = True  # TODO: Support this
 
@@ -429,7 +429,7 @@ def map_system(system: ros.System,
                 subscribers, wcets, writer = map_subtasks(
                     sub_tasks, read_variable.name, node.subscriptions)
                 if main_task in chain:
-                    prev = chain[chain.index(main_task)-1]
+                    prev = chain[chain.index(main_task.name)-1]
                     prevnode = objects["callback"][prev]
                     if prevnode == name:
                         data_source = name.upper() + "x" + writer.upper() + "_data"
@@ -453,7 +453,7 @@ def map_system(system: ros.System,
 
 def transform_system(
         system: ros.System,
-        chain: list[ros.Callback],
+        chain: list[str],
         validationresult: validator.ValidationResult | None = None
         ) -> tuple[list[str], list[str], bk.System | None]:
 

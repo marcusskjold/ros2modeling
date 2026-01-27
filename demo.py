@@ -126,8 +126,8 @@ else:
         print(bksystem.max_reaction_time(gen_graph=False))
 
 
-yprint.save_to_yaml(system, "src/tests/output/out")
-yparse.parse_yaml("src/tests/input/example.yaml")
+# yprint.save_to_yaml(system, "src/tests/output/out")
+pprint(yparse.parse_yaml("src/tests/input/example.yaml"))
 
 # Exv1 = ds.ExecutorV1(5, 10)
 # PeriodicCallback = ds.PeriodicCallback(5,5,5,1,2,10,10,[1,2,3],[1,2,3],5)
@@ -148,5 +148,3 @@ sys.add_sporadic_callback(id=2,exec_time=100,length=10,releases=[10,20,30,40,50,
 print(sys)
 print(sys.buffer_overflow())
 print(sys.max_buffer_size())
-print(sys.max_latency())
-#print(sys.max_latency_trace())
