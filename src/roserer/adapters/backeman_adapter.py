@@ -91,7 +91,7 @@ LIMITED_ELEMENTS = {
 class Nodespec():
     subtasks: list[ros.Callback]
     main_task: ros.Callback
-    read_variable: ros.Variable
+    read_variable: ros.Variable | None
     node_type: str
 
 
@@ -189,7 +189,8 @@ def is_valid_subscriber(node: ros.Node) -> bool:
         return False
 
 
-def validate_node(node: ros.Node):
+def validate_node(node: ros.Node
+                  ) -> tuple[list[str], list[str], Nodespec | None]:
     """
     A bk node is a ros node with one primary trigger, publisher and callback,
     along with a list of secondary triggers, and callbacks.
@@ -198,8 +199,8 @@ def validate_node(node: ros.Node):
     TODO: DataGenerator can be probabilistic
     See section 3 in Backeman & Seceleanu 2025
     """
-    errors = []
-    warnings = []
+    errors: list[str] = []
+    warnings: list[str] = []
 
     if node.name != node.name.upper():
         warnings += [f"Name of node '{node.name}' is not upper case, model "
@@ -268,7 +269,7 @@ def validate_node(node: ros.Node):
                    f"    Callbacks:     {len(node.callbacks)}",
                    f"    Variables:     {len(node.variables)}"]
 
-    if main_task is not None and read_variable is not None and node_type is not None:
+    if main_task is not None and node_type is not None:
         nodespec = Nodespec(
                 subtasks=subtasks,
                 main_task=main_task,
@@ -317,7 +318,8 @@ def validate_system(system: ros.System,
         errs, warns, nodespec = validate_node(node)
         errors += errs
         warnings += warns
-        nodemap[node.name] = nodespec
+        if nodespec is not None:
+            nodemap[node.name] = nodespec
 
     warnings += check_buffers(executor)
 
@@ -345,7 +347,7 @@ def map_subtask(
     subtopic = resolve_subscription_topic(subscriptions, sub.name).upper()
     wcet = sub.wcet
     is_writer = False
-    if sub.write_variables[0] == read_variable:
+    if sub.write_variables[0].name == read_variable:
         is_writer = True
 
     return subtopic, wcet, is_writer
@@ -426,7 +428,7 @@ def map_system(system: ros.System,
             if read_variable is not None:
                 subscribers, wcets, writer = map_subtasks(
                     sub_tasks, read_variable.name, node.subscriptions)
-                if main_task.name in chain:
+                if main_task in chain:
                     prev = chain[chain.index(main_task)-1]
                     prevnode = objects["callback"][prev]
                     if prevnode == name:
@@ -478,12 +480,12 @@ def transform_system(
 # ========================== MONITORING ==========================
 
 
-def monitor(system: bk.System, generator: ros.Callback, actuator: ros.Callback):
-    system.actuator = actuator.name.upper()
+def monitor(system: bk.System, generator: str, actuator: str):
+    system.actuator = actuator.upper()
     period = -1
     for node in system.nodes:
         node: bk.Node
-        if node.name == generator.name.upper():
+        if node.name == generator.upper():
             node: bk.DataGenerator
             node.monitored = True
             period = node.period
