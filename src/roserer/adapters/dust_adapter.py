@@ -25,6 +25,10 @@ import itertools
 # a callback must be associated to exactly 1 executor
 
 
+#### Executor
+# If more nodes are associated under the same executor, it doesn't seem like the model will recognize?
+## there should at least be a warning
+
 #### datacallback
 # can not be a timer-callback?
 
@@ -66,6 +70,9 @@ VALID_ROS_DISTRIBUTIONS = {
     ]
 }
 
+#env from name (python) to id (Uppaal)
+nodes = {}
+
 
 #Should we discern between nodes under same executor?
 # TODO: find smartest way to discern between callback-types in meaningful way?
@@ -78,18 +85,26 @@ def next_exec():
   return next(ex_id)
 
 
+# initiates executors (and maintain mapping from node_name to exec_id)
 def map_executor(out: ds.System, executor: ros.Executor) -> None:
+    id = next_exec()
     if executor.ros_distribution in VALID_ROS_DISTRIBUTIONS["V2"]:
         # TODO: specify executor-id properly (maybe with env-dict?)
-        out.add_executor_v2(next_exec(), -1)
+        out.add_executor_v2(id, -1)
     else:
-        out.add_executor_v1(next_exec(), -1)
-    for node in executor:
-        map_node(out, executor, node)
+        out.add_executor_v1(id, -1)
+    for node in executor.nodes:
+        nodes[node.name] = id
+        #map_node(out, executor, node) #TODO: to be removed
 
-def map_system(system: ros.System) -> ds.System:
+def map_system(system: ros.System, validations : validator.ValidationResult) -> ds.System:
     out = ds.System(system.name)
-    for host in system.hosts:
+    for host in system.hosts: # TODO: this loop could be inside function and return the whole env ??!!
         for executor in host.executors:
             map_executor(out, executor)
+    #Start from each source and create the callbacks gradually
+    for source in validations.sources:
+        #source_object = system. # TODO: find way to fetch the actual callback (for wcet etc.)
+        source_id = nodes[validations.objects[source]] #TODO: make sure that source-key is actually name of callback, and that value is name
+        #out.add_periodic_callback(id=source_id,) # TODO: adapt to make sporadic possible??!
     return out
