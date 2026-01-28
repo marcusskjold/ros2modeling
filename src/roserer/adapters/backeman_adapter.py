@@ -282,13 +282,13 @@ def validate_node(node: ros.Node
 
 
 def validate_system(system: ros.System,
-                    objects,
+                    objects : validator.Containments,
                     interfaces
                     ) -> tuple[list[str], list[str], dict[str, Nodespec]]:
     errors = ["Errors:"]
     warnings = ["Warnings:"]
     for elem in LIMITED_ELEMENTS:
-        num = len(objects[elem])
+        num = len(getattr(objects, elem))
         exp = LIMITED_ELEMENTS[elem]
         if num != exp:
             errors += [f"System has {num} {elem}s, but target metamodel "
@@ -376,7 +376,7 @@ def map_subtasks(
 
 def map_system(system: ros.System,
                nodemap: dict[str, Nodespec],
-               objects,
+               objects: validator.Containments,
                chain: list[str]) -> bk.System:
     name = system.name
     deterministic = True  # TODO: Support this
@@ -430,7 +430,7 @@ def map_system(system: ros.System,
                     sub_tasks, read_variable.name, node.subscriptions)
                 if main_task in chain:
                     prev = chain[chain.index(main_task.name)-1]
-                    prevnode = objects["callback"][prev]
+                    prevnode = objects.callback[prev].name
                     if prevnode == name:
                         data_source = name.upper() + "x" + writer.upper() + "_data"
             else:
