@@ -103,8 +103,18 @@ def map_system(system: ros.System, validations : validator.ValidationResult) -> 
         for executor in host.executors:
             map_executor(out, executor)
     #Start from each source and create the callbacks gradually
+    callbacks = ""
+    source_callbacks = [callback ]
     for source in validations.sources:
         #source_object = system. # TODO: find way to fetch the actual callback (for wcet etc.)
         source_id = nodes[validations.objects[source]] #TODO: make sure that source-key is actually name of callback, and that value is name
         #out.add_periodic_callback(id=source_id,) # TODO: adapt to make sporadic possible??!
     return out
+
+# def get_nodes()
+
+# def get_cb_type(cb : ros.Callback, res : validator.ValidationResult, sys : ros.System) -> dict[str,str]:
+#     node_parent = res.objects["callback"][cb.name]
+#     types = {}
+#     for publisher in node_parent.publi
+
