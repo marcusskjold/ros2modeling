@@ -105,22 +105,56 @@ VALID_VALUES = {
 
 
 """
-Each entry maps an object type to a dict that maps the name of an object of that type
+Each attribute corresponds to an object-type and contains a dict that maps the name of an object of that type
 to the name of it's containing object / parent.
 Example:
-    {
-    'node': {
-        'node1': 'executor1',
-        },
-        ...
-    'callback': {
-        'callback1': 'node1',
+    Containments(
+    node: {
+        'node1': Executor(name='executor1', ...),
         ...
         },
     ...
-    }
+    callback: {
+        'callback1': Node(name='node1'),
+        ...
+        },
+    ...
+    )
 """
-ObjectReference = dict[str, dict[str, str]]
+
+class Containments:
+    host            : dict[str,ros.System]
+    executor        : dict[str,ros.Host]
+    node            : dict[str,ros.Executor]
+    callback        : dict[str,ros.Node]
+    external_input  : dict[str,ros.Node]
+    external_output : dict[str,ros.Node]
+    timer           : dict[str,ros.Node]
+    service         : dict[str,ros.Node]
+    client          : dict[str,ros.Node]
+    variable        : dict[str,ros.Node]
+    publisher       : dict[str,ros.Node]
+    action          : dict[str,ros.Node]
+
+    def __init__(self):
+        self.host = {}
+        self.executor = {}
+        self.node = {}
+        self.callback = {}
+        self.external_input = {}
+        self.external_output = {}
+        self.timer = {}
+        self.service = {}
+        self.client = {}
+        self.variable = {}
+        self.publisher = {}
+        self.action = {}
+
+"""
+Type for named ROS2-objects. To be used for annotations
+"""
+NamedROSObject = ros.System | ros.Host | ros.Executor | ros.Node | ros.Callback | ros.ExternalInput \
+ | ros.ExternalOutput | ros.Timer | ros.Service | ros.Client | ros.Variable | ros.Publisher | ros.Action
 
 """
 Each entry maps an type of interface to a dict that maps the name of an interface to a
@@ -162,35 +196,35 @@ def is_valid_value(typ: str, val: str) -> list[str]:
 def register(
         object_name: str,
         object_type: str,
-        parent_name: str, 
-        objects: ObjectReference
+        parent: NamedROSObject, 
+        objects: Containments
         ) -> list[str]:
     if (object_name is None) or (object_name == ""):
-        return [f"{object_type} owned by {parent_name} is missing name. "
+        return [f"{object_type} owned by {parent.name} is missing name. "
                 "Skipping validation of branch."]
-    elif object_name in objects[object_type]:
+    elif object_name in getattr(objects, object_type):
         return [f"{object_type} '{object_name}' has multiple owners, "
                 f"or name is not unique among {object_type}s. "
                 "Skipping validation of branch."]
     else:
-        objects[object_type][object_name] = parent_name
+        getattr(objects, object_type)[object_name] = parent
         return []
 
 
 def verify_registration(
         object_name: str,
         object_type: str,
-        parent_name: str,
+        parent: NamedROSObject,
         expector: str,
-        objects: ObjectReference
+        objects: Containments
         ) -> list[str]:
-    if object_name not in objects[object_type]:
+    if object_name not in getattr(objects, object_type):
         return [f"Even though {expector} expected so, {object_type} "
                 f"'{object_name}' is not registered to any parent."]
-    elif parent_name != objects[object_type][object_name]:
+    elif parent != getattr(objects, object_type)[object_name]:
         return [f"Even though {expector} expected so, {object_type} "
                 f"'{object_name}' is not contained within the parent "
-                f"'{parent_name}'"]
+                f"'{parent.name}'"]
     else:
         return []
 
@@ -257,10 +291,10 @@ def check_for_cycles(
 
 
 def make_callback_graph(
-        objects: ObjectReference,
+        objects: Containments,
         interfaces: Interfaces
         ) -> tuple[Graph, set[str], set[str]]:
-    callbacks = set(objects["callback"].keys())
+    callbacks = set(objects.callback.keys())
     sources = callbacks.copy()
     sinks = callbacks.copy()
     graph: Graph = {}
@@ -319,7 +353,7 @@ def get_paths_from(
 class ValidationResult():
     errors: list[str]
     interfaces: Interfaces
-    objects: ObjectReference
+    objects: Containments
     graph: Graph | None
     sources: set[str] | None
     sinks: set[str] | None
@@ -328,7 +362,7 @@ class ValidationResult():
             self,
             errors: list[str],
             interfaces: Interfaces,
-            objects: ObjectReference
+            objects: Containments
             ) -> None:
         self.errors = errors
         self.interfaces = interfaces
@@ -383,7 +417,7 @@ def validate_qos(qos: qos.QoS, parent: str) -> list[str]:
 def validate_client(
         client: ros.Client,
         parent: ros.Node,
-        objects: ObjectReference, 
+        objects: Containments, 
         interfaces: Interfaces
         ) -> list[str]:
     """
@@ -393,7 +427,7 @@ def validate_client(
     - It has a valid quality of service profile
     - It names the service it requests
     """
-    feedback = register(client.name, "client", parent.name, objects)
+    feedback = register(client.name, "client", parent, objects)
     if feedback != []:
         return feedback
 
@@ -406,7 +440,7 @@ def validate_client(
 def validate_publisher(
         publisher: ros.Publisher, 
         parent: ros.Node,
-        objects: ObjectReference, 
+        objects: Containments, 
         interfaces: Interfaces
         ) -> list[str]:
     """
@@ -417,7 +451,7 @@ def validate_publisher(
     - It names the topic it publishes to
     """
 
-    feedback = register(publisher.name, "publisher", parent.name, objects)
+    feedback = register(publisher.name, "publisher", parent, objects)
     if feedback != []:
         return feedback
 
@@ -429,7 +463,7 @@ def validate_publisher(
 def validate_callback(
         callback: ros.Callback,
         parent: ros.Node,
-        objects: ObjectReference, 
+        objects: Containments, 
         interfaces: Interfaces
         ) -> list[str]:
     """
@@ -443,34 +477,33 @@ def validate_callback(
     - All requests refer to a client owned by the parent node
     - It has a valid wcet
     """
-    feedback = register(callback.name, "callback", parent.name, objects)
+    feedback = register(callback.name, "callback", parent, objects)
     if feedback != []:
         return feedback
     name = callback.name
-    pname = parent.name
     for publisher in callback.publishers:
         feedback += verify_registration(
-            publisher, "publisher", pname, name, objects)
+            publisher, "publisher", parent, name, objects)
         feedback += add_interface(parent.get_publisher(publisher).topic, name,
                                   "topic", "topics published to", interfaces)
     for read in callback.read_variables:
         read: ros.Variable
         feedback += verify_registration(
-            read.name, "variable", pname, name, objects)
+            read.name, "variable", parent, name, objects)
         feedback += add_interface(read.name, name, "variable",
                                   "variables read from", interfaces)
     for write in callback.write_variables:
         write: ros.Variable
         feedback += verify_registration(
-            write.name, "variable", pname, name, objects)
+            write.name, "variable", parent, name, objects)
         feedback += add_interface(write.name, name, "variable",
                                   "variables written to", interfaces)
     for output in callback.external_outputs:
         feedback += verify_registration(
-            output.name, "external_output", pname, name, objects)
+            output.name, "external_output", parent, name, objects)
     for request in callback.requests:
         feedback += verify_registration(
-            request.client, "client", pname, name, objects)
+            request.client, "client", parent, name, objects)
         if request.timeout < 0:
             feedback += [
                 f"A request of callback '{name}' has a negative timeout."]
@@ -486,7 +519,7 @@ def validate_callback(
 def validate_input(
         input: ros.ExternalInput,
         parent: ros.Node,
-        objects: ObjectReference,
+        objects: Containments,
         interfaces: Interfaces
         ) -> list[str]:
     """
@@ -495,12 +528,12 @@ def validate_input(
     - It is only owned by one node
     - It calls a callback that is owned by the same node
     """
-    feedback = register(input.name, "external_input", parent.name, objects)
+    feedback = register(input.name, "external_input", parent, objects)
     if feedback != []:
         return feedback
 
     feedback += verify_registration(input.callback, "callback",
-                                    parent.name, input.name, objects)
+                                    parent, input.name, objects)
 
     return feedback
 
@@ -508,7 +541,7 @@ def validate_input(
 def validate_subscription(
         subscription: ros.Subscription,
         parent: ros.Node,
-        objects: ObjectReference,
+        objects: Containments,
         interfaces: Interfaces
         ) -> list[str]:
     """
@@ -523,7 +556,7 @@ def validate_subscription(
     feedback += add_interface(subscription.topic, subscription.callback,
                               "Topic", "topics subscribed to", interfaces)
     feedback += verify_registration(subscription.callback,
-                                    "callback", pname, pname, objects)
+                                    "callback", parent, pname, objects)
 
     return feedback
 
@@ -531,7 +564,7 @@ def validate_subscription(
 def validate_timer(
         timer: ros.Timer,
         parent: ros.Node,
-        objects: ObjectReference, 
+        objects: Containments, 
         interfaces: Interfaces
         ) -> list[str]:
     """
@@ -541,7 +574,7 @@ def validate_timer(
     - It has a valid period
     - It calls a callback that is owned by the same node
     """
-    feedback = register(timer.name, "timer", parent.name, objects)
+    feedback = register(timer.name, "timer", parent, objects)
     if feedback != []:
         return feedback
 
@@ -549,7 +582,7 @@ def validate_timer(
         feedback += [f"Timer '{timer.name}' must not have a negative period"]
 
     feedback += verify_registration(timer.callback, "callback",
-                                    parent.name, timer.name, objects)
+                                    parent, timer.name, objects)
 
     return feedback
 
@@ -557,7 +590,7 @@ def validate_timer(
 def validate_service(
         service: ros.Service,
         parent: ros.Node,
-        objects: ObjectReference,
+        objects: Containments,
         interfaces: Interfaces
         ) -> list[str]:
     """
@@ -568,7 +601,7 @@ def validate_service(
     - It calls a callback that is owned by the same node
     """
 
-    feedback = register(service.name, "service", parent.name, objects)
+    feedback = register(service.name, "service", parent, objects)
     if feedback != []:
         return feedback
 
@@ -576,7 +609,7 @@ def validate_service(
     feedback += add_interface(service.name, service.callback, "service",
                               "services offered", interfaces)
     feedback += verify_registration(service.callback, "callback",
-                                    parent.name, service.name, objects)
+                                    parent, service.name, objects)
 
     return feedback
 
@@ -591,7 +624,7 @@ def validate_action(action: ros.Action, parent: ros.Node) -> list[str]:
 def validate_node(
         node: ros.Node,
         parent: ros.Executor,
-        objects: ObjectReference,
+        objects: Containments,
         interfaces: Interfaces
         ) -> list[str]:
     """
@@ -619,7 +652,7 @@ def validate_node(
     - All callbacks only call callbacks that are also owned by this node
     - All publishers are used by at least one callback
     """
-    feedback = register(node.name, "node", parent.name, objects)
+    feedback = register(node.name, "node", parent, objects)
     if feedback != []:
         return feedback
 
@@ -631,9 +664,9 @@ def validate_node(
 
     # internal
     for variable in node.variables:
-        feedback += register(variable.name, "variable", node.name, objects)
+        feedback += register(variable.name, "variable", node, objects)
     for output in node.external_outputs:
-        feedback += register(output.name, "external_output", node.name, objects)
+        feedback += register(output.name, "external_output", node, objects)
     if len(node.callbacks) < 1:
         feedback += f"Node '{node.name}' must have at least one callback"
     for callback in node.callbacks:
@@ -661,7 +694,7 @@ def validate_node(
     for callback in node.callbacks:
         for called_name in callback.calls:
             feedback += verify_registration(
-                    called_name, "callback", node.name, callback.name, objects)
+                    called_name, "callback", node, callback.name, objects)
 
     used_publishers = [publisher for publisher in
                        callback.publishers for callback in node.callbacks]
@@ -675,7 +708,7 @@ def validate_node(
 def validate_executor(
         executor: ros.Executor,
         parent: ros.Host,
-        objects: ObjectReference,
+        objects: Containments,
         interfaces: Interfaces
         ) -> list[str]:
     """
@@ -687,7 +720,7 @@ def validate_executor(
     - It has at least one node
     - All nodes are well formed
     """
-    feedback = register(executor.name, "executor", parent.name, objects)
+    feedback = register(executor.name, "executor", parent, objects)
     if feedback != []:
         return feedback
 
@@ -705,7 +738,7 @@ def validate_executor(
 def validate_host(
         host: ros.Host,
         parent: ros.System,
-        objects: ObjectReference, 
+        objects: Containments, 
         interfaces: Interfaces
         ) -> list[str]:
     """
@@ -716,7 +749,7 @@ def validate_host(
     - It has at least one executor
     - All executors are well formed
     """
-    feedback = register(host.name, "host", parent.name, objects)
+    feedback = register(host.name, "host", parent, objects)
     if feedback != []:
         return feedback
 
@@ -753,20 +786,7 @@ def validate_system(system: ros.System) -> ValidationResult:
         "variables read from": {},
     }
 
-    objects: ObjectReference = {
-        "callback": {},
-        "external_input": {},
-        "external_output": {},
-        "executor": {},
-        "node": {},
-        "host": {},
-        "timer": {},
-        "service": {},
-        "client": {},
-        "variable": {},
-        "publisher": {},
-        "action": {}
-    }
+    objects: Containments = Containments()
 
     if (system.name is None) or (system.name == ""):
         feedback += ["System must have a name"]
