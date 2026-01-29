@@ -74,20 +74,53 @@ VALID_ROS_DISTRIBUTIONS = {
 #env from name (python) name to exec-id (Uppaal)
 nodes : dict[str,int] = {}
 
+#env from created subscribers to receiver-id (if more sending to same topic)
+subscribers : dict[str,int] = {}
+
 def adapt_list_size(l : list[int], n):
     if len(l) < n:
         l.extend([0] * (n - len(l)))
 
-
-# id's for topics
-topic_id = itertools.count()
-def next_topic():
-  return next(topic_id)
-
-# TODO: implement
-# should return id of topic
-def map_topic(out: ds.System, topic : str, validations: validator.ValidationResult) -> int:
+# TODO: probably make env out of these, as multiple nodes can publish to same topic
+# (is it necessary to discern???)
+def map_subscriber_cb(out: ds.System, receiver_id : int, topic : str, validations: validator.ValidationResult):
+    # out.add_data_callback()
     return ""
+
+
+receiver_id = itertools.count()
+def next_receiver():
+  return next(receiver_id)
+
+# id's for topics (sending to)
+sender_id = itertools.count()
+def next_sender():
+  return next(sender_id)
+
+# TODO: watch out that recursion will not get in way of needing sender_id
+# should return id of topic
+def map_topic(out: ds.System, topic : str, sender_id : int, validations: validator.ValidationResult) -> None:
+    # TODO: this should be called based on whether some already exists (e.g. check presence in subscribers (don't know if service))
+        # then use function if not already exists.
+    receiver_id = next_receiver()
+    # case 1) going to subscriber
+    if topic in validations.interfaces['topic subscribed to']:
+        for node in validations.interfaces['topic subscribed to'][topic]:
+            map_subscriber_cb(out, receiver_id, validations)
+    # case 2) going to server
+    elif topic in validations.interfaces['services offered']:
+        for node in validations.interfaces['services offered'][topic]:
+            map_service_cb(out, receiver_id, validations)
+    # case 3) going (back) to client
+    elif topic in validations.interfaces['services requested']:
+        for node in validations.interfaces['services requested'][topic]:
+            map_service_cb(out, receiver_id, validations)
+
+    out.add_topic(receiver_id=receiver_id,
+                  sender_id=sender_id,
+                  delay=0,
+                  max_jitter=0,
+                  buffersize=10)
 
 
 # id's for callbacks
@@ -113,16 +146,18 @@ def map_node(out: ds.System, node: ros.Node, validations: validator.ValidationRe
             publisher_obj = next(pub for pub in node.publishers if pub.name == publisher)
             topic = publisher_obj.topic
             # (*1 template per publisher, so will never be redundant*)
-            id = map_topic(out, topic, validations)
-            interface_id_list.append(id)
+            sender_id = next_sender()
+            interface_id_list.append(sender_id)
+            map_topic(out, topic, sender_id, validations)
         for request in timer_cb.requests:
             interface_count += 1
             # get corresponding client-object
             client_obj = next(client for client in node.clients if client.name == request.client)
             service = client_obj.service
             # TODO: this might need to be own method because of service? (or maybe create one already?)
-            id = map_topic(out, service, validations)
-            interface_id_list.append(id)
+            sender_id = next_sender()
+            interface_id_list.append(sender_id)
+            map_topic(out, service, sender_id, validations)
         #TODO: for now 10 hardcoded as max-pub-size
         out.add_periodic_callback(id=next_cb(),
                                   exec_time=timer_cb.wcet,
