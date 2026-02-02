@@ -75,6 +75,7 @@ INVALID_EXECUTORS = [
 INVALID_INTERFACES = [
     "services requested",
     "services offered",
+    # also actions
 ]
 
 LIMITED_ELEMENTS = {
