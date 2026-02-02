@@ -165,7 +165,7 @@ def parse_executors(ros_host: ros.Host, yaml_execs: dict) -> None:
         parse_nodes(ros_executor, yaml_nodes)
 
 
-def parse_hosts(ros_system, yaml_hosts) -> None:
+def parse_hosts(ros_system: ros.System, yaml_hosts: dict) -> None:
     for host in yaml_hosts:
         #conditionally populating arguments for adding host
         host_args = {k: host[k] for k in host.keys()
