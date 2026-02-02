@@ -11,7 +11,7 @@ import re
 from typing import TypeVar
 from argparse import ArgumentError, ArgumentTypeError
 from dataclasses import dataclass
-from enum import Enum, EnumType
+from enum import Enum
 import math
 from typing import Union
 
@@ -147,7 +147,8 @@ S_TO_NS = 1_000_000_000
 
 # Time in rmw is encoded as a second part + nanosecond part (rmw/time.h)
 # rmw/time.h:54
-DURATION_INFINITE: Duration = Duration(9223372036, 854775807) # Deadline default (rmw/types.h:517)
+# Deadline default (rmw/types.h:517)
+DURATION_INFINITE: Duration = Duration(9223372036, 854775807) 
 # Lease duration default (rmw/types.h:542)
 # Lifespan default (rwm/type.h:537)
 DURATION_UNSPECIFIED: Duration = Duration(0, 0) # rmw/time.h:55
@@ -178,7 +179,7 @@ def parse_duration(arg: Duration | str) -> Duration:
     if isinstance(arg, Duration):
         return arg
     elif isinstance(arg, str):
-        p = re.compile(r'\((\d*),(\d*)\)')
+        p = re.compile(r'^\( *(-?\d+) *, *(-?\d+) *\)\Z')
         m = p.match(arg)
         return Duration(int(m.group(1)),int(m.group(2)))
     else:
@@ -195,11 +196,15 @@ def parse_int(arg: int | str) -> int:
 
 
 E = TypeVar('E', bound=Enum)
-def parse_enum(arg: E | str, enumtype: type[E]) -> E:
-    if not isinstance(arg, str):
-        if isinstance(arg, enumtype):
-            return arg
-    raise TypeError("")
+def parse_enum(enumtype: type[E], arg: E | str | int) -> E:
+    if not isinstance(arg, str) and isinstance(arg, enumtype):
+        return arg
+    elif isinstance(arg, (str, int)):
+        return enumtype(arg)
+    elif isinstance(arg, int):
+        return enumtype(arg)
+    else:
+        raise TypeError("")
 
 # rmw/types.h:569 | rclpy/qos.py:56
 @dataclass
