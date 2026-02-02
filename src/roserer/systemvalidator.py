@@ -164,7 +164,7 @@ Example:
     {
     'topic published to': {
         'topic1': [
-            'node1',
+            'callback1',
             ...
             ],
         ...
@@ -172,7 +172,7 @@ Example:
     ...
     'topic subscribed to': {
         'topic1': [
-            'node2',
+            'callback2',
             ...
             ],
         ...
