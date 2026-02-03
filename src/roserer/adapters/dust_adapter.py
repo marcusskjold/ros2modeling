@@ -39,6 +39,9 @@ import itertools
 ####Periodic callback
 # invariant: period should be less than execution-time -> else overflow is more or less guaranteed?
 
+###services (ROS-side) -> maybe for general validator
+# wcet in server-callback must not exceed timeout (or it will never get response) (as of now????)
+
 
 
 ################ TRANSLATION ################
@@ -71,7 +74,14 @@ VALID_ROS_DISTRIBUTIONS = {
 }
 
 
-#env from name (python) name to exec-id (Uppaal)
+# cb_type encodings for the UPPAAL-model
+TIMER = 0
+SERVICE = 1
+SUBSCRIBER = 2
+CLIENT = 3
+
+
+#env from (python) name to exec-id (Uppaal)
 nodes : dict[str,int] = {}
 
 #env from created subscribers to receiver-id (if more sending to same topic)
@@ -93,9 +103,10 @@ def next_receiver():
   return next(receiver_id)
 
 # id's for topics (sending to)
-sender_id = itertools.count()
+sender_id_counter = itertools.count()
 def next_sender():
-  return next(sender_id)
+  return next(sender_id_counter)
+
 
 # TODO: watch out that recursion will not get in way of needing sender_id
 # should return id of topic
@@ -120,8 +131,7 @@ def map_topic(out: ds.System, topic : str, sender_id : int, validations: validat
                   sender_id=sender_id,
                   delay=0,
                   max_jitter=0,
-                  buffersize=10)
-
+                  buffersize=10) # TODO: should this be a resolved qos rather?
 
 # id's for callbacks
 cb_id = itertools.count()
@@ -162,7 +172,7 @@ def map_node(out: ds.System, node: ros.Node, validations: validator.ValidationRe
         out.add_periodic_callback(id=next_cb(),
                                   exec_time=timer_cb.wcet,
                                   period=timer.period,
-                                  type=timer,
+                                  type=TIMER,
                                   offset=timer.offset,
                                   buffersize=1, #TODO: make sure that this is 100 % the case?
                                   amount_of_publishers=interface_count,
@@ -171,12 +181,11 @@ def map_node(out: ds.System, node: ros.Node, validations: validator.ValidationRe
                                   executorID=nodes[node.name]
                                   )
     # case 2) external input (# TODO:)
-    return ""
 
 # generate id for Executors
-ex_id = itertools.count()
+ex_id_counter = itertools.count()
 def next_exec():
-  return next(ex_id)
+  return next(ex_id_counter)
 
 
 # initiates executors (and maintain mapping from node_name to exec_id)
@@ -208,6 +217,7 @@ def map_system(system: ros.System, validations : validator.ValidationResult) -> 
 
 ###Maybe actually create topics dynamically somehow and save env (dict of already created callbacks etc.?)
 
+#TODO: this will probably just end up getting deleted
 # returns list of types for the callback (depending on where it is used)
 def get_cb_types(cb_name : str, res : validator.ValidationResult, sys : ros.System) -> list[str]:
     node_parent = res.objects.callback[cb_name]
