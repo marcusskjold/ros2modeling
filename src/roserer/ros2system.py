@@ -73,7 +73,8 @@ class Client():
 @dataclass
 class Request():
     client: str
-    timeout: TimeUnit
+    # callback upon receiving response, e.g. handle_response(*args)
+    response: str
 
 
 @dataclass
@@ -85,7 +86,7 @@ class Callback():
     calls: list[str]
     publishers: list[str]
     external_outputs: list[ExternalOutput]
-    requests: list[Request]
+    request: Request
 
     def __init__(
             self,
@@ -96,7 +97,7 @@ class Callback():
             calls: list[str] | None = None,
             external_outputs: list[ExternalOutput] | None = None,
             publishers: list[str] | None = None,
-            requests: list[Request] | None = None
+            request: Request | None = None
             ) -> None:
         self.name = name
         self.wcet = wcet
@@ -105,7 +106,7 @@ class Callback():
         self.calls = _empty_list_init(calls)
         self.publishers = _empty_list_init(publishers)
         self.external_outputs = _empty_list_init(external_outputs)
-        self.requests = _empty_list_init(requests)
+        self.request = request
 
 
 @dataclass
@@ -218,7 +219,7 @@ class Node():
             calls: list[str] | None = None,
             outputs: list[ExternalOutput] | None = None,
             publishers: list[Publisher] | None = None,
-            requests: list[Request] | None = None
+            request: Request | None = None
             ) -> Callback:
         callback = Callback(
             name=_name_init(name, self.name, "cb", len(self.callbacks)),
@@ -228,7 +229,7 @@ class Node():
             calls=calls,
             publishers=[publisher.name for publisher in _empty_list_init(publishers)],
             external_outputs=outputs,
-            requests=requests
+            request=request
             )
         self.callbacks.append(callback)
         return callback
