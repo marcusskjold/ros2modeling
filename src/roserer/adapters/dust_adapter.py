@@ -303,23 +303,13 @@ def next_sender():
 # TODO: watch out that recursion will not get in way of needing sender_id
 # should return id of topic
 def map_topic(out: ds.System, topic : str, sender_id : int, validations: validator.ValidationResult) -> None:
-    # TODO: this should be called based on whether some already exists (e.g. check presence in subscribers (don't know if service))
-        # then use function if not already exists.
-    receiver_id = next_receiver(topic, validations)
-    # case 1) going to subscriber
-    if topic in validations.interfaces['topic subscribed to']:
+    # If subscribers for this topic hasn't been made already:
+    if topic not in subscribers:
+        # get receiver_id and record topic in subscribers-env
+        receiver_id = next_receiver(topic, validations)
         for callback in validations.interfaces['topic subscribed to'][topic]: #TODO: this is a callback and not a node
+            # map subscribers
             map_subscriber_cb(out=out, receiver_id=receiver_id, topic=topic, callback=callback, validations=validations)
-    # TODO: probably delete these two (made redundant by map_client and map_server)
-    # # case 2) going back from server ()
-    # elif topic in validations.interfaces['services offered']: # maybe not second loop in these cases as 1 per 1 basis for service-response (maybe the callback should be found beforehand here)
-    #     for client_callback in validations.interfaces['services offered'][topic]: #TODO: see above TODO
-    #         # TODO: return something here and use it to map the callback (and maybe also the topic -> probably given)
-    #         map_service_cb(out, receiver_id, validations)
-    # # case 3) going from client (maybe redindant)
-    # elif topic in validations.interfaces['services requested']: # TODO: find the specific correct requester
-    #     for node in validations.interfaces['services requested'][topic]: #TODO: see above TODO
-    #         map_service_cb(out, receiver_id, validations)
     out.add_topic(receiver_id=receiver_id,
                   sender_id=sender_id,
                   delay=0,
