@@ -302,8 +302,10 @@ def make_callback_graph(
     subscribers = interfaces["topics subscribed to"]
     readers = interfaces["variables read from"]
     writers = interfaces["variables written to"]
-    # clients = interfaces["services requested"]
-    # servers = interfaces["services offered"]
+    # for services
+    request_senders = interfaces["services requested"]
+    servers = interfaces["services offered"]
+    request_receivers = interfaces["services received from"]
 
 
     def visit(match, outputs, inputs):
@@ -322,6 +324,8 @@ def make_callback_graph(
         graph[cb] = []
         visit(cb, publishers, subscribers)
         visit(cb, writers, readers)
+        visit(cb, request_senders, servers)
+        visit(cb, servers, request_receivers)
 
     return graph, sources, sinks
 
@@ -529,7 +533,11 @@ def validate_callback_references(
             request.response, "callback", parent, name, objects)
             feedback += add_interface(
                 parent.get_client(request.client).service,
-                name, "Service", "services requested", interfaces)
+                name, "Requesting client", "services requested", interfaces)
+            # add's the response-callback to the interfaces-dict also
+            feedback += add_interface(
+                parent.get_client(request.client).service,
+                request.response, "Responding client", "services received from", interfaces)
 
 
 def validate_input(
@@ -795,6 +803,7 @@ def validate_system(system: ros.System) -> ValidationResult:
     interfaces: Interfaces = {
         "services requested": {},
         "services offered": {},
+        "services received from": {},
         "topics subscribed to": {},
         "topics published to": {},
         "variables written to": {},
