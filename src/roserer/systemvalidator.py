@@ -473,9 +473,8 @@ def validate_callback(
     - It only uses publishers owned by the parent node
     - It only reads and writes to variables owned by the parent node
     - It only outputs to external outputs owned by the parent node
-    - All requests have a valid timeout
-    - All requests refer to a client owned by the parent node
     - It has a valid wcet
+    - It satisfies the invariants listed in validate_callback_references
     """
     feedback = register(callback.name, "callback", parent, objects)
     if feedback != []:
@@ -501,19 +500,36 @@ def validate_callback(
     for output in callback.external_outputs:
         feedback += verify_registration(
             output.name, "external_output", parent, name, objects)
-    for request in callback.requests:
-        feedback += verify_registration(
-            request.client, "client", parent, name, objects)
-        if request.timeout < 0:
-            feedback += [
-                f"A request of callback '{name}' has a negative timeout."]
-        feedback += add_interface(
-                parent.get_client(request.client).service,
-                name, "Service", "services requested", interfaces)
     if callback.wcet < 0:
         feedback += [f"Callback '{name}' has a negative wcet"]
 
     return feedback
+
+def validate_callback_references(
+        callback: ros.Callback,
+        parent: ros.Node,
+        objects: Containments, 
+        interfaces: Interfaces
+        ) -> list[str]:
+    """
+    A callback is well formed, with respect to its references to other callbacks, if:
+    - it's calls only refers to vaild callbacks owned by the parent node
+    - Any request refer to a client owned by the parent node
+    - Any response to a request refers to a defined, valid callback
+    """
+    name = callback.name
+    for called_name in callback.calls:
+           feedback += verify_registration(
+                   called_name, "callback", parent, name, objects)
+    if callback.request is not None:
+            request = callback.request
+            feedback += verify_registration(
+                request.client, "client", parent, name, objects)
+            feedback += verify_registration(
+            request.response, "callback", parent, name, objects)
+            feedback += add_interface(
+                parent.get_client(request.client).service,
+                name, "Service", "services requested", interfaces)
 
 
 def validate_input(
@@ -691,10 +707,9 @@ def validate_node(
     if total_triggers < 1:
         feedback += f"Node '{node.name}' must have at least one trigger"
 
+    # one more iteration for validating (potential) references to other callbacks
     for callback in node.callbacks:
-        for called_name in callback.calls:
-            feedback += verify_registration(
-                    called_name, "callback", node, callback.name, objects)
+        validate_callback_references(callback, node, objects, interfaces)
 
     used_publishers = [publisher for publisher in
                        callback.publishers for callback in node.callbacks]
