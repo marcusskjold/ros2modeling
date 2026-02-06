@@ -74,6 +74,7 @@ VALID_ROS_DISTRIBUTIONS = {
 }
 
 
+
 # cb_type encodings for the UPPAAL-model
 TIMER = 0
 SERVICE = 1
@@ -111,56 +112,20 @@ def map_sending_callbacks(out: ds.System, parent_node : ros.Node, callback : ros
         # map communication to RECEIVING node.
         map_topic(out, topic, sender_id, validations)
     # TODO: maybe fix other way of service communication here!!!
-    for request in callback.requests:
+    if callback.request is not None:
+        request = callback.request
         interface_count += 1
         # get corresponding client-object
-        client_obj = next(client for client in parent_node.clients if client.name == request.client)
+        client_obj = parent_node.get_client(request.client)
+        client_callback = next(callback for callback in parent_node.callbacks if callback.name == request.response)
         service = client_obj.service
-        # TODO: this might need to be own method because of service? (or maybe create one already?)
         sender_id = next_sender()
         interface_id_list.append(sender_id)
-        # # map the request
-        # map_topic(out, service, sender_id, validations)
-        # # map the server-response
-        # sender_id = next_sender()
-        # map_topic(out, service, sender_id, validations)
-        
-        # new idea!: define separate map_topic method (albeit wrapper)
         client_sender_id = map_server(out, service, request, sender_id, validations)
-        map_client(client_sender_id, topic, validations, request, client_obj, callback)
-
-        ##!!!!!!!! could return from this and just call map client here!!!!!!!!!
+        map_client(out=out, topic=topic, sender_id=client_sender_id, validations=validations, client_request=request, client_obj=client_obj, client_callback=client_callback)
 
 
     return interface_count, interface_id_list
-
-# TODO: probably delete this
-# #TODO: think about special service constraints(?). maybe that there will (almost always be something the other way around?)
-# # TODO: can these be same method, but with type-parameter provided?
-# # TODO: probably create separate for server and client (as sendback will be implicit for service?)
-# # TODO: maybe ideal that callback the other way is handled here (or before the call, as other way around is deduced from request.)
-# # TODO: !!!! This might be made redundant soon
-# def map_service_cb(out: ds.System, receiver_id : int, callback : str, topic : str, validations: validator.ValidationResult):
-#     node : ros.Node = validations.objects[callback]
-#     callback_obj : ros.Callback = next(callback for callback in node.callbacks if callback.name == callback)
-#     for request in callback_obj.requests:
-
-#     request_obj = next(req for req in node.callbacks if sub.callback == callback)
-#     interface_count, interface_id_list = map_sending_callbacks(out=out, parent_node=node,
-#                                                         callback=callback_obj,validations=validations)
-#     #TODO: callback other way around (and topic could maybe be added in the map_topic-method)
-
-#     out.add_data_callback(id= next_cb(),
-#                           exec_time=callback_obj.wcet,
-#                           topicID=receiver_id,
-#                           type=SERVICE,
-#                           buffersize=service_obj.qos.depth,
-#                           amount_of_publishers=interface_count,
-#                           publisher_release_time=[0 for i in range(10)],
-#                           publisher_id=adapt_list_size(interface_id_list, 10),
-#                           executorID=nodes[node.name]
-#                           )
-#     return ""
 
 
 #TODO : find way to reduce parameters and/or find utilities to make this easier
@@ -208,7 +173,7 @@ def next_receiver(topic : str, validations : validator.ValidationResult):
 def map_server(out: ds.System, topic : str, sender_id : int, validations: validator.ValidationResult) -> int:
     server_callback = validations.interfaces['services offered'][topic]
     server_node : ros.Node = validations.objects[server_callback]
-    server_callback_object = next(cb for cb in server_node.callbacks if cb.name == server_callback)
+    server_callback_object = next(cb for cb in server_node.callbacks if cb.name == server_callback) #TODO: implement this utility
     server = next(server for server in server_node.services if server.callback == server_callback)
 
     ### part 1)
@@ -234,8 +199,8 @@ def map_server(out: ds.System, topic : str, sender_id : int, validations: valida
                           publisher_release_time=[0 for i in range(10)],
                           publisher_id=adapt_list_size([sender_id], 10),
                           executorID=nodes[server_node])
-
-    # TODO: return sender_id (and maybe buffer-size of server)
+    # #get back again
+    # map_topic(out, topic, sender_id, validations)
     return sender_id
 
     # TODO: probably delete this
@@ -278,11 +243,10 @@ def map_client(out: ds.System, topic : str, client_request : ros.Request, sender
                   delay=0,
                   max_jitter=0,
                   buffersize=server.qos.depth) #TODO: add docs that they are same to github-repo
-    # TODO: make it not recurse infinitely (ignore current request/don't repeat it, somehow)
     interface_count, interface_id_list = map_sending_callbacks(out=out, parent_node=validations.objects[client_callback],
                                                         callback=client_callback,validations=validations)
-    # add callback for client (upon receiving back from server) -> so no wcet (as already contained in the sender?)
-    out.add_data_callback(id=next_cb(), #TODO: needs the client object
+    # add callback for client (upon receiving back from server)
+    out.add_data_callback(id=next_cb(), 
                           exec_time=client_callback.wcet,
                           topicID=receiver_id,
                           type=CLIENT,
@@ -290,7 +254,7 @@ def map_client(out: ds.System, topic : str, client_request : ros.Request, sender
                           amount_of_publishers=interface_count,
                           publisher_release_time=[0 for i in range(10)],
                           publisher_id= adapt_list_size(interface_id_list,10),
-                          executorID=nodes[client_obj.name]) #TODO: check how qos (requst vs. offered) is resolved
+                          executorID=nodes[validations.objects[client_obj.name]]) #TODO: check how qos (requst vs. offered) is resolved
 
 
 
@@ -310,6 +274,8 @@ def map_topic(out: ds.System, topic : str, sender_id : int, validations: validat
         for callback in validations.interfaces['topic subscribed to'][topic]: #TODO: this is a callback and not a node
             # map subscribers
             map_subscriber_cb(out=out, receiver_id=receiver_id, topic=topic, callback=callback, validations=validations)
+    else: 
+        receiver_id = subscribers[topic]
     out.add_topic(receiver_id=receiver_id,
                   sender_id=sender_id,
                   delay=0,
@@ -350,46 +316,22 @@ def next_exec():
 def map_executor(out: ds.System, executor: ros.Executor) -> None:
     id = next_exec()
     if executor.ros_distribution in VALID_ROS_DISTRIBUTIONS["V2"]:
-        # TODO: specify executor-id properly (maybe with env-dict?)
         out.add_executor_v2(id, -1)
     else:
         out.add_executor_v1(id, -1)
+    # register the executor_id for each node
     for node in executor.nodes:
         nodes[node.name] = id
-        #map_node(out, executor, node) #TODO: to be removed
 
 def map_system(system: ros.System, validations : validator.ValidationResult) -> ds.System:
     out = ds.System(system.name)
-    for host in system.hosts: # TODO: this loop could be inside function and return the whole env ??!!
+    # first map all executors
+    for host in system.hosts:
         for executor in host.executors:
             map_executor(out, executor)
-    #Start from each source and create the callbacks gradually
-    for source in validations.sources:
-        types = get_cb_types
-        #source_object = system. # TODO: find way to fetch the actual callback (for wcet etc.)
-        source_id = nodes[validations.objects[source]] #TODO: make sure that source-key is actually name of callback, and that value is name
-        #out.add_periodic_callback(id=source_id,) # TODO: adapt to make sporadic possible??!
+    # then map all callbacks contained in each node
+    for host in system.hosts: 
+        for executor in host.executors:
+            for node in executor.nodes:
+                map_node(out,node,validations) # TODO: maybe other name
     return out
-
-#def get_nodes()
-
-###Maybe actually create topics dynamically somehow and save env (dict of already created callbacks etc.?)
-
-#TODO: this will probably just end up getting deleted
-# returns list of types for the callback (depending on where it is used)
-def get_cb_types(cb_name : str, res : validator.ValidationResult, sys : ros.System) -> list[str]:
-    node_parent = res.objects.callback[cb_name]
-    types = []
-    for timer in node_parent.timers:
-        if timer.callback == cb_name:
-            types.append("Timer")
-    for subscription in node_parent.subscriptions:
-        if subscription.callback == cb_name:
-            types.append("Topic")
-    for service in node_parent.services:
-        if service.callback == cb_name:
-            types.append("Service")
-    for cb in node_parent.callbacks:
-        if cb.requests != None and cb.name == cb_name:
-            types.append("Client")
-    return types        
