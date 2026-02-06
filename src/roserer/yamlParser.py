@@ -93,12 +93,12 @@ def parse_callbacks(ros_node: ros.Node, yaml_callbacks: dict) -> None:
                           for write_variable in callback['write_variables']]
             callback_args['write_variables'] = [wv for wv in ros_node.variables
                                                 if wv.name in yaml_names]
-        if 'requests' in callback:
-            callback_args['requests'] = [
-                    ros.Request(client=client.name, timeout=request['timeout'])
-                    for client in ros_node.clients
-                    for request in callback['requests']
-                    if client.name == request['client']]
+        if 'request' in callback:
+            # add the request with the key-value pair of its content
+            request_yaml = callback['request']
+            request_args = {k: request_yaml[k] for k in request_yaml.keys()
+                         & {'client', 'response'}}
+            callback_args['request'] = ros.Request(**request_args)
         ros_node.add_callback(**callback_args)
 
 
