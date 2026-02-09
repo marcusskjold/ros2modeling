@@ -134,8 +134,8 @@ def map_sending_callbacks(out: ds.System, parent_node : ros.Node, callback : ros
 # TODO: maybe pass type as argument - maybe evenfind way to have object easilier
 def map_subscriber_cb(out: ds.System, receiver_id : int, callback : str, topic : str, validations: validator.ValidationResult):
     # get node-object
-    node : ros.Node = validations.objects[callback]
-    callback_obj : ros.Callback = next(callback for callback in node.callbacks if callback.name == callback)
+    node : ros.Node = validations.objects.callback[callback]
+    callback_obj : ros.Callback = next(cb for cb in node.callbacks if cb.name == callback)
     subscription_obj = next(sub for sub in node.subscriptions if sub.callback == callback)
     #TODO: Use interfaces indecing to lookup for what is posted to, if any
     # TODO: this should be refactored (together with code in map_node?)
@@ -169,7 +169,7 @@ def next_receiver(topic : str, validations : validator.ValidationResult):
   else:
     receiver_id = next(receiver_id_counter)
     subscribers[topic] = receiver_id
-    return next(receiver_id)
+    return receiver_id
 
 # maps server-callback and "topic" from client to server
 def map_server(out: ds.System, topic : str, sender_id : int, validations: validator.ValidationResult) -> int:
@@ -273,7 +273,7 @@ def map_topic(out: ds.System, topic : str, sender_id : int, validations: validat
     if topic not in subscribers:
         # get receiver_id and record topic in subscribers-env
         receiver_id = next_receiver(topic, validations)
-        for callback in validations.interfaces['topic subscribed to'][topic]: #TODO: this is a callback and not a node
+        for callback in validations.interfaces['topics subscribed to'][topic]: #TODO: this is a callback and not a node
             # map subscribers
             map_subscriber_cb(out=out, receiver_id=receiver_id, topic=topic, callback=callback, validations=validations)
     else: 
