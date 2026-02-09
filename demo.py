@@ -6,6 +6,7 @@ import roserer.systemvalidator as sv
 import roserer.adapters.backeman_adapter as tb
 import roserer.dust.dust_system as ds
 import roserer.dust.dust_uppaal as du
+import roserer.adapters.dust_adapter as da
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -129,6 +130,7 @@ else:
 # yprint.save_to_yaml(system, "src/tests/output/out")
 pprint(yparse.parse_yaml("src/tests/input/example.yaml"))
 
+###debug-example for dust####
 # Exv1 = ds.ExecutorV1(5, 10)
 # PeriodicCallback = ds.PeriodicCallback(5,5,5,1,2,10,10,[1,2,3],[1,2,3],5)
 # print(Exv1.name())
@@ -136,15 +138,46 @@ pprint(yparse.parse_yaml("src/tests/input/example.yaml"))
 # print(PeriodicCallback.name())
 # print(PeriodicCallback.declaration())
 # print(PeriodicCallback.system())
-sys = ds.System("mySystem")
-sys.add_component("executor_v1",1,90)
-sys.add_component("executor_v2",2,90)
-sys.add_sporadic_callback(id=1,exec_time=50,length=10,releases=[10,20,30,40,50,60,70,80,90,100],type=2,
-                          buffersize=10,amount_of_publishers=0,publisher_release_time=[0,0,0,0,0,0,0,0,0,0]
-                          ,publisher_id=[0,0,0,0,0,0,0,0,0,0],executorID=1)
-sys.add_sporadic_callback(id=2,exec_time=100,length=10,releases=[10,20,30,40,50,60,70,80,90,100],type=2,
-                          buffersize=10,amount_of_publishers=0,publisher_release_time=[0,0,0,0,0,0,0,0,0,0]
-                          ,publisher_id=[0,0,0,0,0,0,0,0,0,0],executorID=2)
-print(sys)
-print(sys.buffer_overflow())
-print(sys.max_buffer_size())
+# sys = ds.System("mySystem")
+# sys.add_component("executor_v1",1,90)
+# sys.add_component("executor_v2",2,90)
+# sys.add_sporadic_callback(id=1,exec_time=50,length=10,releases=[10,20,30,40,50,60,70,80,90,100],type=2,
+#                           buffersize=10,amount_of_publishers=0,publisher_release_time=[0,0,0,0,0,0,0,0,0,0]
+#                           ,publisher_id=[0,0,0,0,0,0,0,0,0,0],executorID=1)
+# sys.add_sporadic_callback(id=2,exec_time=100,length=10,releases=[10,20,30,40,50,60,70,80,90,100],type=2,
+#                           buffersize=10,amount_of_publishers=0,publisher_release_time=[0,0,0,0,0,0,0,0,0,0]
+#                           ,publisher_id=[0,0,0,0,0,0,0,0,0,0],executorID=2)
+# print(sys)
+# print(sys.buffer_overflow())
+# print(sys.max_buffer_size())
+
+####Example system transformed to Dust-model and checked for max-latency###
+test_sys = ros.System(name="test_system")
+host_1 = test_sys.add_host()
+exec_1 = host_1.add_executor(name="exec_1",ros_distribution="Humble")
+exec_2 = host_1.add_executor(name="exec_2",ros_distribution="Humble")
+node_1 = exec_1.add_node(name="node_1")
+node_2 = exec_2.add_node(name="node_2")
+
+test_timer_callback = node_1.add_callback(wcet=5,name="timer_1_cb",request=ros.Request(client="client_1",response="response_cb"))
+node_1.add_client(name="client_1",service="service_1")
+node_1.add_callback(wcet=5, name="response_cb")
+node_1.add_timer(period=5,callback=test_timer_callback,name="timer_1")
+
+service_cb = node_2.add_callback(wcet=5,name="server_cb")
+node_2.add_service(callback=service_cb,name="service_1")
+
+test_result = sv.validate_system(test_sys)
+test_result: sv.ValidationResult
+if test_result.errors != []:
+    for ln in test_result.errors:
+        print(ln)
+else:
+    print(test_result.get_all_cb_chains())
+    print(test_result.sinks)
+    print(test_result.sources)
+    test_chain = test_result.get_paths_from("timer_1_cb", "response_cb")[0]
+    print(test_chain)
+    dust_system = da.map_system(system=test_sys, validations=test_result)
+    print(dust_system)
+    print(dust_system.max_latency())
