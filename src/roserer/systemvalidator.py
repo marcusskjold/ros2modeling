@@ -521,6 +521,7 @@ def validate_callback_references(
     - Any request refer to a client owned by the parent node
     - Any response to a request refers to a defined, valid callback
     """
+    feedback = []
     name = callback.name
     for called_name in callback.calls:
            feedback += verify_registration(
@@ -538,6 +539,7 @@ def validate_callback_references(
             feedback += add_interface(
                 parent.get_client(request.client).service,
                 request.response, "Responding client", "services received from", interfaces)
+    return feedback
 
 
 def validate_input(
