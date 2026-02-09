@@ -161,11 +161,15 @@ node_2 = exec_2.add_node(name="node_2")
 
 test_timer_callback = node_1.add_callback(wcet=5,name="timer_1_cb",request=ros.Request(client="client_1",response="response_cb"))
 node_1.add_client(name="client_1",service="service_1")
-node_1.add_callback(wcet=5, name="response_cb")
+test_pub_1 = node_1.add_publisher(topic="topic_1",name="pub_1")
+node_1.add_callback(wcet=5, name="response_cb", publishers=[test_pub_1])
 node_1.add_timer(period=5,callback=test_timer_callback,name="timer_1")
+
 
 service_cb = node_2.add_callback(wcet=5,name="server_cb")
 node_2.add_service(callback=service_cb,name="service_1")
+test_sub_cb= node_2.add_callback(wcet=5,name="sub_cb_1")
+node_2.add_subscription(topic="topic_1",callback=test_sub_cb)
 
 test_result = sv.validate_system(test_sys)
 test_result: sv.ValidationResult
