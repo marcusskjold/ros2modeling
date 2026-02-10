@@ -86,7 +86,7 @@ CLIENT = 3
 #env from (python) name to exec-id (Uppaal)
 nodes : dict[str,int] = {}
 
-
+# adds trailing 0'es to list till it has size n
 def adapt_list_size(l : list[int], n):
     if len(l) < n:
         l.extend([0] * (n - len(l)))
@@ -97,7 +97,7 @@ cb_id_counter = itertools.count()
 def next_cb():
   return next(cb_id_counter)
 
-def map_sending_callbacks(out: ds.System, parent_node : ros.Node, callback : ros.Callback, validations: validator.ValidationResult) -> tuple[int, list[int]]:
+def map_data_sending(out: ds.System, parent_node : ros.Node, callback : ros.Callback, validations: validator.ValidationResult) -> tuple[int, list[int]]:
     # counter for numbers of interfaces posted to
     interface_count = 0
     # the id's of interfaces posted to (order doesn't matter for our use case (except we want to have specific timestamps -> implementation-detail rather?))
@@ -106,8 +106,8 @@ def map_sending_callbacks(out: ds.System, parent_node : ros.Node, callback : ros
     for publisher in callback.publishers:
         interface_count += 1
         # find publisher-object with name <publisher>
-        publisher_obj = next(pub for pub in parent_node.publishers if pub.name == publisher)
-        topic = publisher_obj.topic # TODO: avoid variable-overloading (give other name?)
+        publisher_obj = parent_node.get_publisher(publisher)
+        topic = publisher_obj.topic
         # (*1 template per publisher, so will never be redundant*)
         sender_id = next_sender()
         interface_id_list.append(sender_id)
@@ -119,13 +119,13 @@ def map_sending_callbacks(out: ds.System, parent_node : ros.Node, callback : ros
         interface_count += 1
         # get corresponding client-object
         client_obj = parent_node.get_client(request.client)
-        client_callback = next(callback for callback in parent_node.callbacks if callback.name == request.response)
+        client_callback = parent_node.get_callback(request.response)
         service = client_obj.service
         sender_id = next_sender()
         interface_id_list.append(sender_id)
-        client_sender_id = map_server(out=out, topic=service, sender_id=sender_id, validations=validations)
-        map_client(out=out, topic=service, sender_id=client_sender_id, validations=validations, client_request=request, client_obj=client_obj, client_callback=client_callback)
-
+        # must map templates pr. client-server-communication
+        client_sender_id = map_server(out=out, service=service, sender_id=sender_id, validations=validations)
+        map_client(out=out, service=service, sender_id=client_sender_id, validations=validations, client_request=request, client_obj=client_obj, client_callback=client_callback)
 
     return interface_count, interface_id_list
 
@@ -139,7 +139,7 @@ def map_subscriber_cb(out: ds.System, receiver_id : int, callback : str, topic :
     subscription_obj = next(sub for sub in node.subscriptions if sub.callback == callback)
     #TODO: Use interfaces indecing to lookup for what is posted to, if any
     # TODO: this should be refactored (together with code in map_node?)
-    interface_count, interface_id_list = map_sending_callbacks(out=out, parent_node=node,
+    interface_count, interface_id_list = map_data_sending(out=out, parent_node=node,
                                                         callback=callback_obj,validations=validations)
     out.add_data_callback(id= next_cb(),
                           exec_time=callback_obj.wcet,
@@ -171,16 +171,17 @@ def next_receiver(topic : str, validations : validator.ValidationResult):
     subscribers[topic] = receiver_id
     return receiver_id
 
+
 # maps server-callback and "topic" from client to server
-def map_server(out: ds.System, topic : str, sender_id : int, validations: validator.ValidationResult) -> int:
-    server_callback = validations.interfaces['services offered'][topic][0] # TODO: maybe just make 1 or validate that only 1 server exists
+def map_server(out: ds.System, service : str, sender_id : int, validations: validator.ValidationResult) -> int:
+    server_callback = validations.interfaces['services offered'][service][0] # TODO: maybe just make 1 or validate that only 1 server exists
     server_node : ros.Node = validations.objects.callback[server_callback]
-    server_callback_object = next(cb for cb in server_node.callbacks if cb.name == server_callback) #TODO: implement this utility
-    server = next(server for server in server_node.services if server.callback == server_callback)
+    server_callback_object = server_node.get_callback(server_callback) 
+    server = server_node.get_service(service)
 
     ### part 1)
     # id for requesting from client to server-callback
-    receiver_id = next_receiver(topic, validations)
+    receiver_id = next_receiver(service, validations)
     # add topic from client to server
     out.add_topic(receiver_id=receiver_id,
                   sender_id=sender_id,
@@ -231,21 +232,24 @@ def map_server(out: ds.System, topic : str, sender_id : int, validations: valida
 
 
 #TODO: reduce number of parameters
-def map_client(out: ds.System, topic : str, client_request : ros.Request, sender_id : int, validations: validator.ValidationResult, client_obj : ros.Client, client_callback : ros.Callback):
+def map_client(out: ds.System, service : str, client_request : ros.Request, sender_id : int, validations: validator.ValidationResult, client_obj : ros.Client, client_callback : ros.Callback):
     # get server-object (TODO : make utility-method)
-    server_callback = validations.interfaces['services offered'][topic][0] #TODO: make single value instead??
+    server_callback = validations.interfaces['services offered'][service][0] #TODO: make single value instead??
     server_node : ros.Node = validations.objects.callback[server_callback]
-    server = next(server for server in server_node.services if server.callback == server_callback)
+    server = server_node.get_service(service)
     # add topic back from server to client
     # needs additional receiver_id and sender_id for this (callback in other end is unique to this relation)
     # id for sending back to client
-    receiver_id = next_receiver(topic, validations)
+    receiver_id = next_receiver(service, validations)
     out.add_topic(receiver_id=receiver_id,
                   sender_id=sender_id,
                   delay=0,
                   max_jitter=0,
                   buffersize=server.qos.depth) #TODO: add docs that they are same to github-repo
-    interface_count, interface_id_list = map_sending_callbacks(out=out, parent_node=validations.objects.callback[client_callback.name],
+    # TODO: hand request and receiver-id to a new method (maybe just return receiver from here)
+
+
+    interface_count, interface_id_list = map_data_sending(out=out, parent_node=validations.objects.callback[client_callback.name],
                                                         callback=client_callback,validations=validations)
     # add callback for client (upon receiving back from server)
     out.add_data_callback(id=next_cb(), 
@@ -285,14 +289,11 @@ def map_topic(out: ds.System, topic : str, sender_id : int, validations: validat
                   buffersize=10) # TODO: should this be a resolved qos rather?
 
 
-#Should we discern between nodes under same executor?
-# TODO: find smartest way to discern between callback-types in meaningful way?
 def map_node(out: ds.System, node: ros.Node, validations: validator.ValidationResult):
     # case 1) timers
     for timer in node.timers:
-        # finds callback from the timer-name
-        timer_cb = next(callback for callback in node.callbacks if callback.name == timer.callback)
-        interface_count, interface_id_list = map_sending_callbacks(out=out, parent_node=node,
+        timer_cb = node.get_callback(timer.callback)
+        interface_count, interface_id_list = map_data_sending(out=out, parent_node=node,
                                                         callback=timer_cb,validations=validations)
         #TODO: for now 10 hardcoded as max-pub-size
         out.add_periodic_callback(id=next_cb(),
@@ -330,10 +331,10 @@ def map_system(system: ros.System, validations : validator.ValidationResult) -> 
     # first map all executors
     for host in system.hosts:
         for executor in host.executors:
-            map_executor(out, executor)
+            map_executor(out=out, executor=executor)
     # then map all callbacks contained in each node
     for host in system.hosts: 
         for executor in host.executors:
             for node in executor.nodes:
-                map_node(out,node,validations) # TODO: maybe other name
+                map_node(out=out,node=node,validations=validations) # TODO: maybe other name
     return out
