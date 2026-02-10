@@ -286,6 +286,26 @@ class Node():
             if client_name == cli.name:
                 return cli
         raise ValueError("Client requested is not contained in this node")
+    
+    # finds callback-object from the timer-name
+    def get_callback(
+            self,
+            cb_name: str
+            ) -> Callback:
+        for callback in self.callbacks:
+            if callback.name == cb_name:
+                return callback
+        raise ValueError("Callback requested is not contained in this node")
+    
+    def get_service(
+            self,
+            service_name: str
+            ) -> Service:
+        for serv in self.services:
+            if serv.name == service_name:
+                return serv
+        raise ValueError("Service requested is not contained in this node")
+        
 
 
 @dataclass
