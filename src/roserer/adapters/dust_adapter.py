@@ -7,6 +7,40 @@ import itertools
 
 ############################----VALIDATION----############################
 
+
+#TODO: This could perhaps return an object that can have validations (and maybe counters) etc. as fields
+#TODO: think about errors similarly to other adapter
+def validate_system(system : ros.System,
+                    validations : validator.ValidationResult
+                    ):
+    """
+    System-constraints:
+    """
+    for host in system.hosts:
+        for executor in host.executors:
+            validate_executor(executor, validations)
+    return system
+
+def validate_executor(executor : ros.Executor, validations : validator.ValidationResult) -> tuple[list[str],list[str]]:
+    """
+    a valid Executor:
+    - runs on a distribution of ROS2 released before Jazzy Jalizico (see VALID_ROS_DISTRIBUTIONS)
+    """
+    errors: list[str] = []
+    warnings: list[str] = []
+    if executor.ros_distribution not in VALID_ROS_DISTRIBUTIONS.values():
+        errors += [f"Executor '{executor.name}' runs on a distribution not supported by this model "
+                     f"Make sure that the distribution is one of the following:"
+                     + str(VALID_ROS_DISTRIBUTIONS.values())]
+    # TODO: could give warning for Executor with more nodes (but in principle it can)
+    for node in executor.nodes:
+        errs, warns += validate_node(node, validations)
+        errors += errs
+        warnings += warns
+
+def validate_node(node : ros.Node, validations : validator.ValidationResult):
+    return
+
 ####All templates
 # id's must be unique (with respect to other callbacks of same type under same executor, and between executors)
 # the system should only use distributions that has the relevant executors (not newer than Humble?)
