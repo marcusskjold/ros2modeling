@@ -192,7 +192,7 @@ def map_server(out: ds.System, service : str, sender_id : int, validations: vali
     server_callback_object = server_node.get_callback(server_callback) 
     server = server_node.get_service(service)
 
-    ### part 1)
+    ### UPPAAL-Topic from client to server ###
     # id for requesting from client to server-callback
     receiver_id = next_receiver(service, validations)
     # add topic from client to server
@@ -203,6 +203,7 @@ def map_server(out: ds.System, service : str, sender_id : int, validations: vali
                   buffersize=server.qos.depth
                   )
     
+    ### UPPAAL-DataCallback in server ###
     # id for sending back to client
     sender_id = next_sender()
     # create data-callback for sending back to client (upon receiving request)
@@ -215,8 +216,9 @@ def map_server(out: ds.System, service : str, sender_id : int, validations: vali
                           publisher_release_time=[0 for i in range(10)],
                           publisher_id=adapt_list_size([sender_id], 10),
                           executorID=nodes[server_node.name])
-    # add topic back from server to client
-    # needs additional receiver_id and sender_id for this (callback in other end is unique to this relation)
+    
+    ### UPPAAL-Topic back from server to client ###
+        # needs additional receiver_id and sender_id for this (callback in other end is unique to this relation)
     # id for sending back to client
     receiver_id = next_receiver(service, validations)
     out.add_topic(receiver_id=receiver_id,
@@ -226,7 +228,7 @@ def map_server(out: ds.System, service : str, sender_id : int, validations: vali
                   buffersize=server.qos.depth) #TODO: add docs that they are same to github-repo
     return receiver_id
 
-
+# maps data-callback in client upon receiving response from service
 def map_client(out: ds.System, request : ros.Request, receiver_id : int, validations: validator.ValidationResult):
     parent_node = validations.objects.callback[request.response]
     client_obj = parent_node.get_client(request.client)
