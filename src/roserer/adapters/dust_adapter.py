@@ -7,6 +7,10 @@ import itertools
 
 ############################----VALIDATION----############################
 
+def unspecified_warning(component : str) -> list[str]:
+    return [f"Be aware that this model doesn't take account of {component}. \
+                     Use another model, if you want {component} to be taken account of"]
+
 
 #TODO: This could perhaps return an object that can have validations (and maybe counters) etc. as fields
 #TODO: think about errors similarly to other adapter
@@ -15,31 +19,100 @@ def validate_system(system : ros.System,
                     ):
     """
     System-constraints:
+    - No constraints beyond the constraints outlined in system_validator.py
+    - number of hosts and DDS-implementation is not taken account of in model
     """
+    errors : list[str]= ["Errors:"]
+    warnings : list[str] = ["Warnings:"]
+    if system.default_distribution not in VALID_ROS_DISTRIBUTIONS.values():
+        warnings += [f"You have chosen the ROS2-distribution, {system.default_distribution}, as your \
+                     default distribution. Be aware that it is not supported by this model"]
+    if system.dds_implementation != "Generic":
+        warnings += unspecified_warning("DDS-implementation")
+    if len(system.hosts) > 1:
+        warnings += unspecified_warning("distribution of the system between hosts")
+    ### give warning about using multiple hosts (no explicit discerning)
+
     for host in system.hosts:
-        for executor in host.executors:
-            validate_executor(executor, validations)
-    return system
+        errs, warns += validate_host(host, validations)
+        errors += errs
+        warnings += warns
+    return errors, warnings
+
+def validate_host(host : ros.Host, validations : validator.ValidationResult):
+    """
+    Host-constraints:
+    - Is abstracted away in the Dust-model
+    - Assumes 100 % thread-availability for each executor (p. 311)
+    """
+    errors: list[str] = []
+    warnings: list[str] = [f"This model expects 100 % thread availability for each executor in the host operating system. \
+                           If this is not the case, then there might be errors in the system not \
+                           covered by this model"]
+
+    if host.default_distribution not in VALID_ROS_DISTRIBUTIONS.values():
+        warnings += [f"You have chosen the ROS2-distribution, {host.default_distribution}, as your \
+                     default distribution. Be aware that it is not supported by this model"]
+    if host.operating_system != "Generic":
+         warnings += unspecified_warning("operating system")
+    if host.operating_system != "Generic":
+         warnings += unspecified_warning("architecture")
+    for executor in host.executors:
+        errs, warns += validate_executor(executor, validations)
+        errors += errs
+        warnings += warns
+    return errors, warnings
+
 
 def validate_executor(executor : ros.Executor, validations : validator.ValidationResult) -> tuple[list[str],list[str]]:
     """
     a valid Executor:
-    - runs on a distribution of ROS2 released before Jazzy Jalizico (see VALID_ROS_DISTRIBUTIONS)
+    - Runs on a distribution of ROS2 released before Jazzy Jalizico (see VALID_ROS_DISTRIBUTIONS)
+    - Is an implementation of the SingleThreadedExecutor
+    - Doesn't discern between what nodes different callbacks belongs to TODO: is this ever the case?
     """
     errors: list[str] = []
     warnings: list[str] = []
     if executor.ros_distribution not in VALID_ROS_DISTRIBUTIONS.values():
-        errors += [f"Executor '{executor.name}' runs on a distribution not supported by this model "
-                     f"Make sure that the distribution is one of the following:"
+        errors += [f"Executor '{executor.name}' runs on a distribution not supported by this model \
+                     Make sure that the distribution is one of the following: "
                      + str(VALID_ROS_DISTRIBUTIONS.values())]
-    # TODO: could give warning for Executor with more nodes (but in principle it can)
+    if executor.implementation != "SingleThreadedExecutor":
+        errors += [f"The implementation, {executor.implementation}, of '{executor.name}' is not supported. \
+                     This model only supports variants of the SingleThreadedExecutor implementation"]
+    if len(executor.nodes) > 1: # TODO: is this ever the case.
+        warnings += [f"This models doesn't discern between nodes under the same executor. Use another model \
+                     if this distinction is relevant to you."]
     for node in executor.nodes:
         errs, warns += validate_node(node, validations)
         errors += errs
         warnings += warns
+    return errors, warnings
 
-def validate_node(node : ros.Node, validations : validator.ValidationResult):
-    return
+def validate_node(node : ros.Node, validations : validator.ValidationResult)-> tuple[list[str],list[str]]:
+    """
+    a valid Node:
+    - Doesn't contain any actions (TODO: is this the case?)
+    - Doesn't consider read/write-variables
+    - TODO: what about external i/o?
+    """
+    errors: list[str] = []
+    warnings: list[str] = []
+    if node.actions:
+        errors += [f"This model doesn't support ROS2 actions. Please remove any actions from your system in order \
+                   to use this model."]
+    if node.variables:
+        warnings += unspecified_warning("read/write variables")
+    for callback in node.callbacks:
+        errs, warns += validate_callback(node, validations) #TODO: implement
+        errors += errs
+        warnings += warns
+    for timer in node.timers:
+        errs, warns += validate_timer(node, validations) #TODO: implement
+        errors += errs
+        warnings += warns
+    # 1) make sure it doesn't have unsupported components
+    return errors, warnings
 
 ####All templates
 # id's must be unique (with respect to other callbacks of same type under same executor, and between executors)
@@ -353,3 +426,32 @@ def map_system(system: ros.System, validations : validator.ValidationResult) -> 
             for node in executor.nodes:
                 map_node(out=out,node=node,validations=validations) # TODO: maybe other name
     return out
+
+
+# ===================== TRANSFORMATION ===========================
+
+# TODO: this could maybe become common interface for our adapters?
+def transform_system(
+        system: ros.System,
+        validationresult: validator.ValidationResult | None = None
+        ) -> tuple[list[str], list[str], ds.System | None]:
+
+    if validationresult is None:
+        validationresult = validator.validate_system(system)
+        validationresult: validator.ValidationResult
+        if validationresult.errors != []:
+            return ([
+                "System is not well formed, cannot start transformation. "
+                "Validation feedback:"] + validationresult.errors,
+                [],
+                None)
+
+    errors, warnings = validate_system(
+        system, validationresult)
+
+    if errors != ["Errors:"]:
+        return errors, warnings, None
+    if warnings == ["Warnings:"]:
+        warnings = []
+
+    return [], warnings, map_system(system, validationresult.objects)
