@@ -351,7 +351,7 @@ def map_client(out: ds.System, request : ros.Request, receiver_id : int, validat
                           amount_of_publishers=interface_count,
                           publisher_release_time=[0 for i in range(10)],
                           publisher_id= adapt_list_size(interface_id_list,10),
-                          executorID=nodes[validations.objects.client[client_obj.name].name]) #TODO: check how qos (requst vs. offered) is resolved
+                          executorID=nodes[parent_node.name]) #TODO: check how qos (requst vs. offered) is resolved
 
 
 # id's for topics (sending to)
