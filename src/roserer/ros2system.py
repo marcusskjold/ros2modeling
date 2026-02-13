@@ -131,6 +131,7 @@ class Action():
 @dataclass
 class ExternalInput():
     name: str
+    wall_times: list[TimeUnit]
     callback: str
 
 
@@ -152,11 +153,13 @@ class Node():
     def add_external_input(
             self,
             callback: Callback,
+            wall_times : list[TimeUnit],
             name: str | None = None
             ) -> ExternalInput:
 
         input = ExternalInput(
                 name=_name_init(name, self.name, "input", len(self.external_inputs)),
+                wall_times= wall_times,
                 callback=callback.name
                 )
         self.external_inputs.append(input)

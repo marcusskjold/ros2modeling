@@ -46,9 +46,10 @@ def parse_timers(ros_node: ros.Node, yaml_timers: dict) -> None:
 
 def parse_external_inputs(ros_node: ros.Node, yaml_external_inputs: dict) -> None:
     for external_input in yaml_external_inputs:
-        external_input_args = {
-                'name' : external_input['external_input']
-                } if 'external_input' in external_input else {}
+        external_input_args = {k: external_input[k] for k in external_input.keys()
+                      & {'wall_times'}}
+        if 'external_input' in external_input:
+            external_input_args['name'] = external_input['external_input']
         if 'callback' in external_input:
             external_input_args['callback'] = next(
                     (callback for callback in ros_node.callbacks

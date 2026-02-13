@@ -59,6 +59,7 @@ System:
         external_inputs:
         - external_input: howdy
           callback: sensor1callback0
+          wall_times: [1,2,3,4]
 
       - node: sensor2
         publishers:
