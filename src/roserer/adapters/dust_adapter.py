@@ -16,7 +16,7 @@ def unspecified_warning(component : str) -> list[str]:
 #TODO: think about errors similarly to other adapter
 def validate_system(system : ros.System,
                     validations : validator.ValidationResult
-                    ):
+                    )-> tuple[list[str],list[str]]:
     """
     System-constraints:
     - No constraints beyond the constraints outlined in system_validator.py
@@ -39,7 +39,9 @@ def validate_system(system : ros.System,
         warnings += warns
     return errors, warnings
 
-def validate_host(host : ros.Host, validations : validator.ValidationResult):
+def validate_host(host : ros.Host,
+                  validations : validator.ValidationResult
+                  )-> tuple[list[str],list[str]]:
     """
     Host-constraints:
     - Is abstracted away in the Dust-model
@@ -64,7 +66,9 @@ def validate_host(host : ros.Host, validations : validator.ValidationResult):
     return errors, warnings
 
 
-def validate_executor(executor : ros.Executor, validations : validator.ValidationResult) -> tuple[list[str],list[str]]:
+def validate_executor(executor : ros.Executor,
+                      validations : validator.ValidationResult
+                      ) -> tuple[list[str],list[str]]:
     """
     a valid Executor:
     - Runs on a distribution of ROS2 released before Jazzy Jalizico (see VALID_ROS_DISTRIBUTIONS)
@@ -89,7 +93,9 @@ def validate_executor(executor : ros.Executor, validations : validator.Validatio
         warnings += warns
     return errors, warnings
 
-def validate_node(node : ros.Node, validations : validator.ValidationResult)-> tuple[list[str],list[str]]:
+def validate_node(node : ros.Node,
+                  validations : validator.ValidationResult
+                  )-> tuple[list[str],list[str]]:
     """
     a valid Node:
     - Doesn't contain any actions (TODO: is this the case?)
@@ -104,51 +110,69 @@ def validate_node(node : ros.Node, validations : validator.ValidationResult)-> t
     if node.variables:
         warnings += unspecified_warning("read/write variables")
     for callback in node.callbacks:
-        errs, warns += validate_callback(node, validations) #TODO: implement
+        errs, warns += validate_callback(callback, validations)
         errors += errs
         warnings += warns
     for timer in node.timers:
-        errs, warns += validate_timer(node, validations) #TODO: implement
+        errs, warns += validate_timer(timer, validations)
         errors += errs
         warnings += warns
+    if node.external_outputs:
+        warnings += unspecified_warning("external output")
     # 1) make sure it doesn't have unsupported components
     return errors, warnings
 
+def validate_timer(timer : ros.Timer,
+                   validations : validator.ValidationResult
+                   )-> tuple[list[str],list[str]]:
+    """
+    A valid Timer:
+    - Has a period larger than the wcet of its callback
+    """
+    errors: list[str] = []
+    warnings: list[str] = []
+    parent = validations.objects.timer[timer.name]
+    timer_callback = parent.get_callback(timer.callback)
+    if timer.period > timer_callback.wcet:
+        errors += [f"This model assumes fixed execution-time (equal to wcet). Make sure that wcet < period, \
+                   or otherwise a bufferoverflow will trivially occur."]
+    return errors, warnings
+
+def validate_callback(callback : ros.Callback,
+                      validations : validator.ValidationResult
+                      )-> tuple[list[str],list[str]]:
+    """
+    A valid Callback:
+    - does not consider read-variables and write-variables
+    """
+    errors: list[str] = []
+    warnings: list[str] = []
+    # name: str
+    # wcet: TimeUnit
+    # read_variables: list[Variable]
+    # write_variables: list[Variable]
+    # calls: list[str]
+    # publishers: list[str]
+    # external_outputs: list[ExternalOutput]
+    # request: Request
+    if callback.read_variables or callback.write_variables:
+        warnings += unspecified_warning("read/write variables")
+    return errors, warnings
+    
 ####All templates
-# id's must be unique (with respect to other callbacks of same type under same executor, and between executors)
-# the system should only use distributions that has the relevant executors (not newer than Humble?)
-# read/write variables can not be used -> should prob generate warning, at least.
 # calls doesn't make sense either. (maybe not even external i/o)
 
 
 ####All callbacks
 # INVARIANT: Timer-buffer size 1?
 # is the type-parameter within bounds (0 - 3)
-# two last arrays should (probably/preferably) be all 0 when no subscribers
-# the release-times for subscribers should be (weakly?) increasing
-# all referenced id's should correspond to something (maybe checked in validator already?)
-# if Timer-type, then buffersize should be 1
-# must have a wcet?
 # a callback must be associated to exactly 1 executor
 # only 1 callback per service at the server-side
 
 
-#### Executor
-# If more nodes are associated under the same executor, it doesn't seem like the model will recognize?
-## there should at least be a warning
-
-#### datacallback
-# can not be a timer-callback?
-
 
 ####Sporadic callback
 # INVARIANT: length must correspond to non-zero values in releases-array (except if first is zero?)
-
-####Periodic callback
-# invariant: period should be less than execution-time -> else overflow is more or less guaranteed?
-
-###services (ROS-side) -> maybe for general validator
-# wcet in server-callback must not exceed timeout (or it will never get response) (as of now????)
 
 
 
