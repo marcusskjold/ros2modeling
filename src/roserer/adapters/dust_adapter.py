@@ -34,7 +34,7 @@ def validate_system(system : ros.System,
     ### give warning about using multiple hosts (no explicit discerning)
 
     for host in system.hosts:
-        errs, warns += validate_host(host, validations)
+        errs, warns = validate_host(host, validations)
         errors += errs
         warnings += warns
     return errors, warnings
@@ -60,7 +60,7 @@ def validate_host(host : ros.Host,
     if host.operating_system != "Generic":
          warnings += unspecified_warning("architecture")
     for executor in host.executors:
-        errs, warns += validate_executor(executor, validations)
+        errs, warns = validate_executor(executor, validations)
         errors += errs
         warnings += warns
     return errors, warnings
@@ -88,7 +88,7 @@ def validate_executor(executor : ros.Executor,
         warnings += [f"This models doesn't discern between nodes under the same executor. Use another model \
                      if this distinction is relevant to you."]
     for node in executor.nodes:
-        errs, warns += validate_node(node, validations)
+        errs, warns = validate_node(node, validations)
         errors += errs
         warnings += warns
     return errors, warnings
@@ -110,11 +110,11 @@ def validate_node(node : ros.Node,
     if node.variables:
         warnings += unspecified_warning("read/write variables")
     for callback in node.callbacks:
-        errs, warns += validate_callback(callback, validations)
+        errs, warns = validate_callback(callback, validations)
         errors += errs
         warnings += warns
     for timer in node.timers:
-        errs, warns += validate_timer(timer, validations)
+        errs, warns = validate_timer(timer, validations)
         errors += errs
         warnings += warns
     if node.external_outputs:
