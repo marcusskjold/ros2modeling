@@ -255,22 +255,25 @@ def map_data_sending(out: ds.System, parent_node : ros.Node, callback : ros.Call
 def map_subscriber_cb(out: ds.System, receiver_id : int, callback : str, topic : str, validations: validator.ValidationResult):
     # get node-object
     node : ros.Node = validations.objects.callback[callback]
-    callback_obj : ros.Callback = next(cb for cb in node.callbacks if cb.name == callback)
-    subscription_obj = next(sub for sub in node.subscriptions if sub.callback == callback)
-    #TODO: Use interfaces indecing to lookup for what is posted to, if any
-    # TODO: this should be refactored (together with code in map_node?)
-    interface_count, interface_id_list = map_data_sending(out=out, parent_node=node,
-                                                        callback=callback_obj,validations=validations)
-    out.add_data_callback(id= next_cb(),
-                          exec_time=callback_obj.wcet,
-                          topicID=receiver_id,
-                          type=SUBSCRIBER,
-                          buffersize=subscription_obj.qos.depth,
-                          amount_of_publishers=interface_count,
-                          publisher_release_time=[0 for i in range(10)],
-                          publisher_id=adapt_list_size(interface_id_list, 10),
-                          executorID=nodes[node.name]
-                          )
+    callback_obj : ros.Callback = node.get_callback(callback)
+    # in case more subscriptions are using same callback
+    subscriptions : list[ros.Subscription]= [sub for sub in node.subscriptions if sub.callback == callback]
+    for subscription in subscriptions:
+        if subscription.topic == topic:
+            # get sender info
+            interface_count, interface_id_list = map_data_sending(out=out, parent_node=node,
+                                                                callback=callback_obj,validations=validations)
+            # create callback
+            out.add_data_callback(id= next_cb(),
+                                  exec_time=callback_obj.wcet,
+                                  topicID=receiver_id,
+                                  type=SUBSCRIBER,
+                                  buffersize=subscription.qos.depth,
+                                  amount_of_publishers=interface_count,
+                                  publisher_release_time=[0 for i in range(10)],
+                                  publisher_id=adapt_list_size(interface_id_list, 10),
+                                  executorID=nodes[node.name]
+                                  )
 
 
 
