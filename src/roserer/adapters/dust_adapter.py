@@ -253,7 +253,7 @@ def map_data_sending(out: ds.System, parent_node : ros.Node, callback : ros.Call
         topic = publisher_obj.topic
         
         # map communication to RECEIVING node (*1 template per publisher, so will never be redundant*)
-        map_topic(out, topic, sender_id, validations)
+        map_topic(out=out, publisher=publisher, topic=topic, sender_id=sender_id, validations=validations)
 
     # look for request
     if callback.request is not None:
@@ -262,14 +262,16 @@ def map_data_sending(out: ds.System, parent_node : ros.Node, callback : ros.Call
         sender_id = next_sender()
         interface_id_list.append(sender_id)
 
-        # get request and service
+        # map topic from client to server
         request = callback.request
-        service = parent_node.get_client(request.client).service
+        client = parent_node.get_client(request.client)
+        server_receiver_id = map_req_topic(out=out, client=client, sender_id=sender_id, validations=validations)
 
-        # map server (must map (Topic X DataCallback X Topic) templates pr. client-server-communication)
-        client_receiver_id = map_server(out=out, service=service, sender_id=sender_id, validations=validations)
+        # map server-callback and topic back (must map (Topic X DataCallback X Topic) templates pr. client-server-communication)
+        service = client.service
+        client_receiver_id = map_server(out=out, service=service, receiver_id=server_receiver_id, validations=validations)
 
-        # map client-callback
+        # map client's response-callback
         map_client(out=out, receiver_id=client_receiver_id, validations=validations, request=request)
 
     return interface_count, interface_id_list
@@ -319,14 +321,9 @@ def next_receiver(topic : str, validations : validator.ValidationResult):
     return receiver_id
 
 
-# maps server-callback and "topic" from client to server
-def map_server(out: ds.System, service : str, sender_id : int, validations: validator.ValidationResult) -> int:
-    server_callback = validations.interfaces['services offered'][service][0] # TODO: maybe just make 1 or validate that only 1 server exists
-    server_node : ros.Node = validations.objects.callback[server_callback]
-    server_callback_object = server_node.get_callback(server_callback) 
-    server = server_node.get_service(service)
-
-    ### UPPAAL-Topic from client to server ###
+# maps topic from client to server
+def map_req_topic(out : ds.System, client : ros.Client, sender_id : str, validations : validator.ValidationResult) -> str:
+    service = client.service
     # id for requesting from client to server-callback
     receiver_id = next_receiver(service, validations)
     # add topic from client to server
@@ -334,12 +331,20 @@ def map_server(out: ds.System, service : str, sender_id : int, validations: vali
                   sender_id=sender_id,
                   delay=0,
                   max_jitter=0,
-                  buffersize=server.qos.depth
+                  buffersize=client.qos.depth
                   )
     
+    return receiver_id
+
+# maps server-callback and "topic" from client to server
+def map_server(out: ds.System, service : str, receiver_id : int, validations: validator.ValidationResult) -> int:
     ### UPPAAL-DataCallback in server ###
     # id for sending back to client
     sender_id = next_sender()
+    server_callback = validations.interfaces['services offered'][service][0] # TODO: maybe just make 1 or validate that only 1 server exists
+    server_node : ros.Node = validations.objects.callback[server_callback]
+    server_callback_object = server_node.get_callback(server_callback) 
+    server = server_node.get_service(service)
     # create data-callback for sending back to client (upon receiving request)
     out.add_data_callback(id=next_cb(),
                           exec_time=server_callback_object.wcet,
@@ -352,7 +357,7 @@ def map_server(out: ds.System, service : str, sender_id : int, validations: vali
                           executorID=nodes[server_node.name])
     
     ### UPPAAL-Topic back from server to client ###
-        # needs additional receiver_id and sender_id for this (callback in other end is unique to this relation)
+        # needs additional receiver_id for this (callback in other end is unique to this relation)
     # id for sending back to client
     receiver_id = next_receiver(service, validations)
     out.add_topic(receiver_id=receiver_id,
@@ -387,7 +392,7 @@ def next_sender():
   return next(sender_id_counter)
 
 
-def map_topic(out: ds.System, topic : str, sender_id : int, validations: validator.ValidationResult) -> None:
+def map_topic(out: ds.System, publisher : ros.Publisher, topic : str, sender_id : int, validations: validator.ValidationResult) -> None:
     # If subscribers for this topic hasn't been made already:
     if topic not in subscribers:
         # get receiver_id and record topic in subscribers-env:
@@ -401,7 +406,7 @@ def map_topic(out: ds.System, topic : str, sender_id : int, validations: validat
                   sender_id=sender_id,
                   delay=0,
                   max_jitter=0,
-                  buffersize=10) # TODO: should this be a resolved qos rather?
+                  buffersize=publisher.qos.depth)
 
 
 def map_node(out: ds.System, node: ros.Node, validations: validator.ValidationResult):
