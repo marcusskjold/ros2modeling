@@ -134,6 +134,7 @@ class Containments:
     client          : dict[str,ros.Node]
     variable        : dict[str,ros.Node]
     publisher       : dict[str,ros.Node]
+    subscription    : dict[str,ros.Node]
     action          : dict[str,ros.Node]
 
     def __init__(self):
@@ -572,12 +573,16 @@ def validate_subscription(
         ) -> list[str]:
     """
     A subscription is well formed if:
+    - It has a name
     - It has a valid quality of service profile
     - It names the topic it subscribes to
     - It calls a callback that is owned by the same node
     """
     pname = parent.name
     feedback = []
+    feedback = register(subscription.name, "subscription", parent, objects)
+    if feedback != []:
+        return feedback
     feedback += validate_qos(subscription.qos, pname)
     feedback += add_interface(subscription.topic, subscription.callback,
                               "Topic", "topics subscribed to", interfaces)
