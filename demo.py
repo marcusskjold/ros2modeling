@@ -173,7 +173,8 @@ node_1.add_timer(period=5,callback=test_timer_callback,name="timer_1")
 
 
 service_cb = node_2.add_callback(wcet=5,name="server_cb")
-node_2.add_service(callback=service_cb, name="service_1")
+service_1= node_2.add_service(callback=service_cb, name="service_1")
+node_2.add_external_input(wall_times=[5,10,17],source=service_1,name="ext_1")
 
 ##topic-addition
 # test_sub_cb= node_2.add_callback(wcet=5,name="sub_cb_1")

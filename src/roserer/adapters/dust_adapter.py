@@ -427,7 +427,41 @@ def map_node(out: ds.System, node: ros.Node, validations: validator.ValidationRe
                                   publisher_id=adapt_list_size(interface_id_list, 10),
                                   executorID=nodes[node.name]
                                   )
-    # case 2) external input (# TODO:)
+    # case 2) external input
+    for external_input in node.external_inputs:
+        ext_input_src = external_input.source 
+        ext_input_cb = node.get_callback(ext_input_src.callback)
+        interface_count, interface_id_list = map_data_sending(out=out, parent_node=node,
+                                                              callback=ext_input_cb,validations=validations)
+        if isinstance(ext_input_src, ros.Timer): #TODO: Maybe not keep this case
+            out.add_sporadic_callback(id=next_cb(),
+                                      exec_time=ext_input_cb.wcet,
+                                      length=len(external_input.wall_times),
+                                      releases=adapt_list_size(external_input.wall_times, 10), #TODO: make not hardcoded
+                                      type=TIMER,
+                                      buffersize=1,
+                                      amount_of_publishers=interface_count,
+                                      publisher_release_time=[0 for i in range(10)],
+                                      publisher_id=adapt_list_size(interface_id_list, 10),
+                                      executorID=nodes[node.name]
+                                      )
+        else:
+            ext_type = SERVICE if isinstance(ext_input_src, ros.Service) else SUBSCRIBER
+            out.add_sporadic_callback(id=next_cb(),
+                                      exec_time=ext_input_cb.wcet,
+                                      length=len(external_input.wall_times),
+                                      releases=adapt_list_size(external_input.wall_times, 10), #TODO: make not hardcoded
+                                      type=ext_type,
+                                      buffersize=ext_input_src.qos.depth,
+                                      amount_of_publishers=interface_count,
+                                      publisher_release_time=[0 for i in range(10)],
+                                      publisher_id=adapt_list_size(interface_id_list, 10),
+                                      executorID=nodes[node.name]
+                                      )
+        #TODO: Should I account for CLient? -> seems non-relevant?
+            
+        
+
 
 # generate id for Executors
 ex_id_counter = itertools.count()
@@ -487,3 +521,12 @@ def transform_system(
         warnings = []
 
     return [], warnings, map_system(system, validationresult.objects)
+
+# TODO: this might be too hard to use, and is maybe not to be made
+def abstract_away(sys, component_name, wall_times):
+    """ abstracts away a component with name <component_name> for the indicated wall_times"""
+    return
+
+def individualize(sys: ds.System, node : str, release_times : dict[str, list[int]])-> ds.System:
+    """Applies the individual approach by"""
+    return

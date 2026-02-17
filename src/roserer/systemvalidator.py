@@ -149,6 +149,7 @@ class Containments:
         self.client = {}
         self.variable = {}
         self.publisher = {}
+        self.subscription = {}
         self.action = {}
 
 """
@@ -542,7 +543,7 @@ def validate_callback_references(
                 request.response, "Responding client", "services received from", interfaces)
     return feedback
 
-
+# TODO : adapt to how external_input is structured now
 def validate_input(
         input: ros.ExternalInput,
         parent: ros.Node,
@@ -558,10 +559,16 @@ def validate_input(
     feedback = register(input.name, "external_input", parent, objects)
     if feedback != []:
         return feedback
-
-    feedback += verify_registration(input.callback, "callback",
-                                    parent, input.name, objects)
-
+    if isinstance(input.source, ros.Subscription):
+        verify_registration(input.source.name, "subscription",
+                            parent, input.name, objects)
+    elif isinstance(input.source, ros.Service):
+        verify_registration(input.source.name, "service",
+                            parent, input.name, objects)
+    else:
+        feedback += [f"source is not an acceptable type. Make sure it is \
+                     either a Subscription or a Service"]
+    # TODO: check that values in wall_times are appropriate!!!
     return feedback
 
 
@@ -599,7 +606,7 @@ def validate_timer(
         interfaces: Interfaces
         ) -> list[str]:
     """
-    A subscription is well formed if:
+    A timer is well formed if:
     - It has a name
     - It is only owned by one node
     - It has a valid period
@@ -704,9 +711,6 @@ def validate_node(
         feedback += validate_callback(callback, node, objects, interfaces)
 
     total_triggers = 0
-    for input in node.external_inputs:
-        feedback += validate_input(input, node, objects, interfaces)
-        total_triggers += 1
     for subscription in node.subscriptions:
         feedback += validate_subscription(subscription, node, objects, interfaces)
         total_triggers += 1
@@ -718,6 +722,9 @@ def validate_node(
         total_triggers += 1
     for action in node.actions:
         validate_action(action, node)  # TODO: Add support for actions
+        total_triggers += 1
+    for input in node.external_inputs:
+        feedback += validate_input(input, node, objects, interfaces)
         total_triggers += 1
     if total_triggers < 1:
         feedback += f"Node '{node.name}' must have at least one trigger"

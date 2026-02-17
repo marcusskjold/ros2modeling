@@ -58,8 +58,8 @@ System:
         - v3
         external_inputs:
         - external_input: howdy
-          callback: sensor1callback0
           wall_times: [1,2,3,4]
+          source: subscriber1
 
       - node: sensor2
         publishers:

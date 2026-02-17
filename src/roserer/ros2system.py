@@ -128,12 +128,24 @@ class Service():
 class Action():
     name: str
 
+#TODO : move timer to a function in dust_adapter
+#type-alias for components that can be triggered 
+TriggeredComponent = Subscription | Service | Timer
 
+# A callback triggered from something external to what is modeled of the system
 @dataclass
 class ExternalInput():
-    name: str
-    wall_times: list[TimeUnit]
-    callback: str
+    name: str                                # name of this input
+    source: TriggeredComponent               # what is triggered #If timer, then it has to be checked that it follows interval
+    wall_times: list[TimeUnit]               # the timestamps of triggers
+
+
+### Alternative name/design:
+# @dataclass
+# class Execution_sequence():/ExternalTriggers/ExternalEvents/EventSequence()
+#     name: str                   # name of this input
+#     source: str                 # what is triggered (timer/server/subscriber)
+#     wall_times: list[TimeUnit]  # the timestamps of executions
 
 
 @dataclass
@@ -153,15 +165,15 @@ class Node():
 
     def add_external_input(
             self,
-            callback: Callback,
             wall_times : list[TimeUnit],
+            source : TriggeredComponent,
             name: str | None = None
             ) -> ExternalInput:
-
+        
         input = ExternalInput(
                 name=_name_init(name, self.name, "input", len(self.external_inputs)),
                 wall_times= wall_times,
-                callback=callback.name
+                source=source
                 )
         self.external_inputs.append(input)
         return input

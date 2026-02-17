@@ -45,18 +45,34 @@ def parse_timers(ros_node: ros.Node, yaml_timers: dict) -> None:
                     None)
         ros_node.add_timer(**timer_args)
 
-
+# TODO: remove timer from here
+# TODO: make sure this is parsed after subscriptions etc.
 def parse_external_inputs(ros_node: ros.Node, yaml_external_inputs: dict) -> None:
     for external_input in yaml_external_inputs:
         external_input_args = {k: external_input[k] for k in external_input.keys()
                       & {'wall_times'}}
         if 'external_input' in external_input:
             external_input_args['name'] = external_input['external_input']
-        if 'callback' in external_input:
-            external_input_args['callback'] = next(
-                    (callback for callback in ros_node.callbacks
-                         if callback.name == external_input['callback']),
+        # finding source (don't know type in advance)
+        if 'source' in external_input:
+            subscription_source = next(
+                    (sub for sub in ros_node.subscriptions
+                         if sub.name == external_input['source']),
                     None)
+            timer_source = next(
+                    (tim for tim in ros_node.timers
+                         if tim.name == external_input['source']),
+                    None)
+            service_source = next(
+                    (srv for srv in ros_node.services
+                         if srv.name == external_input['source']),
+                    None)
+            if subscription_source is not None:
+                external_input_args['source'] = subscription_source
+            elif timer_source is not None:
+                external_input_args['source'] = timer_source
+            elif service_source is not None:
+                external_input_args['source'] = service_source
         ros_node.add_external_input(**external_input_args)
 
 
@@ -142,9 +158,6 @@ def parse_nodes(ros_executor: ros.Executor, yaml_nodes: dict) -> None:
         if 'callbacks' in node:
             yaml_callbacks = node['callbacks']
             parse_callbacks(ros_node, yaml_callbacks)
-        if 'external_inputs' in node:
-            yaml_external_inputs = node['external_inputs']
-            parse_external_inputs(ros_node, yaml_external_inputs)
         if 'timers' in node:
             yaml_timers = node['timers']
             parse_timers(ros_node, yaml_timers)
@@ -154,6 +167,9 @@ def parse_nodes(ros_executor: ros.Executor, yaml_nodes: dict) -> None:
         if 'services' in node:
             yaml_services = node['services']
             parse_services(ros_node, yaml_services)
+        if 'external_inputs' in node:
+            yaml_external_inputs = node['external_inputs']
+            parse_external_inputs(ros_node, yaml_external_inputs)
 
 
 #recursively call this with current ros-object and current part of yaml-dict
