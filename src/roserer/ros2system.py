@@ -111,6 +111,7 @@ class Callback():
 
 @dataclass
 class Subscription():
+    name : str
     topic: Topic
     callback: str
     qos: QoS
@@ -175,9 +176,11 @@ class Node():
             self,
             topic: Topic,
             callback: Callback,
+            name: str | None = None,
             qos: QoS | dict[str, Any] | None = None
             ) -> Subscription:
         subscription = Subscription(
+                name=_name_init(name, self.name, "subscription", len(self.subscriptions)),
                 topic=topic,
                 callback=callback.name,
                 qos=_qos_init(qos, self.default_qos)
