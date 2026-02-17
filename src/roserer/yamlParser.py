@@ -21,6 +21,8 @@ def parse_subscriptions(ros_node: ros.Node, yaml_subscriptions: dict) -> None:
     for subscription in yaml_subscriptions:
         subscription_args = {k: subscription[k] for k in subscription.keys()
                              & {'topic', 'qos'}}
+        if 'subscription' in subscription:
+            subscription_args['name'] = subscription['subscription']
         if 'callback' in subscription:
             subscription_args['callback'] = next(
                 (callback for callback in ros_node.callbacks
