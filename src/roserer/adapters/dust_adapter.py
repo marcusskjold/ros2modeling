@@ -12,6 +12,9 @@ def unspecified_warning(component : str) -> list[str]:
                      Use another model, if you want {component} to be taken account of"]
 
 
+#TODO: add validations that wall_times are used properly (noone posts to a topic with wall_times)
+        #if one sub has wall_times, then other subs to same topics should also have same wall_times (should maybe be in sys_validator)
+        #
 #TODO: This could perhaps return an object that can have validations (and maybe counters) etc. as fields
 #TODO: think about errors similarly to other adapter
 def validate_system(system : ros.System,
@@ -427,7 +430,40 @@ def map_node(out: ds.System, node: ros.Node, validations: validator.ValidationRe
                                   publisher_id=adapt_list_size(interface_id_list, 10),
                                   executorID=nodes[node.name]
                                   )
-    # case 2) external input (# TODO:)
+    # case 2) service with wall_times 
+    for service in node.services:
+        if service.wall_times:
+            service_callback = node.get_callback(service.callback)
+            interface_count, interface_id_list = map_data_sending(out=out, parent_node=node,
+                                                        callback=service_callback,validations=validations)
+            out.add_sporadic_callback(id=next_cb(),
+                                      exec_time=service_callback.wcet,
+                                      length=len(service.wall_times),
+                                      type=SERVICE,
+                                      releases=service.wall_times,
+                                      buffersize=service.qos.depth, #TODO: make sure that this is 100 % the case?
+                                      amount_of_publishers=interface_count,
+                                      publisher_release_time=[0 for i in range(10)],
+                                      publisher_id=adapt_list_size(interface_id_list, 10),
+                                      executorID=nodes[node.name]
+                                      )
+    # case 3) subscriber with wall_times 
+    for subscription in node.subscriptions:
+        if subscription.wall_times:
+            subscription_callback = node.get_callback(subscription.callback)
+            interface_count, interface_id_list = map_data_sending(out=out, parent_node=node,
+                                                        callback=subscription_callback,validations=validations)
+            out.add_sporadic_callback(id=next_cb(),
+                                      exec_time=subscription_callback.wcet,
+                                      length=len(subscription.wall_times),
+                                      type=SUBSCRIBER,
+                                      releases=subscription.wall_times,
+                                      buffersize=subscription.qos.depth, #TODO: make sure that this is 100 % the case?
+                                      amount_of_publishers=interface_count,
+                                      publisher_release_time=[0 for i in range(10)],
+                                      publisher_id=adapt_list_size(interface_id_list, 10),
+                                      executorID=nodes[node.name]
+                                      )
 
 # generate id for Executors
 ex_id_counter = itertools.count()

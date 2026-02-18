@@ -115,6 +115,7 @@ class Subscription():
     topic: Topic
     callback: str
     qos: QoS
+    wall_times: list[TimeUnit]
 
 
 @dataclass
@@ -122,6 +123,7 @@ class Service():
     name: str
     callback: str
     qos: QoS
+    wall_times: list[TimeUnit]
 
 
 @dataclass
@@ -174,13 +176,15 @@ class Node():
             topic: Topic,
             callback: Callback,
             name: str | None = None,
-            qos: QoS | dict[str, Any] | None = None
+            qos: QoS | dict[str, Any] | None = None,
+            wall_times: list[TimeUnit] | None = None
             ) -> Subscription:
         subscription = Subscription(
                 name=_name_init(name, self.name, "subscription", len(self.subscriptions)),
                 topic=topic,
                 callback=callback.name,
-                qos=_qos_init(qos, self.default_qos)
+                qos=_qos_init(qos, self.default_qos),
+                wall_times=wall_times
                 )
         self.subscriptions.append(subscription)
         return subscription
@@ -189,12 +193,14 @@ class Node():
             self,
             callback: Callback,
             name: str | None = None,
-            qos: QoS | dict[str, Any] | None = None
+            qos: QoS | dict[str, Any] | None = None,
+            wall_times: list[TimeUnit] | None = None
             ) -> Service:
         service = Service(
                 name=_name_init(name, self.name, "service", len(self.services)),
                 callback=callback.name,
-                qos=_qos_init(qos, self.default_qos)
+                qos=_qos_init(qos, self.default_qos),
+                wall_times=wall_times
                 )
         self.services.append(service)
         return service

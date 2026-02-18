@@ -418,6 +418,12 @@ def validate_qos(qos: qos.QoS, parent: str) -> list[str]:
             f"{parent} has invalid qos liveliness_lease_duration policy"]
     return feedback
 
+def validate_wall_times(wall_times : list[int]) -> list[str]:
+    """
+    Walltimes are well formed if:
+    - It is a weakly increasing sequence of timepoints (e.g. two messages could arrive simultaneously)
+    - 
+    """
 
 def validate_client(
         client: ros.Client,
@@ -577,6 +583,7 @@ def validate_subscription(
     - It has a valid quality of service profile
     - It names the topic it subscribes to
     - It calls a callback that is owned by the same node
+    - It has well-formed wall-times (if any)
     """
     pname = parent.name
     feedback = []
@@ -588,6 +595,8 @@ def validate_subscription(
                               "Topic", "topics subscribed to", interfaces)
     feedback += verify_registration(subscription.callback,
                                     "callback", parent, pname, objects)
+    if subscription.wall_times:
+        feedback+= validate_wall_times(subscription.wall_times)
 
     return feedback
 
@@ -630,6 +639,7 @@ def validate_service(
     - It is only owned by one node
     - It has a valid quality of service profile
     - It calls a callback that is owned by the same node
+    - It has well-formed wall-times (if any)
     """
 
     feedback = register(service.name, "service", parent, objects)
@@ -641,6 +651,8 @@ def validate_service(
                               "services offered", interfaces)
     feedback += verify_registration(service.callback, "callback",
                                     parent, service.name, objects)
+    if service.wall_times:
+        feedback+= validate_wall_times(service.wall_times)
 
     return feedback
 
@@ -794,7 +806,7 @@ def validate_host(
         feedback += validate_executor(executor, host, objects, interfaces)
     return feedback
 
-
+# TODO: validate correct use of wall_times in communication (other subs should also have them) -> check uniqueness in communication in Dust (at least) -> make exceptions for if anyone posts
 def validate_system(system: ros.System) -> ValidationResult:
     """
     A system is well formed if:
