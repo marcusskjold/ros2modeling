@@ -6,7 +6,7 @@ from ruamel.yaml import YAML
 def parse_services(ros_node: ros.Node, yaml_services: dict) -> None:
     for service in yaml_services:
         service_args = {k: service[k] for k in service.keys()
-                        & {'qos'}}
+                        & {'qos', 'wall_times'}}
         if 'service' in service:
             service_args['name'] = service['service']
         if 'callback' in service:
@@ -20,7 +20,7 @@ def parse_services(ros_node: ros.Node, yaml_services: dict) -> None:
 def parse_subscriptions(ros_node: ros.Node, yaml_subscriptions: dict) -> None:
     for subscription in yaml_subscriptions:
         subscription_args = {k: subscription[k] for k in subscription.keys()
-                             & {'topic', 'qos'}}
+                             & {'topic', 'qos', 'wall_times'}}
         if 'subscription' in subscription:
             subscription_args['name'] = subscription['subscription']
         if 'callback' in subscription:
