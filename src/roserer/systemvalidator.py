@@ -149,6 +149,7 @@ class Containments:
         self.client = {}
         self.variable = {}
         self.publisher = {}
+        self.subscription = {}
         self.action = {}
 
 """
@@ -608,7 +609,7 @@ def validate_timer(
         interfaces: Interfaces
         ) -> list[str]:
     """
-    A subscription is well formed if:
+    A timer is well formed if:
     - It has a name
     - It is only owned by one node
     - It has a valid period
