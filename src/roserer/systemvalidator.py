@@ -814,7 +814,18 @@ def validate_host(
         feedback += validate_executor(executor, host, objects, interfaces)
     return feedback
 
-# TODO: validate correct use of wall_times in communication (other subs should also have them) -> check uniqueness in communication in Dust (at least) -> make exceptions for if anyone posts
+# checks that each subscription to same topic uses the same wall_times
+def validate_subscription_times(system : ros.System) ->list[str]:
+    feedback = []
+    topic_subs = {}
+    for subscription in system.get_subscriptions():
+        topic_subs.setdefault(subscription.topic,[]).append(subscription.wall_times)
+    for topic in topic_subs:
+        if not all(wt == topic_subs[topic][0] for wt in topic_subs[topic]):
+            feedback += [f"Different wall-times are being used for subscriptions to "
+                         f"{topic}. Make sure that you are using the same times for consistency"]
+    return feedback
+
 def validate_system(system: ros.System) -> ValidationResult:
     """
     A system is well formed if:
@@ -851,5 +862,6 @@ def validate_system(system: ros.System) -> ValidationResult:
         feedback += validate_host(host, system, objects, interfaces)
     feedback += subset_check("services requested", "services offered", interfaces)
     feedback += subset_check("topics subscribed to", "topics published to", interfaces)
+    feedback += validate_subscription_times(system)
 
     return ValidationResult(errors=feedback, objects=objects, interfaces=interfaces)
