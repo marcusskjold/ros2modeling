@@ -66,9 +66,9 @@ class UppaalTemplate(ABC):
         variables = vars(self).items()
         for var, val in variables:
             if type(val) is list:
-                s+= self.param_name(var) + ","
+                s+= str(var) + " = " + self.param_name(var) + ","
             else:
-                s+= str(val) + ","
+                s+= str(var) + " = " + str(val) + ","
         return s[:-1] + ");\n"
 
 
