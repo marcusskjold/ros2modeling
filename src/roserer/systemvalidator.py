@@ -739,8 +739,9 @@ def validate_node(
     for callback in node.callbacks:
         validate_callback_references(callback, node, objects, interfaces)
 
-    used_publishers = [publisher for publisher in
-                       callback.publishers for callback in node.callbacks]
+    used_publishers = [publisher  
+                       for callback in node.callbacks
+                       for publisher in callback.publishers]
     for publisher in node.publishers:
         if publisher.name not in used_publishers:
             feedback += [f"Publisher '{publisher.name}' inside node '{node.name}' "
