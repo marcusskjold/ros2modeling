@@ -419,12 +419,16 @@ def validate_qos(qos: qos.QoS, parent: str) -> list[str]:
             f"{parent} has invalid qos liveliness_lease_duration policy"]
     return feedback
 
-def validate_wall_times(wall_times : list[int]) -> list[str]:
+def validate_wall_times(owner : str, wall_times : list[int]) -> list[str]:
     """
     Walltimes are well formed if:
     - It is a weakly increasing sequence of timepoints (e.g. two messages could arrive simultaneously)
     - 
     """
+    feedback = []
+    if not all(wall_times[i] <= wall_times[i+1] for i in range(len(wall_times) - 1)):
+        feedback += [f"Wall-times of {owner} are not weakly increasing."]
+    return feedback
 
 def validate_client(
         client: ros.Client,
@@ -585,6 +589,7 @@ def validate_subscription(
     - It names the topic it subscribes to
     - It calls a callback that is owned by the same node
     - It has well-formed wall-times (if any)
+    - It has the same wall_times (in terms of length and values) as other subscriptions with the same topic
     """
     pname = parent.name
     feedback = []
@@ -597,7 +602,8 @@ def validate_subscription(
     feedback += verify_registration(subscription.callback,
                                     "callback", parent, pname, objects)
     if subscription.wall_times:
-        feedback+= validate_wall_times(subscription.wall_times)
+        feedback+= validate_wall_times(subscription.name, subscription.wall_times)
+        #for subscription in 
 
     return feedback
 
@@ -653,7 +659,7 @@ def validate_service(
     feedback += verify_registration(service.callback, "callback",
                                     parent, service.name, objects)
     if service.wall_times:
-        feedback+= validate_wall_times(service.wall_times)
+        feedback+= validate_wall_times(service.name, service.wall_times)
 
     return feedback
 

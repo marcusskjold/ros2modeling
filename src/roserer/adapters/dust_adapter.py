@@ -256,7 +256,7 @@ def map_data_sending(out: ds.System, parent_node : ros.Node, callback : ros.Call
         topic = publisher_obj.topic
         
         # map communication to RECEIVING node (*1 template per publisher, so will never be redundant*)
-        map_topic(out=out, publisher=publisher, topic=topic, sender_id=sender_id, validations=validations)
+        map_topic(out=out, publisher=publisher_obj, topic=topic, sender_id=sender_id, validations=validations)
 
     # look for request
     if callback.request is not None:
@@ -440,7 +440,7 @@ def map_node(out: ds.System, node: ros.Node, validations: validator.ValidationRe
                                       exec_time=service_callback.wcet,
                                       length=len(service.wall_times),
                                       type=SERVICE,
-                                      releases=service.wall_times,
+                                      releases=adapt_list_size(service.wall_times,10), #TODO: make not hardcoded after MAXX?
                                       buffersize=service.qos.depth, #TODO: make sure that this is 100 % the case?
                                       amount_of_publishers=interface_count,
                                       publisher_release_time=[0 for i in range(10)],
@@ -457,7 +457,7 @@ def map_node(out: ds.System, node: ros.Node, validations: validator.ValidationRe
                                       exec_time=subscription_callback.wcet,
                                       length=len(subscription.wall_times),
                                       type=SUBSCRIBER,
-                                      releases=subscription.wall_times,
+                                      releases=adapt_list_size(service.wall_times,10), #TODO: make not hardcoded after MAXX?
                                       buffersize=subscription.qos.depth, #TODO: make sure that this is 100 % the case?
                                       amount_of_publishers=interface_count,
                                       publisher_release_time=[0 for i in range(10)],
