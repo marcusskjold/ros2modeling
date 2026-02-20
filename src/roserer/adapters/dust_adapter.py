@@ -22,8 +22,7 @@ def validate_system(system : ros.System,
                     )-> tuple[list[str],list[str]]:
     """
     System-constraints:
-    - No constraints beyond the constraints outlined in system_validator.py
-    - number of hosts and DDS-implementation is not taken account of in model
+    - Number of hosts and DDS-implementation is not taken account of in model
     """
     errors : list[str]= ["Errors:"]
     warnings : list[str] = ["Warnings:"]
@@ -34,8 +33,6 @@ def validate_system(system : ros.System,
         warnings += unspecified_warning("DDS-implementation")
     if len(system.hosts) > 1:
         warnings += unspecified_warning("distribution of the system between hosts")
-    ### give warning about using multiple hosts (no explicit discerning)
-
     for host in system.hosts:
         errs, warns = validate_host(host, validations)
         errors += errs
@@ -122,7 +119,16 @@ def validate_node(node : ros.Node,
         warnings += warns
     if node.external_outputs:
         warnings += unspecified_warning("external output")
-    # 1) make sure it doesn't have unsupported components
+    if node.external_inputs:
+        warnings += unspecified_warning("external input")
+    for subscription in node.subscriptions:
+        errs, warns = validate_subscription(subscription, validations)
+        errors += errs
+        warnings += warns
+    for service in node.services:
+        errs, warns = validate_service(subscription, validations)
+        errors += errs
+        warnings += warns
     return errors, warnings
 
 def validate_timer(timer : ros.Timer,
@@ -141,12 +147,47 @@ def validate_timer(timer : ros.Timer,
                    or otherwise a bufferoverflow will trivially occur."]
     return errors, warnings
 
+def validate_subscription(subscription : ros.Subscription, 
+                          validations : validator.ValidationResult
+                          )-> tuple[list[str],list[str]]:
+    """
+    A valid subscription:
+    - Only has wall_times if no other callback is sending messages to the triggering interface
+        (This is because exactly 1 template template must be made for each callback)
+    """
+    errors: list[str] = []
+    warnings: list[str] = []
+    if subscription.wall_times and subscription.topic in validations.interfaces["topic published to"]:
+        errors += [f"Subscription, {subscription.name}, is triggered by wall_times by messages from \
+                   topic, {subscription.topic}, but other callbacks are publishing to this topic. \
+                    Remove the wall_times from this subscription or make sure no other callback is publishing \
+                    to this topic."]
+    return errors, warnings
+
+def validate_service(service : ros.Service,
+                     validations : validator.ValidationResult
+                     ) -> tuple[list[str],list[str]]:
+    """
+    A valid service:
+    - Only has wall_times if no other callback is sending messages to the triggering interface
+        (This is because exactly 1 template template must be made for each callback, due to the input-buffer being modeled here, pp. 318, 322)
+    """
+    errors: list[str] = []
+    warnings: list[str] = []
+    if service.wall_times and service.name in validations.interfaces["services requested"]:
+        errors += [f"Service, {service.name}, is triggered by wall_times of client-requests \
+                    but other callbacks in the system are requesting this service. \
+                    Remove the wall_times from this service or make sure no other callback is requesting \
+                    this service."]
+    return errors, warnings
+
 def validate_callback(callback : ros.Callback,
                       validations : validator.ValidationResult
                       )-> tuple[list[str],list[str]]:
     """
     A valid Callback:
     - does not consider read-variables and write-variables
+    - if it contains wall_times, not other callback is sending messages to the triggering interface
     """
     errors: list[str] = []
     warnings: list[str] = []
