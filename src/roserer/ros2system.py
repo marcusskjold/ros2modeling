@@ -424,6 +424,24 @@ class System():
         self.hosts.append(host)
         return host
 
+    def get_nodes(self)->list[Node]:
+        """
+        returns list of all nodes in system
+        """
+        return [node 
+                for host in self.hosts
+                for executor in host.executors
+                for node in executor.nodes]
+    
+    def get_subscriptions(self)->list[Subscription]:
+        """
+        returns list of all subscriptions in system
+        """
+        return [subscription
+                for node in self.get_nodes()
+                for subscription in node.subscriptions]
+
+
     def __init__(
             self,
             name: str,
