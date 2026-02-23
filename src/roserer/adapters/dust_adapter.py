@@ -2,14 +2,30 @@ import roserer.dust.dust_system as ds
 import roserer.ros2system as ros
 import roserer.systemvalidator as validator
 import itertools
+import roserer.qos as quality
 
 
 
 ############################----VALIDATION----############################
 
 def unspecified_warning(component : str) -> list[str]:
-    return [f"Be aware that this model doesn't take account of {component}. \
-                     Use another model, if you want {component} to be taken account of"]
+    return [f"Be aware that this model doesn't take account of {component}. "
+            f"Use another model, if you want {component} to be taken account of"]
+
+
+def validate_qos(component_name : str, qos : ros.QoS) -> list[str]:
+    """A valid QoS:
+    - has history > 0
+    - all other qos-settings are same as in the default qos-profile in ROS2 (rmw_qos_profile_default in https://github.com/ros2/rmw/blob/rolling/rmw/include/rmw/qos_profiles.h)
+    """
+    errors: list[str] = []
+    default_qos = quality.qos_profile_default()
+    for config in vars(qos):
+        if getattr(qos,config) is not getattr(default_qos,config):
+            errors += [f"Policy {config} in {component_name} isn't the same as in qos_profile_default. Make sure it is"
+                       f" set to {getattr(default_qos,config)}"]
+    return errors
+    
 
 
 #TODO: add validations that wall_times are used properly (noone posts to a topic with 
@@ -28,11 +44,10 @@ def validate_system(system : ros.System,
     """
     errors : list[str]= ["Errors:"]
     warnings : list[str] = ["Warnings:"]
-    if system.default_distribution not in VALID_ROS_DISTRIBUTIONS.values():
-        warnings += [
-                f"You have chosen the distribution, {system.default_distribution}, \
-                        as your default distribution. \
-                        Be aware that it is not supported by this model"]
+    if system.default_distribution not in VALID_ROS_DISTRIBUTIONS["V1"] \
+    and system.default_distribution not in VALID_ROS_DISTRIBUTIONS["V2"]:
+        warnings += [f"You have chosen the ROS2-distribution, {system.default_distribution}, as your"
+                     f"default distribution. Be aware that it is not supported by this model"]
     if system.dds_implementation != "Generic":
         warnings += unspecified_warning("DDS-implementation")
     if len(system.hosts) > 1:
@@ -52,16 +67,14 @@ def validate_host(host : ros.Host,
     - Assumes 100 % thread-availability for each executor (p. 311)
     """
     errors: list[str] = []
-    warnings: list[str] = [
-            "This model expects 100 % thread availability for each executor in the \
-                    host operating system. If this is not the case, then there might \
-                    be errors in the system not covered by this model"]
+    warnings: list[str] = [f"This model expects 100 % thread availability for each executor in the host operating system. "
+                           f"If this is not the case, then there might be errors in the system not "
+                           f"covered by this model"]
 
-    if host.default_distribution not in VALID_ROS_DISTRIBUTIONS.values():
-        warnings += [
-                f"You have chosen the distribution {host.default_distribution} as your \
-                        default distribution. Be aware that it is not supported by \
-                        this model"]
+    if host.default_distribution not in VALID_ROS_DISTRIBUTIONS["V1"] \
+    and host.default_distribution not in VALID_ROS_DISTRIBUTIONS["V2"]:
+        warnings += [f"You have chosen the ROS2-distribution, {host.default_distribution}, as your "
+                     f"default distribution. Be aware that it is not supported by this model"]
     if host.operating_system != "Generic":
          warnings += unspecified_warning("operating system")
     if host.operating_system != "Generic":
@@ -86,20 +99,20 @@ def validate_executor(executor : ros.Executor,
     """
     errors: list[str] = []
     warnings: list[str] = []
-    if executor.ros_distribution not in VALID_ROS_DISTRIBUTIONS.values():
-        errors += [
-                f"Executor '{executor.name}' runs on a distribution not supported by \
-                        this model Make sure that the distribution is one of the \
-                        following: " + str(VALID_ROS_DISTRIBUTIONS.values())]
+    if executor.ros_distribution not in VALID_ROS_DISTRIBUTIONS["V1"] \
+    and executor.ros_distribution not in VALID_ROS_DISTRIBUTIONS["V2"]:
+        errors += [f"Executor '{executor.name}' runs on a distribution not supported by this model. "
+                   f"Make sure that the distribution is one of the following: "
+                     + ', '.join(map(str, VALID_ROS_DISTRIBUTIONS["V1"]))
+                     + " "
+                     + ', '.join(map(str, VALID_ROS_DISTRIBUTIONS["V2"]))
+                     + "."]
     if executor.implementation != "SingleThreadedExecutor":
-        errors += [
-                f"The implementation, {executor.implementation}, of '{executor.name}' \
-                        is not supported. This model only supports variants of the \
-                        SingleThreadedExecutor implementation"]
+        errors += [f"The implementation, {executor.implementation}, of '{executor.name}' is not supported. "
+                   f"This model only supports variants of the SingleThreadedExecutor implementation"]
     if len(executor.nodes) > 1: # TODO: is this ever the case.
-        warnings += [
-                "This models doesn't discern between nodes under the same executor. \
-                        Use another model if this distinction is relevant to you."]
+        warnings += [f"This models doesn't discern between nodes under the same executor. Use another model "
+                     f"if this distinction is relevant to you."]
     for node in executor.nodes:
         errs, warns = validate_node(node, validations)
         errors += errs
@@ -118,8 +131,8 @@ def validate_node(node : ros.Node,
     errors: list[str] = []
     warnings: list[str] = []
     if node.actions:
-        errors += ["This model doesn't support ROS2 actions. Please remove any actions \
-                from your system in order to use this model."]
+        errors += [f"This model doesn't support ROS2 actions. Please remove any actions from your system in order "
+                   f"to use this model."]
     if node.variables:
         warnings += unspecified_warning("read/write variables")
     for callback in node.callbacks:
@@ -155,11 +168,9 @@ def validate_timer(timer : ros.Timer,
     warnings: list[str] = []
     parent = validations.objects.timer[timer.name]
     timer_callback = parent.get_callback(timer.callback)
-    if timer.period > timer_callback.wcet:
-        errors += [
-                "This model assumes fixed execution-time (equal to wcet). Make sure \
-                that wcet < period, or otherwise a bufferoverflow will trivially occur."
-                ]
+    if timer.period < timer_callback.wcet:
+        errors += [f"This model assumes fixed execution-time (equal to wcet). Make sure that wcet < period,"
+                   f"or otherwise a bufferoverflow will trivially occur."]
     return errors, warnings
 
 def validate_subscription(subscription : ros.Subscription, 
@@ -173,13 +184,14 @@ def validate_subscription(subscription : ros.Subscription,
     """
     errors: list[str] = []
     warnings: list[str] = []
-    if subscription.wall_times and subscription.topic in \
-            validations.interfaces["topic published to"]:
-                errors += [f"Subscription, {subscription.name}, is triggered by \
-                        wall_times by messages from topic, {subscription.topic}, but \
-                        other callbacks are publishing to this topic. Remove the \
-                        wall_times from this subscription or make sure no other \
-                        callback is publishing to this topic."]
+    if subscription.wall_times \
+        and subscription.topic in validations.interfaces["topics published to"] \
+              and len(validations.interfaces["topics published to"][subscription.topic]) > 0:
+        errors += [f"Subscription, {subscription.name}, is triggered by wall_times by messages from "
+                   f"topic, {subscription.topic}, but other callbacks are publishing to this topic. "
+                   f"Remove the wall_times from this subscription or make sure no other callback is publishing "
+                   f"to this topic."]
+    errors += validate_qos(subscription.name, subscription.qos)
     return errors, warnings
 
 def validate_service(service : ros.Service,
@@ -194,13 +206,14 @@ def validate_service(service : ros.Service,
     """
     errors: list[str] = []
     warnings: list[str] = []
-    if service.wall_times and service.name in \
-            validations.interfaces["services requested"]:
-                errors += [f"Service, {service.name}, is triggered by wall_times of \
-                        client-requests but other callbacks in the system are \
-                        requesting this service. Remove the wall_times from this \
-                        service or make sure no other callback is requesting \
-                        this service."]
+    if service.wall_times \
+          and service.name in validations.interfaces["services requested"] \
+              and len(validations.interfaces["services requested"][service.name]) > 0:
+        errors += [f"Service, {service.name}, is triggered by wall_times of client-requests "
+                   f"but other callbacks in the system are requesting this service. "
+                   f"Remove the wall_times from this service or make sure no other callback is requesting "
+                   f"this service."]
+    errors += validate_qos(service.name, service.qos)
     return errors, warnings
 
 def validate_callback(callback : ros.Callback,
@@ -380,7 +393,6 @@ def map_data_sending(
     return interface_count, interface_id_list
 
 
-#TODO : find way to reduce parameters and/or find utilities to make this easier
 def map_subscriber_cb(
         out: ds.System,
         receiver_id : int,
@@ -466,7 +478,6 @@ def map_server(
     # id for sending back to client
     sender_id = next_sender()
     server_callback = validations.interfaces['services offered'][service][0] 
-    # TODO: maybe just make 1 or validate that only 1 server exists
     server_node : ros.Node = validations.objects.callback[server_callback]
     server_callback_object = server_node.get_callback(server_callback) 
     server = server_node.get_service(service)
