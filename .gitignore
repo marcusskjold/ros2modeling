@@ -205,3 +205,7 @@ verifyta
 # backeman/
 out.yaml
 /vvv
+
+# graphs
+testgraph.svg
+testsys.svg
