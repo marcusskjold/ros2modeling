@@ -167,7 +167,7 @@ list of names of object that engage in that interface.
 The interface types are directional.
 Example:
     {
-    'topic published to': {
+    'topics published to': {
         'topic1': [
             'callback1',
             ...
@@ -175,7 +175,7 @@ Example:
         ...
         }
     ...
-    'topic subscribed to': {
+    'topics subscribed to': {
         'topic1': [
             'callback2',
             ...
