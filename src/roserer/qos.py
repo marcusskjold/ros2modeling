@@ -205,8 +205,6 @@ def parse_enum(enumtype: type[E], arg: E | str | int) -> E:
         return arg
     elif isinstance(arg, (str, int)):
         return enumtype(arg)
-    elif isinstance(arg, int):
-        return enumtype(arg)
     else:
         raise TypeError("")
 
@@ -236,15 +234,15 @@ class QualityOfService():
         liveliness_lease_duration: Duration | str = LIVELINESS_LEASE_DURATION_DEFAULT,
         avoid_ros_namespace_conventions: bool | str = False
     ):
-        self.history = history
-        self.depth = depth
-        self.reliability = reliability
-        self.durability = durability
-        self.deadline = deadline
-        self.lifespan = lifespan
-        self.liveliness = liveliness
-        self.liveliness_lease_duration = liveliness_lease_duration
-        self.avoid_ros_namespace_conventions = avoid_ros_namespace_conventions
+        self.history = parse_enum(QOSHistoryPolicy, history)
+        self.depth = parse_int(depth)
+        self.reliability = parse_enum(QOSReliabilityPolicy, reliability)
+        self.durability = parse_enum(QOSDurabilityPolicy, durability)
+        self.deadline = parse_duration(deadline)
+        self.lifespan = parse_duration(lifespan)
+        self.liveliness = parse_enum(QOSLivelinessPolicy, liveliness)
+        self.liveliness_lease_duration = parse_duration(liveliness_lease_duration)
+        self.avoid_ros_namespace_conventions = parse_bool(avoid_ros_namespace_conventions)
 
 
 QoS = QualityOfService
