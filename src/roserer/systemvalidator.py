@@ -248,7 +248,8 @@ def add_interface(
         container_name: str,
         typ: str,
         interface_type: str,
-        interfaces: Interfaces
+        interfaces: Interfaces,
+        triggers: bool = False
         ) -> list[str]:
     """
     Checks if the name is not empty.
@@ -257,12 +258,18 @@ def add_interface(
     services, etc. are read from and written to, such that it can be checked
     at the end if any nodes read from a communication interface that no node
     writes to.
+    If triggers is true, it is also registered that the given service/topic is written to.
     """
     if (name is None) or (name == ""):
         return [f"{typ} inside '{container_name}' is missing name."]
     else:
         interfaces[interface_type].setdefault(name, [])
         interfaces[interface_type][name].append(container_name)
+        # mark as posted to, if triggered by wall_times
+        if triggers and typ.lower() == "topic":
+            interfaces["topics published to"].setdefault(name, [])
+        elif triggers and typ.lower() == "service":
+            interfaces[ "services requested"].setdefault(name, [])
         return []
 
 
@@ -606,8 +613,10 @@ def validate_subscription(
     if feedback != []:
         return feedback
     feedback += validate_qos(subscription.qos, pname)
+    wt_triggered = True if subscription.wall_times else False
     feedback += add_interface(subscription.topic, subscription.callback,
-                              "Topic", "topics subscribed to", interfaces)
+                              "Topic", "topics subscribed to", interfaces, wt_triggered)
+
     feedback += verify_registration(subscription.callback,
                                     "callback", parent, pname, objects)
     if subscription.wall_times:
@@ -665,8 +674,9 @@ def validate_service(
         return feedback
 
     feedback += validate_qos(service.qos, service.name)
-    feedback += add_interface(service.name, service.callback, "service",
-                              "services offered", interfaces)
+    wt_triggered = True if service.wall_times else False
+    feedback += add_interface(service.name, service.callback, "Service",
+                              "services offered", interfaces, wt_triggered)
     feedback += verify_registration(service.callback, "callback",
                                     parent, service.name, objects)
     if service.wall_times:
