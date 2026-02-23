@@ -54,6 +54,7 @@ class Timer():
     period: TimeUnit
     offset: TimeUnit
     callback: str
+    interval: tuple[TimeUnit,TimeUnit]
 
 
 @dataclass
@@ -263,12 +264,14 @@ class Node():
             callback: Callback,
             name: str | None = None,
             offset: TimeUnit = 0,
+            interval: tuple[TimeUnit, TimeUnit]=None
             ) -> Timer:
         timer = Timer(
                 callback=callback.name,
                 period=period,
                 offset=offset,
-                name=_name_init(name, self.name, "timer", len(self.timers))
+                name=_name_init(name, self.name, "timer", len(self.timers)),
+                interval=interval
                 )
         self.timers.append(timer)
         return timer

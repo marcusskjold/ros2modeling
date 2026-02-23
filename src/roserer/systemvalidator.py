@@ -620,6 +620,7 @@ def validate_timer(
     - It is only owned by one node
     - It has a valid period
     - It calls a callback that is owned by the same node
+    - It up to one valid interval, (start,end), s.t. start <= end
     """
     feedback = register(timer.name, "timer", parent, objects)
     if feedback != []:
@@ -627,7 +628,8 @@ def validate_timer(
 
     if timer.period < 0:
         feedback += [f"Timer '{timer.name}' must not have a negative period"]
-
+    if timer.interval and timer.interval[0] > timer.interval[1]:
+        feedback += [f"Timer '{timer.name}' must end later than it begins"]
     feedback += verify_registration(timer.callback, "callback",
                                     parent, timer.name, objects)
 
