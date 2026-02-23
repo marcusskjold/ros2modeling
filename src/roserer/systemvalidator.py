@@ -134,6 +134,7 @@ class Containments:
     client          : dict[str,ros.Node]
     variable        : dict[str,ros.Node]
     publisher       : dict[str,ros.Node]
+    subscription    : dict[str,ros.Node]
     action          : dict[str,ros.Node]
 
     def __init__(self):
@@ -148,6 +149,7 @@ class Containments:
         self.client = {}
         self.variable = {}
         self.publisher = {}
+        self.subscription = {}
         self.action = {}
 
 """
@@ -417,6 +419,16 @@ def validate_qos(qos: qos.QoS, parent: str) -> list[str]:
             f"{parent} has invalid qos liveliness_lease_duration policy"]
     return feedback
 
+def validate_wall_times(owner : str, wall_times : list[int]) -> list[str]:
+    """
+    Walltimes are well formed if:
+    - It is a weakly increasing sequence of timepoints (e.g. two messages could arrive simultaneously)
+    - 
+    """
+    feedback = []
+    if not all(wall_times[i] <= wall_times[i+1] for i in range(len(wall_times) - 1)):
+        feedback += [f"Wall-times of {owner} are not weakly increasing."]
+    return feedback
 
 def validate_client(
         client: ros.Client,
@@ -572,17 +584,26 @@ def validate_subscription(
         ) -> list[str]:
     """
     A subscription is well formed if:
+    - It has a name
     - It has a valid quality of service profile
     - It names the topic it subscribes to
     - It calls a callback that is owned by the same node
+    - It has well-formed wall-times (if any)
+    - It has the same wall_times (in terms of length and values) as other subscriptions with the same topic
     """
     pname = parent.name
     feedback = []
+    feedback = register(subscription.name, "subscription", parent, objects)
+    if feedback != []:
+        return feedback
     feedback += validate_qos(subscription.qos, pname)
     feedback += add_interface(subscription.topic, subscription.callback,
                               "Topic", "topics subscribed to", interfaces)
     feedback += verify_registration(subscription.callback,
                                     "callback", parent, pname, objects)
+    if subscription.wall_times:
+        feedback+= validate_wall_times(subscription.name, subscription.wall_times)
+        #for subscription in 
 
     return feedback
 
@@ -594,11 +615,12 @@ def validate_timer(
         interfaces: Interfaces
         ) -> list[str]:
     """
-    A subscription is well formed if:
+    A timer is well formed if:
     - It has a name
     - It is only owned by one node
     - It has a valid period
     - It calls a callback that is owned by the same node
+    - It up to one valid interval, (start,end), s.t. start <= end
     """
     feedback = register(timer.name, "timer", parent, objects)
     if feedback != []:
@@ -606,7 +628,8 @@ def validate_timer(
 
     if timer.period < 0:
         feedback += [f"Timer '{timer.name}' must not have a negative period"]
-
+    if timer.interval and timer.interval[0] > timer.interval[1]:
+        feedback += [f"Timer '{timer.name}' must end later than it begins"]
     feedback += verify_registration(timer.callback, "callback",
                                     parent, timer.name, objects)
 
@@ -625,6 +648,7 @@ def validate_service(
     - It is only owned by one node
     - It has a valid quality of service profile
     - It calls a callback that is owned by the same node
+    - It has well-formed wall-times (if any)
     """
 
     feedback = register(service.name, "service", parent, objects)
@@ -636,6 +660,8 @@ def validate_service(
                               "services offered", interfaces)
     feedback += verify_registration(service.callback, "callback",
                                     parent, service.name, objects)
+    if service.wall_times:
+        feedback+= validate_wall_times(service.name, service.wall_times)
 
     return feedback
 
@@ -721,8 +747,9 @@ def validate_node(
     for callback in node.callbacks:
         validate_callback_references(callback, node, objects, interfaces)
 
-    used_publishers = [publisher for publisher in
-                       callback.publishers for callback in node.callbacks]
+    used_publishers = [publisher  
+                       for callback in node.callbacks
+                       for publisher in callback.publishers]
     for publisher in node.publishers:
         if publisher.name not in used_publishers:
             feedback += [f"Publisher '{publisher.name}' inside node '{node.name}' "
@@ -789,6 +816,17 @@ def validate_host(
         feedback += validate_executor(executor, host, objects, interfaces)
     return feedback
 
+# checks that each subscription to same topic uses the same wall_times
+def validate_subscription_times(system : ros.System) ->list[str]:
+    feedback = []
+    topic_subs = {}
+    for subscription in system.get_subscriptions():
+        topic_subs.setdefault(subscription.topic,[]).append(subscription.wall_times)
+    for topic in topic_subs:
+        if not all(wt == topic_subs[topic][0] for wt in topic_subs[topic]):
+            feedback += [f"Different wall-times are being used for subscriptions to "
+                         f"{topic}. Make sure that you are using the same times for consistency"]
+    return feedback
 
 def validate_system(system: ros.System) -> ValidationResult:
     """
@@ -826,5 +864,6 @@ def validate_system(system: ros.System) -> ValidationResult:
         feedback += validate_host(host, system, objects, interfaces)
     feedback += subset_check("services requested", "services offered", interfaces)
     feedback += subset_check("topics subscribed to", "topics published to", interfaces)
+    feedback += validate_subscription_times(system)
 
     return ValidationResult(errors=feedback, objects=objects, interfaces=interfaces)

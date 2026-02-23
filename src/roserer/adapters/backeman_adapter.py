@@ -8,6 +8,7 @@ TODO: Write test cases
 TODO: Add check that no variable is written to that is not also read from and vice versa
 TODO: Add validity check that all names should be unique
 
+TODO: check for wall_times
 ---
 
 For the notes ros will refer to the models from the ros2system module

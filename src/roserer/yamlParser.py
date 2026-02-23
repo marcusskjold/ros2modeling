@@ -6,7 +6,7 @@ from ruamel.yaml import YAML
 def parse_services(ros_node: ros.Node, yaml_services: dict) -> None:
     for service in yaml_services:
         service_args = {k: service[k] for k in service.keys()
-                        & {'qos'}}
+                        & {'qos', 'wall_times'}}
         if 'service' in service:
             service_args['name'] = service['service']
         if 'callback' in service:
@@ -20,7 +20,9 @@ def parse_services(ros_node: ros.Node, yaml_services: dict) -> None:
 def parse_subscriptions(ros_node: ros.Node, yaml_subscriptions: dict) -> None:
     for subscription in yaml_subscriptions:
         subscription_args = {k: subscription[k] for k in subscription.keys()
-                             & {'topic', 'qos'}}
+                             & {'topic', 'qos', 'wall_times'}}
+        if 'subscription' in subscription:
+            subscription_args['name'] = subscription['subscription']
         if 'callback' in subscription:
             subscription_args['callback'] = next(
                 (callback for callback in ros_node.callbacks
@@ -41,6 +43,12 @@ def parse_timers(ros_node: ros.Node, yaml_timers: dict) -> None:
                     (callback for callback in ros_node.callbacks
                         if callback.name == timer['callback']),
                     None)
+        if 'begin' in timer and 'end' in timer:
+            timer_args['interval'] = (timer['begin'], timer['end'])
+        if 'begin' not in timer and 'end' in timer:
+            timer_args['interval'] = (0, timer['end'])
+        if 'begin' in timer and 'end' not in timer:
+            raise SyntaxError(f"A timer with begin-time must have an end-time") # TODO: do we want to enforce this???
         ros_node.add_timer(**timer_args)
 
 

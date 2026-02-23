@@ -54,6 +54,7 @@ class Timer():
     period: TimeUnit
     offset: TimeUnit
     callback: str
+    interval: tuple[TimeUnit,TimeUnit]
 
 
 @dataclass
@@ -111,9 +112,11 @@ class Callback():
 
 @dataclass
 class Subscription():
+    name : str
     topic: Topic
     callback: str
     qos: QoS
+    wall_times: list[TimeUnit]
 
 
 @dataclass
@@ -121,6 +124,7 @@ class Service():
     name: str
     callback: str
     qos: QoS
+    wall_times: list[TimeUnit]
 
 
 @dataclass
@@ -172,12 +176,16 @@ class Node():
             self,
             topic: Topic,
             callback: Callback,
-            qos: QoS | dict[str, Any] | None = None
+            name: str | None = None,
+            qos: QoS | dict[str, Any] | None = None,
+            wall_times: list[TimeUnit] | None = None
             ) -> Subscription:
         subscription = Subscription(
+                name=_name_init(name, self.name, "subscription", len(self.subscriptions)),
                 topic=topic,
                 callback=callback.name,
-                qos=_qos_init(qos, self.default_qos)
+                qos=_qos_init(qos, self.default_qos),
+                wall_times=wall_times
                 )
         self.subscriptions.append(subscription)
         return subscription
@@ -186,12 +194,14 @@ class Node():
             self,
             callback: Callback,
             name: str | None = None,
-            qos: QoS | dict[str, Any] | None = None
+            qos: QoS | dict[str, Any] | None = None,
+            wall_times: list[TimeUnit] | None = None
             ) -> Service:
         service = Service(
                 name=_name_init(name, self.name, "service", len(self.services)),
                 callback=callback.name,
-                qos=_qos_init(qos, self.default_qos)
+                qos=_qos_init(qos, self.default_qos),
+                wall_times=wall_times
                 )
         self.services.append(service)
         return service
@@ -254,12 +264,14 @@ class Node():
             callback: Callback,
             name: str | None = None,
             offset: TimeUnit = 0,
+            interval: tuple[TimeUnit, TimeUnit]=None
             ) -> Timer:
         timer = Timer(
                 callback=callback.name,
                 period=period,
                 offset=offset,
-                name=_name_init(name, self.name, "timer", len(self.timers))
+                name=_name_init(name, self.name, "timer", len(self.timers)),
+                interval=interval
                 )
         self.timers.append(timer)
         return timer
@@ -414,6 +426,24 @@ class System():
                     )
         self.hosts.append(host)
         return host
+
+    def get_nodes(self)->list[Node]:
+        """
+        returns list of all nodes in system
+        """
+        return [node 
+                for host in self.hosts
+                for executor in host.executors
+                for node in executor.nodes]
+    
+    def get_subscriptions(self)->list[Subscription]:
+        """
+        returns list of all subscriptions in system
+        """
+        return [subscription
+                for node in self.get_nodes()
+                for subscription in node.subscriptions]
+
 
     def __init__(
             self,

@@ -12,6 +12,9 @@ def unspecified_warning(component : str) -> list[str]:
                      Use another model, if you want {component} to be taken account of"]
 
 
+#TODO: add validations that wall_times are used properly (noone posts to a topic with wall_times)
+        #if one sub has wall_times, then other subs to same topics should also have same wall_times (should maybe be in sys_validator)
+        #
 #TODO: This could perhaps return an object that can have validations (and maybe counters) etc. as fields
 #TODO: think about errors similarly to other adapter
 def validate_system(system : ros.System,
@@ -19,8 +22,7 @@ def validate_system(system : ros.System,
                     )-> tuple[list[str],list[str]]:
     """
     System-constraints:
-    - No constraints beyond the constraints outlined in system_validator.py
-    - number of hosts and DDS-implementation is not taken account of in model
+    - Number of hosts and DDS-implementation is not taken account of in model
     """
     errors : list[str]= ["Errors:"]
     warnings : list[str] = ["Warnings:"]
@@ -31,8 +33,6 @@ def validate_system(system : ros.System,
         warnings += unspecified_warning("DDS-implementation")
     if len(system.hosts) > 1:
         warnings += unspecified_warning("distribution of the system between hosts")
-    ### give warning about using multiple hosts (no explicit discerning)
-
     for host in system.hosts:
         errs, warns = validate_host(host, validations)
         errors += errs
@@ -119,7 +119,16 @@ def validate_node(node : ros.Node,
         warnings += warns
     if node.external_outputs:
         warnings += unspecified_warning("external output")
-    # 1) make sure it doesn't have unsupported components
+    if node.external_inputs:
+        warnings += unspecified_warning("external input")
+    for subscription in node.subscriptions:
+        errs, warns = validate_subscription(subscription, validations)
+        errors += errs
+        warnings += warns
+    for service in node.services:
+        errs, warns = validate_service(service, validations)
+        errors += errs
+        warnings += warns
     return errors, warnings
 
 def validate_timer(timer : ros.Timer,
@@ -138,12 +147,47 @@ def validate_timer(timer : ros.Timer,
                    or otherwise a bufferoverflow will trivially occur."]
     return errors, warnings
 
+def validate_subscription(subscription : ros.Subscription, 
+                          validations : validator.ValidationResult
+                          )-> tuple[list[str],list[str]]:
+    """
+    A valid subscription:
+    - Only has wall_times if no other callback is sending messages to the triggering interface
+        (This is because exactly 1 template template must be made for each callback)
+    """
+    errors: list[str] = []
+    warnings: list[str] = []
+    if subscription.wall_times and subscription.topic in validations.interfaces["topic published to"]:
+        errors += [f"Subscription, {subscription.name}, is triggered by wall_times by messages from \
+                   topic, {subscription.topic}, but other callbacks are publishing to this topic. \
+                    Remove the wall_times from this subscription or make sure no other callback is publishing \
+                    to this topic."]
+    return errors, warnings
+
+def validate_service(service : ros.Service,
+                     validations : validator.ValidationResult
+                     ) -> tuple[list[str],list[str]]:
+    """
+    A valid service:
+    - Only has wall_times if no other callback is sending messages to the triggering interface
+        (This is because exactly 1 template template must be made for each callback, due to the input-buffer being modeled here, pp. 318, 322)
+    """
+    errors: list[str] = []
+    warnings: list[str] = []
+    if service.wall_times and service.name in validations.interfaces["services requested"]:
+        errors += [f"Service, {service.name}, is triggered by wall_times of client-requests \
+                    but other callbacks in the system are requesting this service. \
+                    Remove the wall_times from this service or make sure no other callback is requesting \
+                    this service."]
+    return errors, warnings
+
 def validate_callback(callback : ros.Callback,
                       validations : validator.ValidationResult
                       )-> tuple[list[str],list[str]]:
     """
     A valid Callback:
     - does not consider read-variables and write-variables
+    - if it contains wall_times, not other callback is sending messages to the triggering interface
     """
     errors: list[str] = []
     warnings: list[str] = []
@@ -223,6 +267,17 @@ def adapt_list_size(l : list[int], n):
         l.extend([0] * (n - len(l)))
     return l
 
+# TODO: how do I find array-size before-hand if it is computed here?
+# convert interval to wall-times
+def get_interval_times(timer : ros.Timer) -> list[int]:
+    wall_times = []
+    for wt in range(timer.interval[0]+timer.offset, timer.interval[1], timer.period):
+        wall_times.append(wt)
+    return wall_times
+
+
+
+
 # id's for callbacks
 cb_id_counter = itertools.count()
 def next_cb():
@@ -253,7 +308,7 @@ def map_data_sending(out: ds.System, parent_node : ros.Node, callback : ros.Call
         topic = publisher_obj.topic
         
         # map communication to RECEIVING node (*1 template per publisher, so will never be redundant*)
-        map_topic(out=out, publisher=publisher, topic=topic, sender_id=sender_id, validations=validations)
+        map_topic(out=out, publisher=publisher_obj, topic=topic, sender_id=sender_id, validations=validations)
 
     # look for request
     if callback.request is not None:
@@ -415,19 +470,67 @@ def map_node(out: ds.System, node: ros.Node, validations: validator.ValidationRe
         timer_cb = node.get_callback(timer.callback)
         interface_count, interface_id_list = map_data_sending(out=out, parent_node=node,
                                                         callback=timer_cb,validations=validations)
-        #TODO: for now 10 hardcoded as max-pub-size
-        out.add_periodic_callback(id=next_cb(),
-                                  exec_time=timer_cb.wcet,
-                                  period=timer.period,
-                                  type=TIMER,
-                                  offset=timer.offset,
-                                  buffersize=1, #TODO: make sure that this is 100 % the case?
-                                  amount_of_publishers=interface_count,
-                                  publisher_release_time=[0 for i in range(10)],
-                                  publisher_id=adapt_list_size(interface_id_list, 10),
-                                  executorID=nodes[node.name]
-                                  )
-    # case 2) external input (# TODO:)
+        if timer.interval:
+            # convert interval to list of release-times
+            wt = get_interval_times(timer)
+            out.add_sporadic_callback(id=next_cb(),
+                                      exec_time=timer_cb.wcet,
+                                      length=len(wt),
+                                      releases=adapt_list_size(wt, 10),
+                                      type=TIMER,
+                                      buffersize=1, #TODO: make sure that this is 100 % the case?
+                                      amount_of_publishers=interface_count,
+                                      publisher_release_time=[0 for i in range(10)],
+                                      publisher_id=adapt_list_size(interface_id_list, 10),
+                                      executorID=nodes[node.name]
+                                      )
+        else:
+            #TODO: for now 10 hardcoded as max-pub-size
+            out.add_periodic_callback(id=next_cb(),
+                                      exec_time=timer_cb.wcet,
+                                      period=timer.period,
+                                      type=TIMER,
+                                      offset=timer.offset,
+                                      buffersize=1, #TODO: make sure that this is 100 % the case?
+                                      amount_of_publishers=interface_count,
+                                      publisher_release_time=[0 for i in range(10)],
+                                      publisher_id=adapt_list_size(interface_id_list, 10),
+                                      executorID=nodes[node.name]
+                                      )
+    # case 2) service with wall_times 
+    for service in node.services:
+        if service.wall_times:
+            service_callback = node.get_callback(service.callback)
+            interface_count, interface_id_list = map_data_sending(out=out, parent_node=node,
+                                                        callback=service_callback,validations=validations)
+            out.add_sporadic_callback(id=next_cb(),
+                                      exec_time=service_callback.wcet,
+                                      length=len(service.wall_times),
+                                      type=SERVICE,
+                                      releases=adapt_list_size(service.wall_times,10), #TODO: make not hardcoded after MAXX?
+                                      buffersize=service.qos.depth, #TODO: make sure that this is 100 % the case?
+                                      amount_of_publishers=interface_count,
+                                      publisher_release_time=[0 for i in range(10)],
+                                      publisher_id=adapt_list_size(interface_id_list, 10),
+                                      executorID=nodes[node.name]
+                                      )
+    # case 3) subscriber with wall_times 
+    for subscription in node.subscriptions:
+        if subscription.wall_times:
+            subscription_callback = node.get_callback(subscription.callback)
+            interface_count, interface_id_list = map_data_sending(out=out, parent_node=node,
+                                                        callback=subscription_callback,validations=validations)
+            out.add_sporadic_callback(id=next_cb(),
+                                      exec_time=subscription_callback.wcet,
+                                      length=len(subscription.wall_times),
+                                      type=SUBSCRIBER,
+                                      releases=adapt_list_size(service.wall_times,10), #TODO: make not hardcoded after MAXX?
+                                      buffersize=subscription.qos.depth, #TODO: make sure that this is 100 % the case?
+                                      amount_of_publishers=interface_count,
+                                      publisher_release_time=[0 for i in range(10)],
+                                      publisher_id=adapt_list_size(interface_id_list, 10),
+                                      executorID=nodes[node.name]
+                                      )
 
 # generate id for Executors
 ex_id_counter = itertools.count()

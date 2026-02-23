@@ -23,6 +23,9 @@ ARRAY_SIZES = {
     'publisher_id' : 'MAXPUB'
 }
 
+# cb_type encodings for the UPPAAL-model
+cb_types = ("TIMER", "SERVICE", "SUBSCRIBER", "CLIENT")
+
 # common functionality for all python-UPPAAL-mappings
 class UppaalTemplate(ABC):
     # the name of template (must be implemented in subclass)
@@ -66,9 +69,9 @@ class UppaalTemplate(ABC):
         variables = vars(self).items()
         for var, val in variables:
             if type(val) is list:
-                s+= self.param_name(var) + ","
+                s+= str(var) + " = " + self.param_name(var) + ","
             else:
-                s+= str(val) + ","
+                s+= str(var) + " = " + str(val) + ","
         return s[:-1] + ");\n"
 
 
@@ -107,7 +110,7 @@ class PeriodicCallback(UppaalTemplate):
         self.id = id
         self.exec_time = exec_time
         self.period = period
-        self.type = type
+        self.type = cb_types[type]
         self.offset = offset
         self.buffersize = buffersize
         self.amount_of_publishers = amount_of_publishers
@@ -127,7 +130,7 @@ class SporadicCallback(UppaalTemplate):
         self.exec_time = exec_time
         self.length = length
         self.releases = releases
-        self.type = type
+        self.type = cb_types[type]
         self.buffersize = buffersize
         self.amount_of_publishers = amount_of_publishers
         self.publisher_release_time = publisher_release_time
@@ -144,7 +147,7 @@ class DataCallback(UppaalTemplate):
         self.id = id
         self.exec_time = exec_time
         self.topicID = topicID
-        self.type = type
+        self.type = cb_types[type]
         self.buffersize = buffersize
         self.amount_of_publishers = amount_of_publishers
         self.publisher_release_time = publisher_release_time
