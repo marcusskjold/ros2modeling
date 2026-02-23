@@ -1,5 +1,6 @@
 from pprint import pprint
 import roserer.ros2system as ros
+import roserer.printers.graph_printer as gp
 #import roserer.yamlPrinter as yprint
 import roserer.yamlParser as yparse
 import roserer.systemvalidator as sv
@@ -116,6 +117,8 @@ else:
     chain = result.get_paths_from("sensor1_cb0", "actuator1_cb0")[0]
     print(chain)
     errors, warnings, bksystem = tb.transform_system(system, chain)
+    if result.graph is not None:
+        gp.transform_and_save_cb_graph(result.graph, "testgraph.svg")
     for ln in errors:
         print(ln)
     for ln in warnings:
@@ -214,3 +217,5 @@ else:
     dust_system = da.map_system(system=test_sys, validations=test_result)
     print(dust_system)
     # print(dust_system.max_latency())
+
+print(gp.transform_and_save_system(system, "testsys.svg").string())
