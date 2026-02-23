@@ -126,7 +126,7 @@ def validate_node(node : ros.Node,
         errors += errs
         warnings += warns
     for service in node.services:
-        errs, warns = validate_service(subscription, validations)
+        errs, warns = validate_service(service, validations)
         errors += errs
         warnings += warns
     return errors, warnings
