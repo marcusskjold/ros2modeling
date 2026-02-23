@@ -87,7 +87,7 @@ class Callback():
     calls: list[str]
     publishers: list[str]
     external_outputs: list[ExternalOutput]
-    request: Request
+    request: Request | None
 
     def __init__(
             self,

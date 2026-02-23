@@ -1,5 +1,6 @@
 import roserer.ros2system as ros
 import roserer.qos as qos
+from roserer.qos import Duration
 
 """
 A ros2 system model consists of
@@ -410,11 +411,11 @@ def validate_qos(qos: qos.QoS, parent: str) -> list[str]:
         feedback += [f"{parent} has invalid qos depth policy"]
     # TODO create proper comparison functions for durations
     # Not a current priority, because they are unused
-    if qos.deadline < (0, 0):
+    if qos.deadline < Duration(0, 0):
         feedback += [f"{parent} has invalid qos deadline policy"]
-    if qos.lifespan < (0, 0):
+    if qos.lifespan < Duration(0, 0):
         feedback += [f"{parent} has invalid qos lifespan policy"]
-    if qos.liveliness_lease_duration < (0, 0):
+    if qos.liveliness_lease_duration < Duration(0, 0):
         feedback += [
             f"{parent} has invalid qos liveliness_lease_duration policy"]
     return feedback
