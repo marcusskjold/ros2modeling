@@ -267,6 +267,17 @@ def adapt_list_size(l : list[int], n):
         l.extend([0] * (n - len(l)))
     return l
 
+# TODO: how do I find array-size before-hand if it is computed here?
+# convert interval to wall-times
+def get_interval_times(timer : ros.Timer) -> list[int]:
+    wall_times = []
+    for wt in range(timer.interval[0]+timer.offset, timer.interval[1], timer.period):
+        wall_times.append(wt)
+    return wall_times
+
+
+
+
 # id's for callbacks
 cb_id_counter = itertools.count()
 def next_cb():
@@ -459,18 +470,33 @@ def map_node(out: ds.System, node: ros.Node, validations: validator.ValidationRe
         timer_cb = node.get_callback(timer.callback)
         interface_count, interface_id_list = map_data_sending(out=out, parent_node=node,
                                                         callback=timer_cb,validations=validations)
-        #TODO: for now 10 hardcoded as max-pub-size
-        out.add_periodic_callback(id=next_cb(),
-                                  exec_time=timer_cb.wcet,
-                                  period=timer.period,
-                                  type=TIMER,
-                                  offset=timer.offset,
-                                  buffersize=1, #TODO: make sure that this is 100 % the case?
-                                  amount_of_publishers=interface_count,
-                                  publisher_release_time=[0 for i in range(10)],
-                                  publisher_id=adapt_list_size(interface_id_list, 10),
-                                  executorID=nodes[node.name]
-                                  )
+        if timer.interval:
+            # convert interval to list of release-times
+            wt = get_interval_times(timer)
+            out.add_sporadic_callback(id=next_cb(),
+                                      exec_time=timer_cb.wcet,
+                                      length=len(wt),
+                                      releases=adapt_list_size(wt, 10),
+                                      type=TIMER,
+                                      buffersize=1, #TODO: make sure that this is 100 % the case?
+                                      amount_of_publishers=interface_count,
+                                      publisher_release_time=[0 for i in range(10)],
+                                      publisher_id=adapt_list_size(interface_id_list, 10),
+                                      executorID=nodes[node.name]
+                                      )
+        else:
+            #TODO: for now 10 hardcoded as max-pub-size
+            out.add_periodic_callback(id=next_cb(),
+                                      exec_time=timer_cb.wcet,
+                                      period=timer.period,
+                                      type=TIMER,
+                                      offset=timer.offset,
+                                      buffersize=1, #TODO: make sure that this is 100 % the case?
+                                      amount_of_publishers=interface_count,
+                                      publisher_release_time=[0 for i in range(10)],
+                                      publisher_id=adapt_list_size(interface_id_list, 10),
+                                      executorID=nodes[node.name]
+                                      )
     # case 2) service with wall_times 
     for service in node.services:
         if service.wall_times:

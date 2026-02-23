@@ -43,6 +43,12 @@ def parse_timers(ros_node: ros.Node, yaml_timers: dict) -> None:
                     (callback for callback in ros_node.callbacks
                         if callback.name == timer['callback']),
                     None)
+        if 'begin' in timer and 'end' in timer:
+            timer_args['interval'] = (timer['begin'], timer['end'])
+        if 'begin' not in timer and 'end' in timer:
+            timer_args['interval'] = (0, timer['end'])
+        if 'begin' in timer and 'end' not in timer:
+            raise SyntaxError(f"A timer with begin-time must have an end-time") # TODO: do we want to enforce this???
         ros_node.add_timer(**timer_args)
 
 
