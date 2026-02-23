@@ -1,13 +1,3 @@
-# Copyright (c) 2024 Peter Backeman
-# All rights reserved.
-#
-# This software is provided "as is," without warranty of any kind, express or implied,
-# including but not limited to the warranties of merchantability, fitness for a particular purpose,
-# and noninfringement. In no event shall the authors or copyright holders be liable for any claim,
-# damages, or other liability, whether in an action of contract, tort, or otherwise, arising from,
-# out of, or in connection with the software or the use or other dealings in the software.
-
-
 from roserer.dust.dust_uppaal import UPPAAL # * added '.' in front of imports
 from abc import ABC, abstractmethod # for creating abstract class
 import os # * added to support proper pathing
@@ -34,8 +24,8 @@ class UppaalTemplate(ABC):
         pass
 
     # the name of given list-parameter, list_param
-    def param_name(self, list_param: list) -> str:
-        return self.name() + "_" + list_param
+    def param_name(self, list_name: str) -> str:
+        return self.name() + "_" + list_name
 
     # convert python list-param to UPPAAL-style array
     def toUpArray(self, list_param: list) -> str:
@@ -49,7 +39,13 @@ class UppaalTemplate(ABC):
         variables = vars(self).items()
         for var, val in variables:
             if type(val) is list:
-                decl += "const int " + self.param_name(var) + "[" + ARRAY_SIZES[str(var)] + "]" + "=" + self.toUpArray(val) + ";\n"
+                decl += (
+                        "const int " 
+                        + self.param_name(var)
+                        + "[" + ARRAY_SIZES[str(var)]
+                        + "]" + "="
+                        + self.toUpArray(val) + ";\n"
+                        )
         return decl
 
     # get template-instance for system-declaration
@@ -104,9 +100,18 @@ class Topic(UppaalTemplate):
         return "Topic_" + str(self.sender_id) + "to" + str(self.receiver_id)
 
 class PeriodicCallback(UppaalTemplate):
-    def __init__(self, id : int, exec_time : int, period : int, type : int, offset : int, buffersize : int,
-                  amount_of_publishers : int, publisher_release_time : list[int],
-                    publisher_id : list[int], executorID : int):
+    def __init__(
+            self, id : int,
+            exec_time : int,
+            period : int,
+            type : int,
+            offset : int, 
+            buffersize : int,
+            amount_of_publishers : int,
+            publisher_release_time : list[int],
+            publisher_id : list[int],
+            executorID : int
+            ):
         self.id = id
         self.exec_time = exec_time
         self.period = period
@@ -123,9 +128,18 @@ class PeriodicCallback(UppaalTemplate):
 
 
 class SporadicCallback(UppaalTemplate):
-    def __init__(self, id : int, exec_time : int, length : int, releases : list[int], type : int, buffersize : int,
-                  amount_of_publishers : int, publisher_release_time : list[int], 
-                  publisher_id : list[int], executorID : int):
+    def __init__(
+            self,
+            id : int,
+            exec_time : int,
+            length : int,
+            releases : list[int],
+            type : int,
+            buffersize : int,
+            amount_of_publishers : int,
+            publisher_release_time : list[int],
+            publisher_id : list[int], executorID : int
+            ):
         self.id = id
         self.exec_time = exec_time
         self.length = length
@@ -141,9 +155,18 @@ class SporadicCallback(UppaalTemplate):
         return "SporadicCallback" + str(self.id)
 
 class DataCallback(UppaalTemplate):
-    def __init__(self, id : int, exec_time : int, topicID : int, type : int, buffersize : int,
-                  amount_of_publishers : int, publisher_release_time : list[int],
-                    publisher_id : list[int], executorID : int):
+    def __init__(
+            self,
+            id : int,
+            exec_time : int,
+            topicID : int,
+            type : int,
+            buffersize : int,
+            amount_of_publishers : int,
+            publisher_release_time : list[int],
+            publisher_id : list[int],
+            executorID : int
+            ):
         self.id = id
         self.exec_time = exec_time
         self.topicID = topicID
@@ -190,7 +213,8 @@ class System():
             case "data_callback":
                 self.callbacks.append(DataCallback(*args))
             case _:
-                raise ValueError("provided component_type not included among templates in this model!")
+                raise ValueError("provided component_type not included among templates \
+                        in this model!")
 
     def add_executor_v1(self, id : int, stoptime : int):
         self.executors.append(ExecutorV1(id, stoptime))
@@ -198,39 +222,82 @@ class System():
     def add_executor_v2(self, id : int, stoptime : int):
         self.executors.append(ExecutorV2(id, stoptime))
     
-    def add_topic(self, receiver_id : int, sender_id : int, delay : int, max_jitter : int, buffersize : int):
-        self.topics.append(Topic(receiver_id=receiver_id, sender_id=sender_id,
-                                     delay=delay,max_jitter=max_jitter, buffersize=buffersize))
+    def add_topic(self,
+                  receiver_id : int,
+                  sender_id : int,
+                  delay : int,
+                  max_jitter : int,
+                  buffersize : int
+                  ):
+        self.topics.append(Topic(
+            receiver_id=receiver_id,
+            sender_id=sender_id,
+            delay=delay,
+            max_jitter=max_jitter,
+            buffersize=buffersize
+            ))
 
-    def add_periodic_callback(self, id : int, exec_time : int, period : int, type : int, offset : int, 
-                              buffersize : int, amount_of_publishers : int, publisher_release_time : list[int],
-                                publisher_id : list[int], executorID : int):
-        self.callbacks.append(PeriodicCallback(id, exec_time, period, type, offset, buffersize,
-                  amount_of_publishers, publisher_release_time, publisher_id, executorID))
+    def add_periodic_callback(
+            self,
+            id : int,
+            exec_time : int,
+            period : int,
+            type : int,
+            offset : int,
+            buffersize : int,
+            amount_of_publishers : int,
+            publisher_release_time : list[int],
+            publisher_id : list[int],
+            executorID : int
+            ):
+        self.callbacks.append(PeriodicCallback(
+            id, exec_time, period, type, offset, buffersize, amount_of_publishers,
+            publisher_release_time, publisher_id, executorID))
         
-    def add_sporadic_callback(self, id : int, exec_time : int, length : int, releases : list[int], type : int,
-                               buffersize : int, amount_of_publishers : int, publisher_release_time : list[int],
-                                 publisher_id : list[int], executorID : int):
-        self.callbacks.append(SporadicCallback(id, exec_time, length, releases, type, buffersize,
-                  amount_of_publishers, publisher_release_time, publisher_id, executorID))
+    def add_sporadic_callback(
+            self,
+            id : int,
+            exec_time : int,
+            length : int,
+            releases : list[int],
+            type : int,
+            buffersize : int,
+            amount_of_publishers : int,
+            publisher_release_time : list[int],
+            publisher_id : list[int],
+            executorID : int
+            ):
+        self.callbacks.append(SporadicCallback(
+            id, exec_time, length, releases, type, buffersize, amount_of_publishers, 
+            publisher_release_time, publisher_id, executorID))
     
-    def add_data_callback(self, id : int, exec_time : int, topicID : int, type : int, buffersize : int,
-                  amount_of_publishers : int, publisher_release_time : list[int],
-                    publisher_id : list[int], executorID : int):
-        self.callbacks.append(DataCallback(id, exec_time, topicID, type, buffersize,
-                  amount_of_publishers, publisher_release_time, publisher_id, executorID))
+    def add_data_callback(
+            self,
+            id : int,
+            exec_time : int,
+            topicID : int,
+            type : int,
+            buffersize : int,
+            amount_of_publishers : int,
+            publisher_release_time : list[int],
+            publisher_id : list[int],
+            executorID : int
+            ):
+        self.callbacks.append(DataCallback(
+            id, exec_time, topicID, type, buffersize, amount_of_publishers,
+            publisher_release_time, publisher_id, executorID))
         
 
     def gen_declaration(self) -> str:
         s = ""
-        components : list[UppaalTemplate] = self.executors + self.topics + self.callbacks
+        components: list[UppaalTemplate] = self.executors + self.topics + self.callbacks
         for c in components:
             s += c.declaration()
         return s
 
     def gen_system(self) -> str:
         s = ""
-        components : list[UppaalTemplate] = self.executors + self.topics + self.callbacks
+        components: list[UppaalTemplate] = self.executors + self.topics + self.callbacks
         for c in components:
             s += c.system()
         component_names = [c.name() for c in components]
@@ -255,11 +322,13 @@ class System():
         checkables_names = [c.name() for c in self.callbacks]
         return UPPAAL.max_latency(OUTPUT_UPPAAL_FILE, checkables_names)
     
-    def max_latency_trace(self, max_latencies : dict = None):
+    def max_latency_trace(self, max_latencies: dict | None= None):
         self.write(INPUT_UPPAAL_FILE, OUTPUT_UPPAAL_FILE)
         checkables_names = [c.name() for c in self.callbacks]
-        return UPPAAL.max_latency_trace(OUTPUT_UPPAAL_FILE, checkables_names, max_latencies)
+        return UPPAAL.max_latency_trace(
+                OUTPUT_UPPAAL_FILE, checkables_names, max_latencies)
     
+    #TODO: Extract into common utils lib
     def write(self, infile : str, outfile : str):
         output = ""
         declarations_xml = self.gen_declaration()
@@ -270,13 +339,13 @@ class System():
         os.path.join(os.getcwd(), os.path.dirname(__file__)))
 
         f = open(os.path.join(__location__, infile), 'r')
-        for l in f.readlines():
-            if "!!!DECLARATIONS!!!" in l:
+        for ln in f.readlines():
+            if "!!!DECLARATIONS!!!" in ln:
                 output += declarations_xml
-            elif "!!!SYSTEM!!!" in l:
+            elif "!!!SYSTEM!!!" in ln:
                 output += system_xml
             else:
-                output += l
+                output += ln
 
 
         fout = open(outfile, 'w')

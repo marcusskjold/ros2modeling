@@ -1,8 +1,8 @@
-import roserer.ros2system as ros
+# import roserer.ros2system as ros
 from roserer.systemvalidator import validate_system, ValidationResult
-import roserer.yamlParser as parse
+# import roserer.yamlParser as parse
 from roserer.yamlParser import parse_yaml
-from roserer.adapters.backeman_adapter import transform_system
+# from roserer.adapters.backeman_adapter import transform_system
 
 def errprint(errors):
     for err in errors:

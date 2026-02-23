@@ -1,11 +1,11 @@
 from pprint import pprint
 import roserer.ros2system as ros
-import roserer.yamlPrinter as yprint
+#import roserer.yamlPrinter as yprint
 import roserer.yamlParser as yparse
 import roserer.systemvalidator as sv
 import roserer.adapters.backeman_adapter as tb
-import roserer.dust.dust_system as ds
-import roserer.dust.dust_uppaal as du
+#import roserer.dust.dust_system as ds
+#import roserer.dust.dust_uppaal as du
 import roserer.adapters.dust_adapter as da
 
 from dotenv import load_dotenv
@@ -141,12 +141,29 @@ pprint(yparse.parse_yaml("src/tests/input/example.yaml"))
 # sys = ds.System("mySystem")
 # sys.add_component("executor_v1",1,90)
 # sys.add_component("executor_v2",2,90)
-# sys.add_sporadic_callback(id=1,exec_time=50,length=10,releases=[10,20,30,40,50,60,70,80,90,100],type=2,
-#                           buffersize=10,amount_of_publishers=0,publisher_release_time=[0,0,0,0,0,0,0,0,0,0]
-#                           ,publisher_id=[0,0,0,0,0,0,0,0,0,0],executorID=1)
-# sys.add_sporadic_callback(id=2,exec_time=100,length=10,releases=[10,20,30,40,50,60,70,80,90,100],type=2,
-#                           buffersize=10,amount_of_publishers=0,publisher_release_time=[0,0,0,0,0,0,0,0,0,0]
-#                           ,publisher_id=[0,0,0,0,0,0,0,0,0,0],executorID=2)
+# sys.add_sporadic_callback(
+#         id=1,
+#         exec_time=50,
+#         length=10,
+#         releases=[10,20,30,40,50,60,70,80,90,100],
+#         type=2,
+#         buffersize=10,
+#         amount_of_publishers=0,
+#         publisher_release_time=[0,0,0,0,0,0,0,0,0,0],
+#         publisher_id=[0,0,0,0,0,0,0,0,0,0],executorID=1
+#         )
+# sys.add_sporadic_callback(
+#         id=2,
+#         exec_time=100,
+#         length=10,
+#         releases=[10,20,30,40,50,60,70,80,90,100],
+#         type=2,
+#         buffersize=10,
+#         amount_of_publishers=0,
+#         publisher_release_time=[0,0,0,0,0,0,0,0,0,0],
+#         publisher_id=[0,0,0,0,0,0,0,0,0,0],
+#         executorID=2
+#         )
 # print(sys)
 # print(sys.buffer_overflow())
 # print(sys.max_buffer_size())
@@ -160,7 +177,11 @@ node_1 = exec_1.add_node(name="node_1")
 node_2 = exec_2.add_node(name="node_2")
 
 node_1.add_client(name="client_1",service="service_1")
-test_timer_callback = node_1.add_callback(wcet=5,name="timer_1_cb",request=ros.Request(client="client_1",response="response_cb"))
+test_timer_callback = node_1.add_callback(
+        wcet=5,
+        name="timer_1_cb",
+        request=ros.Request(client="client_1",response="response_cb")
+        )
 
 #topic-addition
 # test_pub_1 = node_1.add_publisher(topic="topic_1",name="pub_1")
@@ -192,4 +213,4 @@ else:
     print(test_chain)
     dust_system = da.map_system(system=test_sys, validations=test_result)
     print(dust_system)
-    print(dust_system.max_latency())
+    # print(dust_system.max_latency())

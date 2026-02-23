@@ -36,7 +36,7 @@ def validation_st():
     system.add_subscriber("FILTER2", "SENSOR2", 20, [], [], "pd")
     system.add_subscriber("FUSION1", "SENSOR1", 30, ["SENSOR2"], [30], "pd")
     system.add_subscriber("FILTER3", "FUSION1", 30, [], [], "pd")
-    system.add_timer("ACTUATOR1", 840, 0, 30, ["FILTER3"], [30], "ACTUATOR1xFILTER3_data", 4, [-3])
+    system.add_timer("ACTUATOR1", 840, 0, 30, ["FILTER3"], [30], "ACTUATOR1xFILTER3_data", 4, [-3])  # noqa: E501
     system.monitor("ACTUATOR1", 420)
     return system
 
@@ -48,7 +48,7 @@ def validation_ts():
     system.add_datagenerator("SENSOR2", 420, 20, 0, False, 5)
     system.add_subscriber("FILTER1", "SENSOR1", 10, [], [], "pd")
     system.add_subscriber("FILTER2", "SENSOR2", 20, [], [], "pd")
-    system.add_timer("FUSION1", 840, 0, 30, ["FILTER1", "FILTER2"], [30, 30], "FILTER1_data")
+    system.add_timer("FUSION1", 840, 0, 30, ["FILTER1", "FILTER2"], [30, 30], "FILTER1_data")  # noqa: E501
     system.add_subscriber("FILTER3", "FUSION1", 30, [], [], "pd")
     system.add_subscriber("ACTUATOR1", "FILTER3", 30, [], [], "pd")
     system.monitor("ACTUATOR1", 420)
@@ -62,9 +62,9 @@ def validation_tt():
     system.add_datagenerator("SENSOR2", 480, 20, 0, False, 5)
     system.add_subscriber("FILTER1", "SENSOR1", 10, [], [], "pd")
     system.add_subscriber("FILTER2", "SENSOR2", 20, [], [], "pd")
-    system.add_timer("FUSION1", 960, 0, 30, ["FILTER1", "FILTER2"], [30, 30], "FILTER1_data", 4, [-2, -3])
+    system.add_timer("FUSION1", 960, 0, 30, ["FILTER1", "FILTER2"], [30, 30], "FILTER1_data", 4, [-2, -3])  # noqa: E501
     system.add_subscriber("FILTER3", "FUSION1", 30, [], [], "pd")
-    system.add_timer("ACTUATOR1", 960, 0, 30, ["FILTER3"], [30], "ACTUATOR1xFILTER3_data", 3, [-3])
+    system.add_timer("ACTUATOR1", 960, 0, 30, ["FILTER3"], [30], "ACTUATOR1xFILTER3_data", 3, [-3])  # noqa: E501
     system.monitor("ACTUATOR1", 480)
     return system
 
@@ -82,7 +82,7 @@ def prio_inversion():
     system.add_datagenerator("Sensor1", 150, 50, 0, False)
     system.add_subscriber("Filter", "Sensor1", 30, [], [], "pd")
     system.add_datagenerator("Sensor2", 150, 30, 50, True)
-    system.add_subscriber("Actuator", "Filter", 10, ["Sensor2"], [10], "ActuatorxSensor2_data")
+    system.add_subscriber("Actuator", "Filter", 10, ["Sensor2"], [10], "ActuatorxSensor2_data")  # noqa: E501
     system.monitor("Actuator", 0)
     return system
 
@@ -114,8 +114,8 @@ def case_study(cameras, prob, mcamera, subscription, fusion_period=500):
     system = System(name)
 
     for i in range(cameras):
-        system.add_probalisticdatagenerator("CAMERA" + str(i), CAMERAPER, CAMERAWCET, 0, prob, i == mcamera)
-        system.add_subscriber("OBJDET" + str(i), "CAMERA" + str(i), OBJDETWCET, [], [], "pd")
+        system.add_probalisticdatagenerator("CAMERA" + str(i), CAMERAPER, CAMERAWCET, 0, prob, i == mcamera)  # noqa: E501
+        system.add_subscriber("OBJDET" + str(i), "CAMERA" + str(i), OBJDETWCET, [], [], "pd")  # noqa: E501
 
     if subscription:
         if 0 == mcamera:
@@ -234,7 +234,7 @@ def test_system(max_cameras, mcamera, subscription, upper_limit, fusion_period):
                 else:
                     r = "No"
 
-                fmt = str(c) + " & " + str(p) + "\\% & " + r + " & " + "{:.2f}".format(t)
+                fmt = str(c) + " & " + str(p) + "\\% & " + r + " & " + "{:.2f}".format(t)  # noqa: E501
                 lines[row].append(fmt)
                 #print("NEWLINE: ", row, "--->", lines[row])
         i += 1
@@ -264,7 +264,7 @@ def first_study():
         for sub in [False]:
             for upper_limit in [10000]:
                 for fusion_period in [500]:
-                    latex = test_system(max_cameras, mcamera, sub, upper_limit, fusion_period)
+                    latex = test_system(max_cameras, mcamera, sub, upper_limit, fusion_period)  # noqa: E501
                     all.append(latex)    
 
     return "\n\n\n".join(all)
@@ -277,7 +277,7 @@ def ten_fold():
         for sub in [False]:
             for upper_limit in [100000]:
                 for fusion_period in [500]:
-                    latex = test_system(max_cameras, mcamera, sub, upper_limit, fusion_period)
+                    latex = test_system(max_cameras, mcamera, sub, upper_limit, fusion_period)  # noqa: E501
                     all.append(latex)    
 
     return "\n\n\n".join(all)
@@ -290,7 +290,7 @@ def subscription():
         for sub in [True]:
             for upper_limit in [10000]:
                 for fusion_period in [500]:
-                    latex = test_system(max_cameras, mcamera, sub, upper_limit, fusion_period)
+                    latex = test_system(max_cameras, mcamera, sub, upper_limit, fusion_period)  # noqa: E501
                     all.append(latex)    
 
     return "\n\n\n".join(all)
@@ -303,7 +303,7 @@ def fusion_study():
         for sub in [False]:
             for upper_limit in [10000]:
                 for fusion_period in [250, 750]:
-                    latex = test_system(max_cameras, mcamera, sub, upper_limit, fusion_period)
+                    latex = test_system(max_cameras, mcamera, sub, upper_limit, fusion_period)  # noqa: E501
                     all.append(latex)    
 
     return "\n\n\n".join(all)

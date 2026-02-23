@@ -311,8 +311,8 @@ class System():
             s += n.declaration()
 
         s += "int DATA[C] = {" + ','.join(["EMPTY"]*len(self.nodes)) + "};\n"
-        s += "int PRIO[C] = {" + ','.join([str(n.priority()) for n in self.nodes]) + "};\n"
-        s += "int WCET[C] = {" + ','.join([n.name + "_WCET" for n in self.nodes]) + "};\n"
+        s += "int PRIO[C] = {" + ','.join([str(n.priority()) for n in self.nodes]) + "};\n"  # noqa: E501
+        s += "int WCET[C] = {" + ','.join([n.name + "_WCET" for n in self.nodes]) + "};\n"  # noqa: E501
         return s
 
     def gen_system(self) -> str:

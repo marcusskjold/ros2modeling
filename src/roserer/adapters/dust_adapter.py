@@ -12,10 +12,12 @@ def unspecified_warning(component : str) -> list[str]:
                      Use another model, if you want {component} to be taken account of"]
 
 
-#TODO: add validations that wall_times are used properly (noone posts to a topic with wall_times)
-        #if one sub has wall_times, then other subs to same topics should also have same wall_times (should maybe be in sys_validator)
-        #
-#TODO: This could perhaps return an object that can have validations (and maybe counters) etc. as fields
+#TODO: add validations that wall_times are used properly (noone posts to a topic with 
+#      wall_times). If one sub has wall_times, then other subs to same topics should 
+#      also have same wall_times (should maybe be in sys_validator)
+
+#TODO: This could perhaps return an object that can have validations (and maybe 
+#      counters) etc. as fields
 #TODO: think about errors similarly to other adapter
 def validate_system(system : ros.System,
                     validations : validator.ValidationResult
@@ -27,8 +29,10 @@ def validate_system(system : ros.System,
     errors : list[str]= ["Errors:"]
     warnings : list[str] = ["Warnings:"]
     if system.default_distribution not in VALID_ROS_DISTRIBUTIONS.values():
-        warnings += [f"You have chosen the ROS2-distribution, {system.default_distribution}, as your \
-                     default distribution. Be aware that it is not supported by this model"]
+        warnings += [
+                f"You have chosen the distribution, {system.default_distribution}, \
+                        as your default distribution. \
+                        Be aware that it is not supported by this model"]
     if system.dds_implementation != "Generic":
         warnings += unspecified_warning("DDS-implementation")
     if len(system.hosts) > 1:
@@ -48,13 +52,16 @@ def validate_host(host : ros.Host,
     - Assumes 100 % thread-availability for each executor (p. 311)
     """
     errors: list[str] = []
-    warnings: list[str] = [f"This model expects 100 % thread availability for each executor in the host operating system. \
-                           If this is not the case, then there might be errors in the system not \
-                           covered by this model"]
+    warnings: list[str] = [
+            "This model expects 100 % thread availability for each executor in the \
+                    host operating system. If this is not the case, then there might \
+                    be errors in the system not covered by this model"]
 
     if host.default_distribution not in VALID_ROS_DISTRIBUTIONS.values():
-        warnings += [f"You have chosen the ROS2-distribution, {host.default_distribution}, as your \
-                     default distribution. Be aware that it is not supported by this model"]
+        warnings += [
+                f"You have chosen the distribution {host.default_distribution} as your \
+                        default distribution. Be aware that it is not supported by \
+                        this model"]
     if host.operating_system != "Generic":
          warnings += unspecified_warning("operating system")
     if host.operating_system != "Generic":
@@ -71,22 +78,28 @@ def validate_executor(executor : ros.Executor,
                       ) -> tuple[list[str],list[str]]:
     """
     a valid Executor:
-    - Runs on a distribution of ROS2 released before Jazzy Jalizico (see VALID_ROS_DISTRIBUTIONS)
+    - Runs on a distribution of ROS2 released before Jazzy Jalizico 
+      (see VALID_ROS_DISTRIBUTIONS)
     - Is an implementation of the SingleThreadedExecutor
-    - Doesn't discern between what nodes different callbacks belongs to TODO: is this ever the case?
+    - Doesn't discern between what nodes different callbacks belongs to 
+      TODO: is this ever the case?
     """
     errors: list[str] = []
     warnings: list[str] = []
     if executor.ros_distribution not in VALID_ROS_DISTRIBUTIONS.values():
-        errors += [f"Executor '{executor.name}' runs on a distribution not supported by this model \
-                     Make sure that the distribution is one of the following: "
-                     + str(VALID_ROS_DISTRIBUTIONS.values())]
+        errors += [
+                f"Executor '{executor.name}' runs on a distribution not supported by \
+                        this model Make sure that the distribution is one of the \
+                        following: " + str(VALID_ROS_DISTRIBUTIONS.values())]
     if executor.implementation != "SingleThreadedExecutor":
-        errors += [f"The implementation, {executor.implementation}, of '{executor.name}' is not supported. \
-                     This model only supports variants of the SingleThreadedExecutor implementation"]
+        errors += [
+                f"The implementation, {executor.implementation}, of '{executor.name}' \
+                        is not supported. This model only supports variants of the \
+                        SingleThreadedExecutor implementation"]
     if len(executor.nodes) > 1: # TODO: is this ever the case.
-        warnings += [f"This models doesn't discern between nodes under the same executor. Use another model \
-                     if this distinction is relevant to you."]
+        warnings += [
+                "This models doesn't discern between nodes under the same executor. \
+                        Use another model if this distinction is relevant to you."]
     for node in executor.nodes:
         errs, warns = validate_node(node, validations)
         errors += errs
@@ -105,8 +118,8 @@ def validate_node(node : ros.Node,
     errors: list[str] = []
     warnings: list[str] = []
     if node.actions:
-        errors += [f"This model doesn't support ROS2 actions. Please remove any actions from your system in order \
-                   to use this model."]
+        errors += ["This model doesn't support ROS2 actions. Please remove any actions \
+                from your system in order to use this model."]
     if node.variables:
         warnings += unspecified_warning("read/write variables")
     for callback in node.callbacks:
@@ -143,8 +156,10 @@ def validate_timer(timer : ros.Timer,
     parent = validations.objects.timer[timer.name]
     timer_callback = parent.get_callback(timer.callback)
     if timer.period > timer_callback.wcet:
-        errors += [f"This model assumes fixed execution-time (equal to wcet). Make sure that wcet < period, \
-                   or otherwise a bufferoverflow will trivially occur."]
+        errors += [
+                "This model assumes fixed execution-time (equal to wcet). Make sure \
+                that wcet < period, or otherwise a bufferoverflow will trivially occur."
+                ]
     return errors, warnings
 
 def validate_subscription(subscription : ros.Subscription, 
@@ -152,16 +167,19 @@ def validate_subscription(subscription : ros.Subscription,
                           )-> tuple[list[str],list[str]]:
     """
     A valid subscription:
-    - Only has wall_times if no other callback is sending messages to the triggering interface
-        (This is because exactly 1 template template must be made for each callback)
+    - Only has wall_times if no other callback is sending messages to the triggering 
+      interface. 
+      This is because exactly 1 template template must be made for each callback.
     """
     errors: list[str] = []
     warnings: list[str] = []
-    if subscription.wall_times and subscription.topic in validations.interfaces["topic published to"]:
-        errors += [f"Subscription, {subscription.name}, is triggered by wall_times by messages from \
-                   topic, {subscription.topic}, but other callbacks are publishing to this topic. \
-                    Remove the wall_times from this subscription or make sure no other callback is publishing \
-                    to this topic."]
+    if subscription.wall_times and subscription.topic in \
+            validations.interfaces["topic published to"]:
+                errors += [f"Subscription, {subscription.name}, is triggered by \
+                        wall_times by messages from topic, {subscription.topic}, but \
+                        other callbacks are publishing to this topic. Remove the \
+                        wall_times from this subscription or make sure no other \
+                        callback is publishing to this topic."]
     return errors, warnings
 
 def validate_service(service : ros.Service,
@@ -169,16 +187,20 @@ def validate_service(service : ros.Service,
                      ) -> tuple[list[str],list[str]]:
     """
     A valid service:
-    - Only has wall_times if no other callback is sending messages to the triggering interface
-        (This is because exactly 1 template template must be made for each callback, due to the input-buffer being modeled here, pp. 318, 322)
+    - Only has wall_times if no other callback is sending messages to the triggering
+      interface. This is because exactly 1 template template must be made for each 
+      callback, due to the input-buffer being modeled here.
+      See Dust et al. (2025) - pp. 318, 322.
     """
     errors: list[str] = []
     warnings: list[str] = []
-    if service.wall_times and service.name in validations.interfaces["services requested"]:
-        errors += [f"Service, {service.name}, is triggered by wall_times of client-requests \
-                    but other callbacks in the system are requesting this service. \
-                    Remove the wall_times from this service or make sure no other callback is requesting \
-                    this service."]
+    if service.wall_times and service.name in \
+            validations.interfaces["services requested"]:
+                errors += [f"Service, {service.name}, is triggered by wall_times of \
+                        client-requests but other callbacks in the system are \
+                        requesting this service. Remove the wall_times from this \
+                        service or make sure no other callback is requesting \
+                        this service."]
     return errors, warnings
 
 def validate_callback(callback : ros.Callback,
@@ -187,7 +209,8 @@ def validate_callback(callback : ros.Callback,
     """
     A valid Callback:
     - does not consider read-variables and write-variables
-    - if it contains wall_times, not other callback is sending messages to the triggering interface
+    - if it contains wall_times, not other callback is sending messages to the 
+      triggering interface
     """
     errors: list[str] = []
     warnings: list[str] = []
@@ -216,7 +239,8 @@ def validate_callback(callback : ros.Callback,
 
 
 ####Sporadic callback
-# INVARIANT: length must correspond to non-zero values in releases-array (except if first is zero?)
+# INVARIANT: length must correspond to non-zero values in releases-array 
+#            (except if first is zero?)
 
 
 
@@ -262,14 +286,16 @@ CLIENT = 3
 nodes : dict[str,int] = {}
 
 # adds trailing 0'es to list till it has size n
-def adapt_list_size(l : list[int], n):
-    if len(l) < n:
-        l.extend([0] * (n - len(l)))
-    return l
+def adapt_list_size(li : list[int], n):
+    if len(li) < n:
+        li.extend([0] * (n - len(li)))
+    return li
 
 # TODO: how do I find array-size before-hand if it is computed here?
 # convert interval to wall-times
 def get_interval_times(timer : ros.Timer) -> list[int]:
+    if timer.interval is None:
+        raise ValueError("Timer does not have specified intervals")
     wall_times = []
     for wt in range(timer.interval[0]+timer.offset, timer.interval[1], timer.period):
         wall_times.append(wt)
@@ -283,18 +309,17 @@ cb_id_counter = itertools.count()
 def next_cb():
   return next(cb_id_counter)
 
-def map_data_sending(out: ds.System, parent_node : ros.Node, callback : ros.Callback, validations: validator.ValidationResult) -> tuple[int, list[int]]:
+def map_data_sending(
+        out: ds.System,
+        parent_node : ros.Node,
+        callback : ros.Callback,
+        validations: validator.ValidationResult
+        ) -> tuple[int, list[int]]:
     # counter for numbers of interfaces posted to
     interface_count = 0
-    # the id's of interfaces posted to (order doesn't matter for our use case (except we want to have specific timestamps -> implementation-detail rather?))
+    # the id's of interfaces posted to. Order doesn't matter for our use case,
+    # except we want to have specific timestamps -> implementation-detail rather?
     interface_id_list = []
-    # def register_sender():
-    #     nonlocal interface_count
-    #     interface_count += 1
-    #     nonlocal interface_id_list
-    #     sender_id = next_sender()
-    #     interface_id_list.append(sender_id)
-    #     return sender_id
 
     # look for publishers
     for publisher in callback.publishers:
@@ -307,8 +332,15 @@ def map_data_sending(out: ds.System, parent_node : ros.Node, callback : ros.Call
         publisher_obj = parent_node.get_publisher(publisher)
         topic = publisher_obj.topic
         
-        # map communication to RECEIVING node (*1 template per publisher, so will never be redundant*)
-        map_topic(out=out, publisher=publisher_obj, topic=topic, sender_id=sender_id, validations=validations)
+        # Map communication to RECEIVING node 
+        # 1 template per publisher, so will never be redundant
+        map_topic(
+                out=out,
+                publisher=publisher_obj,
+                topic=topic,
+                sender_id=sender_id,
+                validations=validations
+                )
 
     # look for request
     if callback.request is not None:
@@ -320,30 +352,57 @@ def map_data_sending(out: ds.System, parent_node : ros.Node, callback : ros.Call
         # map topic from client to server
         request = callback.request
         client = parent_node.get_client(request.client)
-        server_receiver_id = map_req_topic(out=out, client=client, sender_id=sender_id, validations=validations)
+        server_receiver_id = map_req_topic(
+                out=out,
+                client=client,
+                sender_id=sender_id,
+                validations=validations
+                )
 
-        # map server-callback and topic back (must map (Topic X DataCallback X Topic) templates pr. client-server-communication)
+        # Map server-callback and topic back.
+        # Must map (Topic X DataCallback X Topic) templates pr. client-server-
+        # communication
         service = client.service
-        client_receiver_id = map_server(out=out, service=service, receiver_id=server_receiver_id, validations=validations)
+        client_receiver_id = map_server(
+                out=out,
+                service=service,
+                receiver_id=server_receiver_id,
+                validations=validations)
 
         # map client's response-callback
-        map_client(out=out, receiver_id=client_receiver_id, validations=validations, request=request)
+        map_client(
+                out=out,
+                receiver_id=client_receiver_id,
+                validations=validations,
+                request=request
+                )
 
     return interface_count, interface_id_list
 
 
 #TODO : find way to reduce parameters and/or find utilities to make this easier
-def map_subscriber_cb(out: ds.System, receiver_id : int, callback : str, topic : str, validations: validator.ValidationResult):
+def map_subscriber_cb(
+        out: ds.System,
+        receiver_id : int,
+        callback : str,
+        topic : str,
+        validations: validator.ValidationResult
+        ):
     # get node-object
     node : ros.Node = validations.objects.callback[callback]
     callback_obj : ros.Callback = node.get_callback(callback)
     # in case more subscriptions are using same callback
-    subscriptions : list[ros.Subscription]= [sub for sub in node.subscriptions if sub.callback == callback]
+    subscriptions : list[ros.Subscription] = [
+            sub for sub in node.subscriptions if sub.callback == callback]
     for subscription in subscriptions:
         if subscription.topic == topic:
             # get sender info
-            interface_count, interface_id_list = map_data_sending(out=out, parent_node=node,
-                                                                callback=callback_obj,validations=validations)
+            interface_count, interface_id_list = map_data_sending(
+                    out=out,
+                    parent_node=node,
+                    callback=callback_obj,
+                    validations=validations
+                    )
             # create callback
             out.add_data_callback(id= next_cb(),
                                   exec_time=callback_obj.wcet,
@@ -364,7 +423,7 @@ subscribers : dict[str,int] = {}
 receiver_id_counter = itertools.count()
 def next_receiver(topic : str, validations : validator.ValidationResult):
 # if not receiver of topic create ID as normal
-  if not topic in validations.interfaces['topics subscribed to']:
+  if topic not in validations.interfaces['topics subscribed to']:
       return next(receiver_id_counter)
 # (if subscriber) check if there is already an ID for receivers of topic
   elif topic in subscribers:
@@ -377,7 +436,12 @@ def next_receiver(topic : str, validations : validator.ValidationResult):
 
 
 # maps topic from client to server
-def map_req_topic(out : ds.System, client : ros.Client, sender_id : str, validations : validator.ValidationResult) -> str:
+def map_req_topic(
+        out : ds.System,
+        client : ros.Client,
+        sender_id : int,
+        validations : validator.ValidationResult
+        ) -> int:
     service = client.service
     # id for requesting from client to server-callback
     receiver_id = next_receiver(service, validations)
@@ -392,11 +456,17 @@ def map_req_topic(out : ds.System, client : ros.Client, sender_id : str, validat
     return receiver_id
 
 # maps server-callback and "topic" from client to server
-def map_server(out: ds.System, service : str, receiver_id : int, validations: validator.ValidationResult) -> int:
+def map_server(
+        out: ds.System,
+        service : str,
+        receiver_id : int,
+        validations: validator.ValidationResult
+        ) -> int:
     ### UPPAAL-DataCallback in server ###
     # id for sending back to client
     sender_id = next_sender()
-    server_callback = validations.interfaces['services offered'][service][0] # TODO: maybe just make 1 or validate that only 1 server exists
+    server_callback = validations.interfaces['services offered'][service][0] 
+    # TODO: maybe just make 1 or validate that only 1 server exists
     server_node : ros.Node = validations.objects.callback[server_callback]
     server_callback_object = server_node.get_callback(server_callback) 
     server = server_node.get_service(service)
@@ -412,23 +482,33 @@ def map_server(out: ds.System, service : str, receiver_id : int, validations: va
                           executorID=nodes[server_node.name])
     
     ### UPPAAL-Topic back from server to client ###
-        # needs additional receiver_id for this (callback in other end is unique to this relation)
+    # needs additional receiver_id for this 
+    # (callback in other end is unique to this relation)
     # id for sending back to client
     receiver_id = next_receiver(service, validations)
     out.add_topic(receiver_id=receiver_id,
                   sender_id=sender_id,
                   delay=0,
                   max_jitter=0,
-                  buffersize=server.qos.depth) #TODO: add docs that they are same to github-repo
+                  buffersize=server.qos.depth) 
+                  #TODO: add docs that they are same to github-repo
     return receiver_id
 
 # maps data-callback in client upon receiving response from service
-def map_client(out: ds.System, request : ros.Request, receiver_id : int, validations: validator.ValidationResult):
+def map_client(
+        out: ds.System,
+        request : ros.Request,
+        receiver_id : int,
+        validations: validator.ValidationResult
+        ):
     parent_node = validations.objects.callback[request.response]
     client_obj = parent_node.get_client(request.client)
     client_callback = parent_node.get_callback(request.response)
-    interface_count, interface_id_list = map_data_sending(out=out, parent_node=validations.objects.callback[client_callback.name],
-                                                        callback=client_callback,validations=validations)
+    interface_count, interface_id_list = map_data_sending(
+            out=out,
+            parent_node=validations.objects.callback[client_callback.name],
+            callback=client_callback,validations=validations
+            )
     # add callback for client (upon receiving back from server)
     out.add_data_callback(id=next_cb(), 
                           exec_time=client_callback.wcet,
@@ -438,7 +518,8 @@ def map_client(out: ds.System, request : ros.Request, receiver_id : int, validat
                           amount_of_publishers=interface_count,
                           publisher_release_time=[0 for i in range(10)],
                           publisher_id= adapt_list_size(interface_id_list,10),
-                          executorID=nodes[parent_node.name]) #TODO: check how qos (requst vs. offered) is resolved
+                          executorID=nodes[parent_node.name]) 
+                          #TODO: check how qos (requst vs. offered) is resolved
 
 
 # id's for topics (sending to)
@@ -447,14 +528,24 @@ def next_sender():
   return next(sender_id_counter)
 
 
-def map_topic(out: ds.System, publisher : ros.Publisher, topic : str, sender_id : int, validations: validator.ValidationResult) -> None:
+def map_topic(
+        out: ds.System,
+        publisher : ros.Publisher,
+        topic : str,
+        sender_id : int,
+        validations: validator.ValidationResult) -> None:
     # If subscribers for this topic hasn't been made already:
     if topic not in subscribers:
         # get receiver_id and record topic in subscribers-env:
         receiver_id = next_receiver(topic, validations)
         # map subscribers:
         for callback in validations.interfaces['topics subscribed to'][topic]:
-            map_subscriber_cb(out=out, receiver_id=receiver_id, topic=topic, callback=callback, validations=validations)
+            map_subscriber_cb(
+                    out=out,
+                    receiver_id=receiver_id,
+                    topic=topic,
+                    callback=callback,
+                    validations=validations)
     else: 
         receiver_id = subscribers[topic]
     out.add_topic(receiver_id=receiver_id,
@@ -473,64 +564,80 @@ def map_node(out: ds.System, node: ros.Node, validations: validator.ValidationRe
         if timer.interval:
             # convert interval to list of release-times
             wt = get_interval_times(timer)
-            out.add_sporadic_callback(id=next_cb(),
-                                      exec_time=timer_cb.wcet,
-                                      length=len(wt),
-                                      releases=adapt_list_size(wt, 10),
-                                      type=TIMER,
-                                      buffersize=1, #TODO: make sure that this is 100 % the case?
-                                      amount_of_publishers=interface_count,
-                                      publisher_release_time=[0 for i in range(10)],
-                                      publisher_id=adapt_list_size(interface_id_list, 10),
-                                      executorID=nodes[node.name]
-                                      )
+            out.add_sporadic_callback(
+                    id=next_cb(),
+                    exec_time=timer_cb.wcet,
+                    length=len(wt),
+                    releases=adapt_list_size(wt, 10),
+                    type=TIMER,
+                    buffersize=1, #TODO: make sure that this is 100 % the case?
+                    amount_of_publishers=interface_count,
+                    publisher_release_time=[0 for i in range(10)],
+                    publisher_id=adapt_list_size(interface_id_list, 10),
+                    executorID=nodes[node.name]
+                    )
         else:
             #TODO: for now 10 hardcoded as max-pub-size
-            out.add_periodic_callback(id=next_cb(),
-                                      exec_time=timer_cb.wcet,
-                                      period=timer.period,
-                                      type=TIMER,
-                                      offset=timer.offset,
-                                      buffersize=1, #TODO: make sure that this is 100 % the case?
-                                      amount_of_publishers=interface_count,
-                                      publisher_release_time=[0 for i in range(10)],
-                                      publisher_id=adapt_list_size(interface_id_list, 10),
-                                      executorID=nodes[node.name]
-                                      )
+            out.add_periodic_callback(
+                    id=next_cb(),
+                    exec_time=timer_cb.wcet,
+                    period=timer.period,
+                    type=TIMER,
+                    offset=timer.offset,
+                    buffersize=1, #TODO: make sure that this is 100 % the case?
+                    amount_of_publishers=interface_count,
+                    publisher_release_time=[0 for i in range(10)],
+                    publisher_id=adapt_list_size(interface_id_list, 10),
+                    executorID=nodes[node.name]
+                    )
     # case 2) service with wall_times 
     for service in node.services:
         if service.wall_times:
             service_callback = node.get_callback(service.callback)
-            interface_count, interface_id_list = map_data_sending(out=out, parent_node=node,
-                                                        callback=service_callback,validations=validations)
-            out.add_sporadic_callback(id=next_cb(),
-                                      exec_time=service_callback.wcet,
-                                      length=len(service.wall_times),
-                                      type=SERVICE,
-                                      releases=adapt_list_size(service.wall_times,10), #TODO: make not hardcoded after MAXX?
-                                      buffersize=service.qos.depth, #TODO: make sure that this is 100 % the case?
-                                      amount_of_publishers=interface_count,
-                                      publisher_release_time=[0 for i in range(10)],
-                                      publisher_id=adapt_list_size(interface_id_list, 10),
-                                      executorID=nodes[node.name]
-                                      )
+            interface_count, interface_id_list = map_data_sending(
+                    out=out,
+                    parent_node=node,
+                    callback=service_callback,
+                    validations=validations
+                    )
+            out.add_sporadic_callback(
+                    id=next_cb(),
+                    exec_time=service_callback.wcet,
+                    length=len(service.wall_times),
+                    type=SERVICE,
+                    releases=adapt_list_size(service.wall_times,10),
+                    #TODO: make not hardcoded after MAXX?
+                    buffersize=service.qos.depth,
+                    #TODO: make sure that this is 100 % the case?
+                    amount_of_publishers=interface_count,
+                    publisher_release_time=[0 for i in range(10)],
+                    publisher_id=adapt_list_size(interface_id_list, 10),
+                    executorID=nodes[node.name]
+                    )
     # case 3) subscriber with wall_times 
     for subscription in node.subscriptions:
         if subscription.wall_times:
             subscription_callback = node.get_callback(subscription.callback)
-            interface_count, interface_id_list = map_data_sending(out=out, parent_node=node,
-                                                        callback=subscription_callback,validations=validations)
-            out.add_sporadic_callback(id=next_cb(),
-                                      exec_time=subscription_callback.wcet,
-                                      length=len(subscription.wall_times),
-                                      type=SUBSCRIBER,
-                                      releases=adapt_list_size(service.wall_times,10), #TODO: make not hardcoded after MAXX?
-                                      buffersize=subscription.qos.depth, #TODO: make sure that this is 100 % the case?
-                                      amount_of_publishers=interface_count,
-                                      publisher_release_time=[0 for i in range(10)],
-                                      publisher_id=adapt_list_size(interface_id_list, 10),
-                                      executorID=nodes[node.name]
-                                      )
+            interface_count, interface_id_list = map_data_sending(
+                    out=out,
+                    parent_node=node,
+                    callback=subscription_callback,
+                    validations=validations
+                    )
+            out.add_sporadic_callback(
+                    id=next_cb(),
+                    exec_time=subscription_callback.wcet,
+                    length=len(subscription.wall_times),
+                    type=SUBSCRIBER,
+                    releases=adapt_list_size(subscription.wall_times,10),
+                    #TODO: make not hardcoded after MAXX?
+                    buffersize=subscription.qos.depth,
+                    #TODO: make sure that this is 100 % the case?
+                    amount_of_publishers=interface_count,
+                    publisher_release_time=[0 for i in range(10)],
+                    publisher_id=adapt_list_size(interface_id_list, 10),
+                    executorID=nodes[node.name]
+                    )
 
 # generate id for Executors
 ex_id_counter = itertools.count()
@@ -549,7 +656,10 @@ def map_executor(out: ds.System, executor: ros.Executor) -> None:
     for node in executor.nodes:
         nodes[node.name] = id
 
-def map_system(system: ros.System, validations : validator.ValidationResult) -> ds.System:
+def map_system(
+        system: ros.System,
+        validations : validator.ValidationResult
+        ) -> ds.System:
     out = ds.System(system.name)
     # first map all executors
     for host in system.hosts:
@@ -559,7 +669,8 @@ def map_system(system: ros.System, validations : validator.ValidationResult) -> 
     for host in system.hosts: 
         for executor in host.executors:
             for node in executor.nodes:
-                map_node(out=out,node=node,validations=validations) # TODO: maybe other name
+                map_node(out=out,node=node,validations=validations) 
+                # TODO: maybe other name
     return out
 
 
@@ -589,4 +700,4 @@ def transform_system(
     if warnings == ["Warnings:"]:
         warnings = []
 
-    return [], warnings, map_system(system, validationresult.objects)
+    return [], warnings, map_system(system, validationresult)

@@ -54,7 +54,7 @@ class Timer():
     period: TimeUnit
     offset: TimeUnit
     callback: str
-    interval: tuple[TimeUnit,TimeUnit]
+    interval: tuple[TimeUnit,TimeUnit] | None
 
 
 @dataclass
@@ -116,7 +116,7 @@ class Subscription():
     topic: Topic
     callback: str
     qos: QoS
-    wall_times: list[TimeUnit]
+    wall_times: list[TimeUnit] | None
 
 
 @dataclass
@@ -124,7 +124,7 @@ class Service():
     name: str
     callback: str
     qos: QoS
-    wall_times: list[TimeUnit]
+    wall_times: list[TimeUnit] | None
 
 
 @dataclass
@@ -181,7 +181,11 @@ class Node():
             wall_times: list[TimeUnit] | None = None
             ) -> Subscription:
         subscription = Subscription(
-                name=_name_init(name, self.name, "subscription", len(self.subscriptions)),
+                name=_name_init(name, 
+                                self.name,
+                                "subscription",
+                                len(self.subscriptions)
+                                ),
                 topic=topic,
                 callback=callback.name,
                 qos=_qos_init(qos, self.default_qos),
@@ -264,7 +268,7 @@ class Node():
             callback: Callback,
             name: str | None = None,
             offset: TimeUnit = 0,
-            interval: tuple[TimeUnit, TimeUnit]=None
+            interval: tuple[TimeUnit, TimeUnit] | None = None
             ) -> Timer:
         timer = Timer(
                 callback=callback.name,

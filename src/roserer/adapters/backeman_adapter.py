@@ -407,6 +407,7 @@ def map_system(system: ros.System,
                                   )
             max_priority -= 1
         elif node_type == "timer":
+            assert spec.read_variable is not None
             period = node.timers[0].period
             delay = node.timers[0].offset
             read_variable = spec.read_variable.name

@@ -19,7 +19,7 @@ class UPPAAL():
             extra_args = []
         try:
             output = subprocess.check_output(
-                [roserer.verifyta_resolver.find_verifyta()] + extra_args + [modelfile, queryfile], text=True)
+                [roserer.verifyta_resolver.find_verifyta()] + extra_args + [modelfile, queryfile], text=True)  # noqa: E501
                 # TODO: Fix verifyta local reading
                 # ["./verifyta"] + extra_args + [modelfile, queryfile], text=True)
 

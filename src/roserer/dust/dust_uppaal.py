@@ -1,14 +1,3 @@
-# # Copyright (c) 2024 Peter Backeman
-# # All rights reserved.
-# #
-# # This software is provided "as is," without warranty of any kind, express or implied,
-# # including but not limited to the warranties of merchantability, fitness for a particular purpose,
-# # and noninfringement. In no event shall the authors or copyright holders be liable for any claim,
-# # damages, or other liability, whether in an action of contract, tort, or otherwise, arising from,
-# # out of, or in connection with the software or the use or other dealings in the software.
-
-# ## Provides functions to perform various UPPAAL tasks.
-
 import subprocess
 import roserer.verifyta_resolver
 
@@ -23,7 +12,10 @@ class UPPAAL():
             extra_args = []
         try:
             output = subprocess.check_output(
-                [roserer.verifyta_resolver.find_verifyta()] + extra_args + [modelfile, queryfile], text=True)
+                    [roserer.verifyta_resolver.find_verifyta()] 
+                    + extra_args 
+                    + [modelfile, queryfile], 
+                    text=True)
             return output
         except Exception:
             # We assume that any error is due to overflow in scheduling queue.
@@ -92,7 +84,7 @@ class UPPAAL():
         fout = open(queryfile, 'w')
         q = ""
         for checkable in checkables:
-            q += f"sup {{{checkable}.ExecutionFinished}}: {checkable}.relTim[{checkable}.relcnt-1]\n"
+            q += f"sup {{{checkable}.ExecutionFinished}}: {checkable}.relTim[{checkable}.relcnt-1]\n"  # noqa: E501
         fout.write(q)
         return q
 
@@ -100,7 +92,10 @@ class UPPAAL():
         return UPPAAL.parse_sup_query(output, checkables)
     
     # query 5) from paper
-    def max_latency_trace(modelfile : str, checkables : list[str], max_latencies : dict = None):
+    def max_latency_trace(
+            modelfile : str,
+            checkables : list[str],
+            max_latencies: dict | None = None):
         # get max latency for each checkable, if not provided
         if max_latencies is None:
             max_latencies = UPPAAL.max_latency(modelfile, checkables)
@@ -117,7 +112,7 @@ class UPPAAL():
         fout = open(queryfile, 'w')
         q = ""
         for checkable, max_latency in max_latencies.items():
-            q += f"E<> {checkable}.ExecutionFinished and {checkable}.relTim[{checkable}.relcnt-1]=={max_latency}\n"
+            q += f"E<> {checkable}.ExecutionFinished and {checkable}.relTim[{checkable}.relcnt-1]=={max_latency}\n"  # noqa: E501
         fout.write(q)
         return q
 
@@ -125,7 +120,7 @@ class UPPAAL():
     def parse_max_latency_trace_query():
         return ""
 
-    def parse_sup_query(output, checkables):
+    def parse_sup_query(output: str, checkables: list[str]):
         lines = output.split("\n")
         results = {}
         idx = 0

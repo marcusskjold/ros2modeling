@@ -106,8 +106,8 @@ VALID_VALUES = {
 
 
 """
-Each attribute corresponds to an object-type and contains a dict that maps the name of an object of that type
-to the name of it's containing object / parent.
+Each attribute corresponds to an object-type and contains a dict that maps the name of 
+an object of that type to the name of it's containing object / parent.
 Example:
     Containments(
     node: {
@@ -156,8 +156,9 @@ class Containments:
 """
 Type for named ROS2-objects. To be used for annotations
 """
-NamedROSObject = ros.System | ros.Host | ros.Executor | ros.Node | ros.Callback | ros.ExternalInput \
- | ros.ExternalOutput | ros.Timer | ros.Service | ros.Client | ros.Variable | ros.Publisher | ros.Action
+NamedROSObject = ros.System | ros.Host | ros.Executor | ros.Node | ros.Callback \
+        | ros.ExternalInput | ros.ExternalOutput | ros.Timer | ros.Service \
+        | ros.Client | ros.Variable | ros.Publisher | ros.Action
 
 """
 Each entry maps an type of interface to a dict that maps the name of an interface to a
@@ -423,8 +424,8 @@ def validate_qos(qos: qos.QoS, parent: str) -> list[str]:
 def validate_wall_times(owner : str, wall_times : list[int]) -> list[str]:
     """
     Walltimes are well formed if:
-    - It is a weakly increasing sequence of timepoints (e.g. two messages could arrive simultaneously)
-    - 
+    - It is a weakly increasing sequence of timepoints 
+      (e.g. two messages could arrive simultaneously)
     """
     feedback = []
     if not all(wall_times[i] <= wall_times[i+1] for i in range(len(wall_times) - 1)):
@@ -550,8 +551,12 @@ def validate_callback_references(
                 name, "Requesting client", "services requested", interfaces)
             # add's the response-callback to the interfaces-dict also
             feedback += add_interface(
-                parent.get_client(request.client).service,
-                request.response, "Responding client", "services received from", interfaces)
+                    parent.get_client(request.client).service,
+                    request.response,
+                    "Responding client",
+                    "services received from",
+                    interfaces
+                    )
     return feedback
 
 
@@ -590,7 +595,8 @@ def validate_subscription(
     - It names the topic it subscribes to
     - It calls a callback that is owned by the same node
     - It has well-formed wall-times (if any)
-    - It has the same wall_times (in terms of length and values) as other subscriptions with the same topic
+    - It has the same wall_times (in terms of length and values) as other subscriptions
+      with the same topic
     """
     pname = parent.name
     feedback = []
@@ -825,8 +831,9 @@ def validate_subscription_times(system : ros.System) ->list[str]:
         topic_subs.setdefault(subscription.topic,[]).append(subscription.wall_times)
     for topic in topic_subs:
         if not all(wt == topic_subs[topic][0] for wt in topic_subs[topic]):
-            feedback += [f"Different wall-times are being used for subscriptions to "
-                         f"{topic}. Make sure that you are using the same times for consistency"]
+            feedback += [
+                    f"Different wall-times are being used for subscriptions to {topic}."
+                    " Make sure that you are using the same times for consistency"]
     return feedback
 
 def validate_system(system: ros.System) -> ValidationResult:

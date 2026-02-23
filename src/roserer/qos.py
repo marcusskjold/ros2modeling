@@ -9,7 +9,6 @@
 # The rmw_unique_network_flow_endpoints_requirement enum is not relevant here.
 import re
 from typing import TypeVar
-from argparse import ArgumentError, ArgumentTypeError
 from dataclasses import dataclass
 from enum import Enum
 import math
@@ -28,10 +27,11 @@ class Duration:
             nanoseconds: Union[int, float] = 0
             ) -> None:
         """
-        Create an instance of :class:`Duration`, combined from given seconds and nanoseconds.
-
+        Create an instance of :class:`Duration`, combined from given seconds and
+        nanoseconds.
         :param seconds: Time span seconds, if any, fractional part will be included.
-        :param nanoseconds: Time span nanoseconds, if any, fractional part will be discarded.
+        :param nanoseconds: Time span nanoseconds, if any, fractional part will be 
+                            discarded.
         """
         total_nanoseconds = int(seconds * S_TO_NS)
         total_nanoseconds += int(nanoseconds)
@@ -181,6 +181,10 @@ def parse_duration(arg: Duration | str) -> Duration:
     elif isinstance(arg, str):
         p = re.compile(r'^\( *(-?\d+) *, *(-?\d+) *\)\Z')
         m = p.match(arg)
+        if m is None:
+            raise ValueError(
+                    f"Invalid format of argument string. Expected '(int, int)',\
+                            got \"{arg}\"")
         return Duration(int(m.group(1)),int(m.group(2)))
     else:
         raise TypeError(f"{arg} is neither a string nor a Duration")
