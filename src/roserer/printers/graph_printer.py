@@ -5,6 +5,11 @@ from pygraphviz import AGraph
 import roserer.systemvalidator as sv
 import roserer.ros2system as ros
 
+ARWSZ = "0.5"
+ARWCLR = "black"
+PENWDTH = "0.7"
+SPEN = "0.4"
+VECLR = "steelblue"
 
 Graph = dict[str, list[str]]
 def transform_cb_graph(graph: Graph) -> AGraph:
@@ -33,18 +38,46 @@ def add_cb(graph: AGraph, cb: ros.Callback):
     for pub in cb.publishers:
         graph.add_edge(
                 cb.name,
-                pub
+                pub,
+                arrowsize=ARWSZ,
+                color=ARWCLR,
+                penwidth=PENWDTH,
+                )
+    if cb.read_variables != []:
+        subg = graph.add_subgraph(
+                [var.name for var in cb.read_variables] + [cb.name],
+                rank="source",
+                style="invis",
                 )
     for var in cb.read_variables:
+        subg
         graph.add_edge(
                 var.name,
-                cb.name
+                cb.name,
+                arrowsize=ARWSZ,
+                color=VECLR,
+                penwidth=SPEN,
+                constraint="false",
+                arrowhead="inv",
+                style="dashed",
                 )
 
     for var in cb.write_variables:
         graph.add_edge(
                 cb.name,
                 var.name,
+                arrowsize=ARWSZ,
+                color="tomato4",
+                style="dashed",
+                penwidth=SPEN,
+                )
+    for call in cb.calls:
+        graph.add_edge(
+                cb.name,
+                call,
+                arrowsize=ARWSZ,
+                color=ARWCLR,
+                penwidth=PENWDTH,
                 )
 
 def add_pub(graph: AGraph, pub: ros.Publisher):
@@ -52,12 +85,18 @@ def add_pub(graph: AGraph, pub: ros.Publisher):
             pub.name,
             label=f"{pub.name}",
             shape="invhouse",
+            margin="0.01",
             fontsize="8",
-            width=".2"
+            width=".2",
+            style="filled",
+            fillcolor="lightpink",
             )
     graph.add_edge(
             pub.name,
-            pub.topic
+            pub.topic,
+            arrowsize=ARWSZ,
+            color=ARWCLR,
+            penwidth=PENWDTH,
             )
 
 def add_sub(graph: AGraph, sub: ros.Subscription):
@@ -65,31 +104,59 @@ def add_sub(graph: AGraph, sub: ros.Subscription):
             sub.name,
             label=f"{sub.name}",
             shape="house",
+            fillcolor="lightblue",
+            style="filled",
             fontsize="8",
             )
     graph.add_edge(
             sub.topic,
             sub.name,
+            arrowsize=ARWSZ,
+            color=ARWCLR,
+            penwidth=PENWDTH,
             )
     graph.add_edge(
             sub.name,
-            sub.callback
+            sub.callback,
+            arrowsize=ARWSZ,
+            color=ARWCLR,
+            penwidth=PENWDTH,
             )
 
 def add_var(graph:AGraph, var: ros.Variable):
     graph.add_node(
             var.name,
+            shape="oval",
+            style="filled",
+            fillcolor="beige",
+            fontsize="8",
+            margin="0.01",
+            )
+
+def add_tim(graph: AGraph, tim: ros.Timer):
+    graph.add_node(
+            tim.name,
             shape="diamond",
             fontsize="8",
+            fillcolor="lightblue",
+            style="filled"
+            )
+    graph.add_edge(
+            tim.name,
+            tim.callback,
+            arrowsize=ARWSZ,
+            color=ARWCLR,
+            penwidth=PENWDTH,
             )
 
 def add_node(graph: AGraph, node: ros.Node):
     subgraph = graph.add_subgraph(
             name=node.name,
             label=f"Node: {node.name}",
-            color="black",
             cluster="true",
             rank="same",
+            style="dashed,rounded",
+            color="lavenderblush3",
             )
     for pub in node.publishers:
         add_pub(subgraph, pub)
@@ -99,6 +166,8 @@ def add_node(graph: AGraph, node: ros.Node):
         add_cb(subgraph, cb)
     for sub in node.subscriptions:
         add_sub(subgraph, sub)
+    for tim in node.timers:
+        add_tim(subgraph, tim)
 
 
 def add_executor(graph: AGraph, executor: ros.Executor):
@@ -106,6 +175,8 @@ def add_executor(graph: AGraph, executor: ros.Executor):
             name=executor.name,
             cluster="true",
             label=f"Executor: {executor.name}",
+            style="dotted",
+            color="dimgrey"
             )
     subgraph = graph.subgraphs()[-1]
     for node in executor.nodes:
@@ -116,10 +187,23 @@ def add_host(graph: AGraph, host: ros.Host):
             name=host.name,
             cluster="true",
             label=f"Host: {host.name}",
+            style="solid",
+            color="dimgrey"
             )
     subgraph = graph.subgraphs()[-1]
     for executor in host.executors:
         add_executor(subgraph, executor)
+
+def add_topic(A: AGraph, name: str):
+    A.add_node(
+            name, 
+            shape="parallelogram", 
+            style="filled,dashed", 
+            fillcolor="beige",
+            margin="0",
+            height="0.3",
+            fontsize="8",
+            )
 
 def transform_system(sys: ros.System) -> AGraph:
     result = validate_system(sys)
@@ -132,12 +216,15 @@ def transform_system(sys: ros.System) -> AGraph:
             splines="ortho",
             # newrank="true",
             # ratio="0.5",
-            nodesep=".4",
+            nodesep=".3",
             ranksep="0.2"
             )
 
-    for topic, subs in result.interfaces["topics subscribed to"].items():
-        A.add_node(topic, shape="parallelogram")
+    for topic in result.interfaces["topics subscribed to"]:
+        add_topic(A, topic)
+    for topic in result.interfaces["topics published to"]:
+        add_topic(A, topic)
+
     #     for sub in subs:
     #         A.add_edge(topic, sub)
     for host in sys.hosts:
@@ -149,3 +236,4 @@ def transform_and_save_system(sys: ros.System, file: str) -> AGraph:
     A.layout("dot")
     A.draw(file)
     return A
+
