@@ -26,7 +26,7 @@ DDS_IMPLEMENTATIONS = [
     "Generic",
     "Cyclone",
     "Fast",
-    "RTI Connext",
+    "Connext",
     "Gurum"
 ]
 
@@ -43,7 +43,8 @@ OPERATING_SYSTEMS = [
     "Debian",
     "MacOS",
     "Ubuntu",
-    "OpenEmbedded"
+    "OpenEmbedded",
+    "Raspberry Pi RT Linux kernel"
 ]
 
 ARCHITECTURES = [
