@@ -41,6 +41,8 @@ Topic = str
 @dataclass
 class Variable:
     name: str
+    reset_after_read: bool
+    condition: bool
 
 
 @dataclass
@@ -280,8 +282,17 @@ class Node():
         self.timers.append(timer)
         return timer
 
-    def add_variable(self, name: str | None = None):
-        var = Variable(name=_name_init(name, self.name, "var", len(self.variables)))
+    def add_variable(
+            self, 
+            name: str | None = None,
+            reset_after_read: bool = False,
+            condition: bool = False
+            ) -> Variable:
+        var = Variable(
+                name=_name_init(name, self.name, "var", len(self.variables)),
+                reset_after_read=reset_after_read,
+                condition=condition
+                )
         self.variables.append(var)
         return var
 
