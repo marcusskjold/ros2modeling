@@ -10,18 +10,18 @@
 // 6. Data triggered Callbacks Synchronizing Callbacks to synchronize over data 
 // 7. Verification and Simulation mode
 
-
+!!!DECLARATIONS!!!
 
 // MAXIMUM AMOUNT OF CALLBACKS FOR EACH TYPE
-const int MAX = 100;
+//const int MAX = 100;
 // MAXIMUM AMOUNT OF RELEASES FOR WALL TIMER
-const int MAXX = 10;
+//const int MAXX = 10;
 // MAXIMUM AMOUNT OF TOPICS IN SYSTEM
-const int MAXTOPICS = 100;
+//const int MAXTOPICS = 100;
 // MAXIMUM EXECUTORS IN SYSTEM
-const int MAXEXEC = 10;
+//const int MAXEXEC = 10;
 // MAXIMUM PUBLISHERS IN EACH CALLBACK
-const int MAXPUB = 10;
+//const int MAXPUB = 10;
 
 ///seems duplicate to the ones in the executors, and maybe redundant?
 clock systime;
@@ -42,7 +42,7 @@ const pubtype_t PUBLISHER = 1;
 ///While the one above would never be accessed (index -1 never occur), due to guards and invariants in the scenario, UPPAAL still complained on my computer.
 ///The one below, while logically maybe misleading, will make the program run.
 ///!!!it is yet to see, whether it will give any problems (I don't suspect it to).
-const int emptyArrayPub[MAXPUB] = {0,0,0,0,0,0,0,0,0,0};
+//const int emptyArrayPub[MAXPUB] = {0,0,0,0,0,0,0,0,0,0};
 
 //const int SINK[3] = {NONE, emptyArrayPub ,0};
 // SINK = [PUBLISHER, ARRAY[], AMOUNT]
@@ -93,9 +93,6 @@ int released_cli[MAXEXEC][MAX];
 broadcast chan transmitTopic[MAXTOPICS];
 ///data "callback" to topic
 chan fetchTopic[MAXTOPICS];
-
-
-!!!DECLARATIONS!!!
 
 
 

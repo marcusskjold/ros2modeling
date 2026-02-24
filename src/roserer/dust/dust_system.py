@@ -16,6 +16,12 @@ ARRAY_SIZES = {
 # cb_type encodings for the UPPAAL-model
 cb_types = ("TIMER", "SERVICE", "SUBSCRIBER", "CLIENT")
 
+# adds trailing 0'es to list till it has size n
+def adapt_list_size(l : list[int], n):
+    if len(l) < n:
+        l.extend([0] * (n - len(l)))
+    return l
+
 # common functionality for all python-UPPAAL-mappings
 class UppaalTemplate(ABC):
     # the name of template (must be implemented in subclass)
@@ -28,24 +34,21 @@ class UppaalTemplate(ABC):
         return self.name() + "_" + list_name
 
     # convert python list-param to UPPAAL-style array
-    def toUpArray(self, list_param: list) -> str:
+    def toUpArray(self, list_param: list, length : int) -> str:
+        adapt_list_size(list_param, length)
         ar = "{"
         ar += ",".join([str(elem) for elem in list_param])
         return ar + "}"
     
     # generate declaration for declarations-file in UPPAAL
-    def declaration(self) -> str:
+    def declaration(self, const_sizes : dict = None) -> str:
         decl = ""
         variables = vars(self).items()
         for var, val in variables:
             if type(val) is list:
-                decl += (
-                        "const int " 
-                        + self.param_name(var)
-                        + "[" + ARRAY_SIZES[str(var)]
-                        + "]" + "="
-                        + self.toUpArray(val) + ";\n"
-                        )
+                size_constant = ARRAY_SIZES[str(var)]
+                const_value = const_sizes[size_constant]
+                decl += "const int " + self.param_name(var) + "[" + size_constant + "]" + "=" + self.toUpArray(val, const_value) + ";\n"
         return decl
 
     # get template-instance for system-declaration
@@ -188,6 +191,7 @@ class System():
         self.executors = []
         self.topics = []
         self.callbacks = []
+        self.const_sizes = {}
 
     # for printing
     def __str__(self):
@@ -287,12 +291,73 @@ class System():
             id, exec_time, topicID, type, buffersize, amount_of_publishers,
             publisher_release_time, publisher_id, executorID))
         
+    def add_data_callback(self, id : int, exec_time : int, topicID : int, type : int, buffersize : int,
+                  amount_of_publishers : int, publisher_release_time : list[int],
+                    publisher_id : list[int], executorID : int):
+        self.callbacks.append(DataCallback(id, exec_time, topicID, type, buffersize,
+                  amount_of_publishers, publisher_release_time, publisher_id, executorID))
 
+
+    # if size is 0, makes it 1 instead
+    def adapt_to_min(self, size : int) -> int:
+        if size == 0:
+            return 1
+        else:
+            return size
+          
+    # get the maximum number of callbacks of a single type in the system
+    def get_max_cb_type(self)-> int:
+        # group callbacks by their types
+        cb_types ={}
+        for cb in self.callbacks:
+            cb_types[cb.type] = cb_types.get(cb.type, 0) + 1
+        return self.adapt_to_min(max(cb_types.values()))
+        
+    
+    # get maximum amount of releases for a wall-timer
+    def get_max_wt_releases(self) -> int:
+        #get list of releases
+        wall_timers = [cb.releases for cb in self.callbacks if isinstance(cb,SporadicCallback)]
+        #return longest instance
+        return self.adapt_to_min(len(max(wall_timers, key=len, default=1)))
+    
+    # get number of topics (set to one if no occurences)
+    def get_topics_size(self) -> int:
+        return self.adapt_to_min(len(self.topics))
+    
+    # get number of executors (set to one if no occurences)
+    def get_execs_size(self) -> int:
+        return self.adapt_to_min(len(self.executors))
+
+    # get maximum amount of publishers in a single callback
+    def get_max_pubs(self) -> int:
+        publisher_amounts = [cb.amount_of_publishers for cb in self.callbacks]
+        return self.adapt_to_min(max(publisher_amounts, default=1))
+    
+    # updates constant-sizes in environment
+    def gen_const_sizes(self) -> None:
+        self.const_sizes["MAX"] = self.get_max_cb_type()
+        self.const_sizes["MAXX"] = self.get_max_wt_releases()
+        self.const_sizes["MAXTOPICS"] = self.get_topics_size()
+        self.const_sizes["MAXEXEC"] = self.get_execs_size()
+        self.const_sizes["MAXPUB"] = self.get_max_pubs()
+
+
+
+    #TODO: Have the constants replaced in decl.-file
     def gen_declaration(self) -> str:
+        # updates environment of constant-sizes
+        self.gen_const_sizes()
         s = ""
-        components: list[UppaalTemplate] = self.executors + self.topics + self.callbacks
+        # applies constant sizes
+        s += "const int MAX = " + str(self.const_sizes["MAX"]) + ";\n"
+        s += "const int MAXX = " + str(self.const_sizes["MAXX"]) + ";\n"
+        s += "const int MAXTOPICS = " + str( self.const_sizes["MAXTOPICS"]) + ";\n" #TODO: maybe 0 not very good?
+        s += "const int MAXEXEC = " + str(self.const_sizes["MAXEXEC"]) + ";\n"
+        s += "const int MAXPUB = " + str(self.const_sizes["MAXPUB"]) + ";\n"
+        components : list[UppaalTemplate] = self.executors + self.topics + self.callbacks
         for c in components:
-            s += c.declaration()
+            s += c.declaration(self.const_sizes)
         return s
 
     def gen_system(self) -> str:

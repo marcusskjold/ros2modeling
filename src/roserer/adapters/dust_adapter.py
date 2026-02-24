@@ -298,13 +298,6 @@ CLIENT = 3
 #env from (python) name to exec-id (Uppaal)
 nodes : dict[str,int] = {}
 
-# adds trailing 0'es to list till it has size n
-def adapt_list_size(li : list[int], n):
-    if len(li) < n:
-        li.extend([0] * (n - len(li)))
-    return li
-
-# TODO: how do I find array-size before-hand if it is computed here?
 # convert interval to wall-times
 def get_interval_times(timer : ros.Timer) -> list[int]:
     if timer.interval is None:
@@ -318,16 +311,27 @@ def get_interval_times(timer : ros.Timer) -> list[int]:
 
 
 # id's for callbacks
-cb_id_counter = itertools.count()
-def next_cb():
-  return next(cb_id_counter)
+sub_id_counter = itertools.count()
+timer_id_counter = itertools.count()
+service_id_counter = itertools.count()
+client_id_counter = itertools.count()
+def next_cb(typ : int):
+  match typ:
+      case 0:
+          return next(timer_id_counter)
+      case 1:
+          return next(service_id_counter)
+      case 2:
+          return next(sub_id_counter)
+      case 3:
+          return next(client_id_counter)
+          
+  
+  #return next(cb_id_counter)
 
-def map_data_sending(
-        out: ds.System,
-        parent_node : ros.Node,
-        callback : ros.Callback,
-        validations: validator.ValidationResult
-        ) -> tuple[int, list[int]]:
+
+
+def map_data_sending(out: ds.System, parent_node : ros.Node, callback : ros.Callback, validations: validator.ValidationResult) -> tuple[int, list[int]]:
     # counter for numbers of interfaces posted to
     interface_count = 0
     # the id's of interfaces posted to. Order doesn't matter for our use case,
@@ -416,14 +420,14 @@ def map_subscriber_cb(
                     validations=validations
                     )
             # create callback
-            out.add_data_callback(id= next_cb(),
+            out.add_data_callback(id= next_cb(SUBSCRIBER),
                                   exec_time=callback_obj.wcet,
                                   topicID=receiver_id,
                                   type=SUBSCRIBER,
                                   buffersize=subscription.qos.depth,
                                   amount_of_publishers=interface_count,
-                                  publisher_release_time=[0 for i in range(10)],
-                                  publisher_id=adapt_list_size(interface_id_list, 10),
+                                  publisher_release_time=[0],
+                                  publisher_id=interface_id_list,
                                   executorID=nodes[node.name]
                                   )
 
@@ -482,14 +486,14 @@ def map_server(
     server_callback_object = server_node.get_callback(server_callback) 
     server = server_node.get_service(service)
     # create data-callback for sending back to client (upon receiving request)
-    out.add_data_callback(id=next_cb(),
+    out.add_data_callback(id=next_cb(SERVICE),
                           exec_time=server_callback_object.wcet,
                           topicID=receiver_id,
                           type=SERVICE,
                           buffersize=server.qos.depth,
                           amount_of_publishers=1,
-                          publisher_release_time=[0 for i in range(10)],
-                          publisher_id=adapt_list_size([sender_id], 10),
+                          publisher_release_time=[0],
+                          publisher_id=[sender_id],
                           executorID=nodes[server_node.name])
     
     ### UPPAAL-Topic back from server to client ###
@@ -521,16 +525,15 @@ def map_client(
             callback=client_callback,validations=validations
             )
     # add callback for client (upon receiving back from server)
-    out.add_data_callback(id=next_cb(), 
+    out.add_data_callback(id=next_cb(CLIENT), 
                           exec_time=client_callback.wcet,
                           topicID=receiver_id,
                           type=CLIENT,
                           buffersize=client_obj.qos.depth,
                           amount_of_publishers=interface_count,
-                          publisher_release_time=[0 for i in range(10)],
-                          publisher_id= adapt_list_size(interface_id_list,10),
-                          executorID=nodes[parent_node.name]) 
-                          #TODO: check how qos (requst vs. offered) is resolved
+                          publisher_release_time=[0],
+                          publisher_id= interface_id_list,
+                          executorID=nodes[parent_node.name]) #TODO: check how qos (requst vs. offered) is resolved
 
 
 # id's for topics (sending to)
@@ -575,80 +578,64 @@ def map_node(out: ds.System, node: ros.Node, validations: validator.ValidationRe
         if timer.interval:
             # convert interval to list of release-times
             wt = get_interval_times(timer)
-            out.add_sporadic_callback(
-                    id=next_cb(),
-                    exec_time=timer_cb.wcet,
-                    length=len(wt),
-                    releases=adapt_list_size(wt, 10),
-                    type=TIMER,
-                    buffersize=1, #TODO: make sure that this is 100 % the case?
-                    amount_of_publishers=interface_count,
-                    publisher_release_time=[0 for i in range(10)],
-                    publisher_id=adapt_list_size(interface_id_list, 10),
-                    executorID=nodes[node.name]
-                    )
+            out.add_sporadic_callback(id=next_cb(TIMER),
+                                      exec_time=timer_cb.wcet,
+                                      length=len(wt),
+                                      releases=wt,
+                                      type=TIMER,
+                                      buffersize=1, #TODO: make sure that this is 100 % the case?
+                                      amount_of_publishers=interface_count,
+                                      publisher_release_time=[0],
+                                      publisher_id=interface_id_list,
+                                      executorID=nodes[node.name]
+                                      )
         else:
             #TODO: for now 10 hardcoded as max-pub-size
-            out.add_periodic_callback(
-                    id=next_cb(),
-                    exec_time=timer_cb.wcet,
-                    period=timer.period,
-                    type=TIMER,
-                    offset=timer.offset,
-                    buffersize=1, #TODO: make sure that this is 100 % the case?
-                    amount_of_publishers=interface_count,
-                    publisher_release_time=[0 for i in range(10)],
-                    publisher_id=adapt_list_size(interface_id_list, 10),
-                    executorID=nodes[node.name]
-                    )
+            out.add_periodic_callback(id=next_cb(TIMER),
+                                      exec_time=timer_cb.wcet,
+                                      period=timer.period,
+                                      type=TIMER,
+                                      offset=timer.offset,
+                                      buffersize=1, #TODO: make sure that this is 100 % the case?
+                                      amount_of_publishers=interface_count,
+                                      publisher_release_time=[0],
+                                      publisher_id=interface_id_list,
+                                      executorID=nodes[node.name]
+                                      )
     # case 2) service with wall_times 
     for service in node.services:
         if service.wall_times:
             service_callback = node.get_callback(service.callback)
-            interface_count, interface_id_list = map_data_sending(
-                    out=out,
-                    parent_node=node,
-                    callback=service_callback,
-                    validations=validations
-                    )
-            out.add_sporadic_callback(
-                    id=next_cb(),
-                    exec_time=service_callback.wcet,
-                    length=len(service.wall_times),
-                    type=SERVICE,
-                    releases=adapt_list_size(service.wall_times,10),
-                    #TODO: make not hardcoded after MAXX?
-                    buffersize=service.qos.depth,
-                    #TODO: make sure that this is 100 % the case?
-                    amount_of_publishers=interface_count,
-                    publisher_release_time=[0 for i in range(10)],
-                    publisher_id=adapt_list_size(interface_id_list, 10),
-                    executorID=nodes[node.name]
-                    )
+            interface_count, interface_id_list = map_data_sending(out=out, parent_node=node,
+                                                        callback=service_callback,validations=validations)
+            out.add_sporadic_callback(id=next_cb(SERVICE),
+                                      exec_time=service_callback.wcet,
+                                      length=len(service.wall_times),
+                                      type=SERVICE,
+                                      releases=service.wall_times,
+                                      buffersize=service.qos.depth, #TODO: make sure that this is 100 % the case?
+                                      amount_of_publishers=interface_count,
+                                      publisher_release_time=[0],
+                                      publisher_id=interface_id_list,
+                                      executorID=nodes[node.name]
+                                      )
     # case 3) subscriber with wall_times 
     for subscription in node.subscriptions:
         if subscription.wall_times:
             subscription_callback = node.get_callback(subscription.callback)
-            interface_count, interface_id_list = map_data_sending(
-                    out=out,
-                    parent_node=node,
-                    callback=subscription_callback,
-                    validations=validations
-                    )
-            out.add_sporadic_callback(
-                    id=next_cb(),
-                    exec_time=subscription_callback.wcet,
-                    length=len(subscription.wall_times),
-                    type=SUBSCRIBER,
-                    releases=adapt_list_size(subscription.wall_times,10),
-                    #TODO: make not hardcoded after MAXX?
-                    buffersize=subscription.qos.depth,
-                    #TODO: make sure that this is 100 % the case?
-                    amount_of_publishers=interface_count,
-                    publisher_release_time=[0 for i in range(10)],
-                    publisher_id=adapt_list_size(interface_id_list, 10),
-                    executorID=nodes[node.name]
-                    )
+            interface_count, interface_id_list = map_data_sending(out=out, parent_node=node,
+                                                        callback=subscription_callback,validations=validations)
+            out.add_sporadic_callback(id=next_cb(SUBSCRIBER),
+                                      exec_time=subscription_callback.wcet,
+                                      length=len(subscription.wall_times),
+                                      type=SUBSCRIBER,
+                                      releases=subscription.wall_times, 
+                                      buffersize=subscription.qos.depth, #TODO: make sure that this is 100 % the case?
+                                      amount_of_publishers=interface_count,
+                                      publisher_release_time=[0],
+                                      publisher_id=interface_id_list,
+                                      executorID=nodes[node.name]
+                                      )
 
 # generate id for Executors
 ex_id_counter = itertools.count()
@@ -658,6 +645,7 @@ def next_exec():
 
 # initiates executors (and maintain mapping from node_name to exec_id)
 def map_executor(out: ds.System, executor: ros.Executor) -> None:
+    # get id
     id = next_exec()
     if executor.ros_distribution in VALID_ROS_DISTRIBUTIONS["V2"]:
         out.add_executor_v2(id, -1)
