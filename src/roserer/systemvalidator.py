@@ -240,7 +240,8 @@ def subset_check(key1: str, key2: str, sets: dict[str, dict]) -> list[str]:
     if keyset1 <= keyset2:
         return []
     else:
-        return [f"Mismatched: Some {key1} are not among {key2}"]
+        keyset1-keyset2
+        return [f"Mismatched: Some {key1} are not among {key2}\n    Full details:\n    {keyset1-keyset2}\n    {keyset2-keyset1}"]
 
 def add_interface(
         name: str,
