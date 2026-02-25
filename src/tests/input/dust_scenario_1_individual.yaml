@@ -1,0 +1,63 @@
+System:
+  system: dust_scenario_1_individual
+  hosts:
+  - host: 
+    default_distribution: Humble
+    executors:
+    - implementation: SingleThreadedExecutor
+      nodes:
+      - node: main_node
+        callbacks:  
+        - callback: cb_1
+          wcet: 5
+        timers:
+        - timer: T0
+          callback: cb_1
+          period: 10
+          offset: 2
+          begin: 0
+          end: 3
+        - timer: T1
+          callback: cb_1
+          period: 10
+          offset: 2
+          begin: 0
+          end: 3
+        - timer: T2
+          callback: cb_1
+          period: 10
+          offset: 23
+          begin: 0
+          end: 24
+        - timer: T3
+          callback: cb_1
+          period: 10
+          offset: 23
+          begin: 0
+          end: 24
+        subscriptions:
+        - subscription: H
+          callback: cb_1
+          wall_times: [0,0,15]
+          topic: "topic_H"
+        - subscription: M
+          callback: cb_1
+          wall_times: [0,0]
+          topic: "topic_M"
+        - subscription: L
+          callback: cb_1
+          wall_times: [0,0]
+          topic: "topic_L"
+        services:
+        - service: SH
+          callback: cb_1
+          wall_times: [0,0]
+        - service: SM
+          callback: cb_1
+          wall_times: [15,15]
+        - service: SL
+          callback: cb_1
+          wall_times: [0,0]
+
+
+
