@@ -9,7 +9,6 @@ authors = [
 ]
 requires-python = ">=3.10"
 dependencies = [
-    "importlib-resources>=6.5.2",
     "pygraphviz>=1.14",
     "python-dotenv>=1.2.1",
     "ruamel-yaml>=0.19.1",
@@ -21,6 +20,15 @@ build-backend = "uv_build"
 
 [tool.pytest.ini_options]
 pythonpath = "src"
+testpaths = ["src/tests/scenarios"]
+python_files = [
+    "test_*.py",
+    "scenario_*.py",
+]
+python_functions = [
+    "test_*",
+    "scenario_*"
+]
 
 [tool.ruff]
 line-length = 88
