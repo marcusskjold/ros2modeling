@@ -1,5 +1,5 @@
 import roserer.backeman
-import importlib.resources
+from importlib import resources
 from roserer.backeman.uppaal import UPPAAL
 from roserer.backeman.grapher import Grapher
 
@@ -373,15 +373,14 @@ class System():
         output = ""
         declarations_xml = self.gen_declaration()
         system_xml = self.gen_system()
-
-        f = importlib.resources.open_text(roserer.backeman, 'template.xml')
-        for ln in f.readlines():
-            if "!!!DECLARATIONS!!!" in ln:
-                output += declarations_xml
-            elif "!!!SYSTEM!!!" in ln:
-                output += system_xml
-            else:
-                output += ln
+        with resources.files(roserer.backeman).joinpath("template.xml").open("r", encoding="utf-8") as f:
+            for ln in f:
+                if "!!!DECLARATIONS!!!" in ln:
+                    output += declarations_xml
+                elif "!!!SYSTEM!!!" in ln:
+                    output += system_xml
+                else:
+                    output += ln
 
 
         fout = open(outfile, 'w')
