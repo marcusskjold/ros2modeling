@@ -10,7 +10,7 @@ def test_is_valid_value_dds_positive() -> None:
     assert is_valid_value("dds", "Generic") == []
     assert is_valid_value("dds", "Cyclone") == []
     assert is_valid_value("dds", "Fast") == []
-    assert is_valid_value("dds", "RTI Connext") == []
+    assert is_valid_value("dds", "Connext") == []
     assert is_valid_value("dds", "Gurum") == []
 
 
