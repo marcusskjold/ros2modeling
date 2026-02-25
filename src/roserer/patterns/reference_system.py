@@ -31,6 +31,7 @@ def add_cyclic_node(e: ros.Executor, name: str, wcet: int, cycle_time: int, inpu
     # https://github.com/ros-realtime/reference-system/blob/main/reference_system/include/reference_system/nodes/rclcpp/cyclic.hpp
     # And see that it is resets the cache after each read
     n = e.add_node(name=name)
+    p = n.add_publisher(topic=name)
     variables = []
     for inp in inputs:
         varname = inp + "_cache"
@@ -39,7 +40,6 @@ def add_cyclic_node(e: ros.Executor, name: str, wcet: int, cycle_time: int, inpu
         cbb = n.add_callback(0, write_variables=[v])
         n.add_subscription(topic=inp, callback=cbb)
 
-    p = n.add_publisher(topic=name)
     cb = n.add_callback(wcet, publishers=[p], read_variables=variables)
     n.add_timer(cycle_time, cb)
     return n
