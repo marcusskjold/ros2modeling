@@ -194,6 +194,7 @@ pyrightconfig.json
 .ionide
 
 # End of https://www.toptal.com/developers/gitignore/api/python,visualstudiocode
+.DS_Store
 
 ## backeman additions
 *-backeman.xml
@@ -210,3 +211,4 @@ out.yaml
 testgraph.svg
 testsys.svg
 ars.svg
+results/
