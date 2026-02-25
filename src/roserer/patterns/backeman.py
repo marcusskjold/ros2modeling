@@ -62,7 +62,6 @@ def add_timer(
         wcet: int,
         period: int,
         delay: int,
-        topic: str,
         subscribers: list[str],
         wcets: list[int]
         ) -> ros.Node:
