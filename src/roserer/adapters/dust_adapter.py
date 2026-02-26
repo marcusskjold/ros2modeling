@@ -334,19 +334,36 @@ def next_cb(typ : int):
 
 
 
-def map_data_sending(out: ds.System, parent_node : ros.Node, callback : ros.Callback, validations: validator.ValidationResult) -> tuple[int, list[int]]:
+def map_data_sending(out: ds.System,
+                     parent_node : ros.Node,
+                     callback : ros.Callback, 
+                     validations: validator.ValidationResult,
+                     interface_count : int = None, 
+                     interface_id_list : list[int] = None, 
+                     interface_release_times : list[int] = None,
+                     wcet : int = None)-> tuple[int, list[int], list[int], int]:
     # counter for numbers of interfaces posted to
-    interface_count = 0
+    if interface_count is None:
+        interface_count = 0
     # the id's of interfaces posted to. Order doesn't matter for our use case,
     # except we want to have specific timestamps -> implementation-detail rather?
-    interface_id_list = []
-
+    if interface_id_list is None:
+        interface_id_list = []
+    # timestamp at which a given topic is posted to
+    if interface_release_times is None:
+        interface_release_times = []
+    #TODO: make this updated, somehow -> must depend on outer-nested calls
+    if wcet is None:
+        wcet = callback.wcet
+    else:
+        wcet += callback.wcet
     # look for publishers
     for publisher in callback.publishers:
         # register sender
         interface_count += 1
         sender_id = next_sender()
         interface_id_list.append(sender_id)
+        interface_release_times.append(wcet)
 
         # find publisher-object with name <publisher>
         publisher_obj = parent_node.get_publisher(publisher)
@@ -368,6 +385,7 @@ def map_data_sending(out: ds.System, parent_node : ros.Node, callback : ros.Call
         interface_count += 1
         sender_id = next_sender()
         interface_id_list.append(sender_id)
+        interface_release_times.append(wcet)
 
         # map topic from client to server
         request = callback.request
@@ -390,14 +408,25 @@ def map_data_sending(out: ds.System, parent_node : ros.Node, callback : ros.Call
                 validations=validations)
 
         # map client's response-callback
-        map_client(
-                out=out,
-                receiver_id=client_receiver_id,
-                validations=validations,
-                request=request
-                )
-
-    return interface_count, interface_id_list
+        map_client(out=out, receiver_id=client_receiver_id, validations=validations, request=request)
+    
+    # if any nested calls: recursively map their sending and add it to parameters before return
+    if callback.calls is not None: #TODO: check that circularity of calls are validated against!!!!
+        nested_cb = parent_node.get_callback(callback.calls)
+        call_interface_count, call_interface_id_list, call_interface_release_times, call_wcet = map_data_sending(out=out,
+                                                                                                       parent_node=parent_node,
+                                                                                                       callback=nested_cb,
+                                                                                                       validations=validations,
+                                                                                                       interface_count=interface_count,
+                                                                                                       interface_id_list=interface_id_list,
+                                                                                                       interface_release_times=interface_release_times,
+                                                                                                       wcet=wcet
+                                                                                                       )
+        interface_count = call_interface_count
+        interface_id_list = call_interface_id_list
+        interface_release_times = call_interface_release_times
+        wcet = call_wcet 
+    return interface_count, interface_id_list, interface_release_times, wcet
 
 
 def map_subscriber_cb(
@@ -416,20 +445,16 @@ def map_subscriber_cb(
     for subscription in subscriptions:
         if subscription.topic == topic:
             # get sender info
-            interface_count, interface_id_list = map_data_sending(
-                    out=out,
-                    parent_node=node,
-                    callback=callback_obj,
-                    validations=validations
-                    )
+            interface_count, interface_id_list, interface_release_times, wcet = map_data_sending(out=out, parent_node=node,
+                                                                callback=callback_obj,validations=validations)
             # create callback
             out.add_data_callback(id= next_cb(SUBSCRIBER),
-                                  exec_time=callback_obj.wcet,
+                                  exec_time=wcet,
                                   topicID=receiver_id,
                                   type=SUBSCRIBER,
                                   buffersize=subscription.qos.depth,
                                   amount_of_publishers=interface_count,
-                                  publisher_release_time=[0],
+                                  publisher_release_time=interface_release_times,
                                   publisher_id=interface_id_list,
                                   executorID=nodes[node.name]
                                   )
@@ -522,19 +547,16 @@ def map_client(
     parent_node = validations.objects.callback[request.response]
     client_obj = parent_node.get_client(request.client)
     client_callback = parent_node.get_callback(request.response)
-    interface_count, interface_id_list = map_data_sending(
-            out=out,
-            parent_node=validations.objects.callback[client_callback.name],
-            callback=client_callback,validations=validations
-            )
+    interface_count, interface_id_list, interface_release_times, wcet = map_data_sending(out=out, parent_node=validations.objects.callback[client_callback.name],
+                                                        callback=client_callback,validations=validations)
     # add callback for client (upon receiving back from server)
     out.add_data_callback(id=next_cb(CLIENT), 
-                          exec_time=client_callback.wcet,
+                          exec_time=wcet,
                           topicID=receiver_id,
                           type=CLIENT,
                           buffersize=client_obj.qos.depth,
                           amount_of_publishers=interface_count,
-                          publisher_release_time=[0],
+                          publisher_release_time=interface_release_times,
                           publisher_id= interface_id_list,
                           executorID=nodes[parent_node.name]) #TODO: check how qos (requst vs. offered) is resolved
 
@@ -576,32 +598,32 @@ def map_node(out: ds.System, node: ros.Node, validations: validator.ValidationRe
     # case 1) timers
     for timer in node.timers:
         timer_cb = node.get_callback(timer.callback)
-        interface_count, interface_id_list = map_data_sending(out=out, parent_node=node,
+        interface_count, interface_id_list, interface_release_times, wcet = map_data_sending(out=out, parent_node=node,
                                                         callback=timer_cb,validations=validations)
         if timer.interval:
             # convert interval to list of release-times
             wt = get_interval_times(timer)
             out.add_sporadic_callback(id=next_cb(TIMER),
-                                      exec_time=timer_cb.wcet,
+                                      exec_time=wcet,
                                       length=len(wt),
                                       releases=wt,
                                       type=TIMER,
                                       buffersize=1, #TODO: make sure that this is 100 % the case?
                                       amount_of_publishers=interface_count,
-                                      publisher_release_time=[0],
+                                      publisher_release_time=interface_release_times,
                                       publisher_id=interface_id_list,
                                       executorID=nodes[node.name]
                                       )
         else:
             #TODO: for now 10 hardcoded as max-pub-size
             out.add_periodic_callback(id=next_cb(TIMER),
-                                      exec_time=timer_cb.wcet,
+                                      exec_time=wcet,
                                       period=timer.period,
                                       type=TIMER,
                                       offset=timer.offset,
                                       buffersize=1, #TODO: make sure that this is 100 % the case?
                                       amount_of_publishers=interface_count,
-                                      publisher_release_time=[0],
+                                      publisher_release_time=interface_release_times,
                                       publisher_id=interface_id_list,
                                       executorID=nodes[node.name]
                                       )
@@ -609,16 +631,16 @@ def map_node(out: ds.System, node: ros.Node, validations: validator.ValidationRe
     for service in node.services:
         if service.wall_times:
             service_callback = node.get_callback(service.callback)
-            interface_count, interface_id_list = map_data_sending(out=out, parent_node=node,
+            interface_count, interface_id_list, interface_release_times, wcet = map_data_sending(out=out, parent_node=node,
                                                         callback=service_callback,validations=validations)
             out.add_sporadic_callback(id=next_cb(SERVICE),
-                                      exec_time=service_callback.wcet,
+                                      exec_time=wcet,
                                       length=len(service.wall_times),
                                       type=SERVICE,
                                       releases=service.wall_times,
                                       buffersize=service.qos.depth, #TODO: make sure that this is 100 % the case?
                                       amount_of_publishers=interface_count,
-                                      publisher_release_time=[0],
+                                      publisher_release_time=interface_release_times,
                                       publisher_id=interface_id_list,
                                       executorID=nodes[node.name]
                                       )
@@ -626,16 +648,16 @@ def map_node(out: ds.System, node: ros.Node, validations: validator.ValidationRe
     for subscription in node.subscriptions:
         if subscription.wall_times:
             subscription_callback = node.get_callback(subscription.callback)
-            interface_count, interface_id_list = map_data_sending(out=out, parent_node=node,
+            interface_count, interface_id_list, interface_release_times, wcet = map_data_sending(out=out, parent_node=node,
                                                         callback=subscription_callback,validations=validations)
             out.add_sporadic_callback(id=next_cb(SUBSCRIBER),
-                                      exec_time=subscription_callback.wcet,
+                                      exec_time=wcet,
                                       length=len(subscription.wall_times),
                                       type=SUBSCRIBER,
                                       releases=subscription.wall_times, 
                                       buffersize=subscription.qos.depth, #TODO: make sure that this is 100 % the case?
                                       amount_of_publishers=interface_count,
-                                      publisher_release_time=[0],
+                                      publisher_release_time=interface_release_times,
                                       publisher_id=interface_id_list,
                                       executorID=nodes[node.name]
                                       )
