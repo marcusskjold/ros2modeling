@@ -540,15 +540,15 @@ def validate_callback_references(
         ) -> list[str]:
     """
     A callback is well formed, with respect to its references to other callbacks, if:
-    - it's calls only refers to vaild callbacks owned by the parent node
+    - it's 'calls' refers to a valid callback owned by the parent node
     - Any request refer to a client owned by the parent node
     - Any response to a request refers to a defined, valid callback
     """
     feedback = []
     name = callback.name
-    for called_name in callback.calls:
-           feedback += verify_registration(
-                   called_name, "callback", parent, name, objects)
+    if callback.calls is not None:
+            feedback += verify_registration(
+                   callback.calls, "callback", parent, name, objects)
     if callback.request is not None:
             request = callback.request
             feedback += verify_registration(

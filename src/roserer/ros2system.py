@@ -86,7 +86,7 @@ class Callback():
     wcet: TimeUnit
     read_variables: list[Variable]
     write_variables: list[Variable]
-    calls: list[str]
+    calls: str
     publishers: list[str]
     external_outputs: list[ExternalOutput]
     request: Request | None
@@ -97,7 +97,7 @@ class Callback():
             wcet: int,
             read_variables: list[Variable] | None = None,
             write_variables: list[Variable] | None = None,
-            calls: list[str] | None = None,
+            calls: str | None = None,
             external_outputs: list[ExternalOutput] | None = None,
             publishers: list[str] | None = None,
             request: Request | None = None
@@ -106,7 +106,7 @@ class Callback():
         self.wcet = wcet
         self.read_variables = _empty_list_init(read_variables)
         self.write_variables = _empty_list_init(write_variables)
-        self.calls = _empty_list_init(calls)
+        self.calls = calls
         self.publishers = _empty_list_init(publishers)
         self.external_outputs = _empty_list_init(external_outputs)
         self.request = request
@@ -232,7 +232,7 @@ class Node():
             name: str | None = None,
             read_variables: list[Variable] | None = None,
             write_variables: list[Variable] | None = None,
-            calls: list[str] | None = None,
+            calls: str | None = None,
             outputs: list[ExternalOutput] | None = None,
             publishers: list[Publisher] | None = None,
             request: Request | None = None
