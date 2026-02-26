@@ -28,13 +28,7 @@ def validate_qos(component_name : str, qos : ros.QoS) -> list[str]:
     
 
 
-#TODO: add validations that wall_times are used properly (noone posts to a topic with 
-#      wall_times). If one sub has wall_times, then other subs to same topics should 
-#      also have same wall_times (should maybe be in sys_validator)
-
-#TODO: This could perhaps return an object that can have validations (and maybe 
-#      counters) etc. as fields
-#TODO: think about errors similarly to other adapter
+#TODO: This could perhaps return an object that can have validations (and maybe counters) etc. as fields
 def validate_system(system : ros.System,
                     validations : validator.ValidationResult
                     )-> tuple[list[str],list[str]]:
@@ -52,6 +46,9 @@ def validate_system(system : ros.System,
         warnings += unspecified_warning("DDS-implementation")
     if len(system.hosts) > 1:
         warnings += unspecified_warning("distribution of the system between hosts")
+        warnings += [f"This model expects 100 % thread availability for each executor in the host operating system. "
+                     f"If this is not the case, then there might be errors in the system not "
+                     f"covered by this model"]
     for host in system.hosts:
         errs, warns = validate_host(host, validations)
         errors += errs
@@ -67,9 +64,7 @@ def validate_host(host : ros.Host,
     - Assumes 100 % thread-availability for each executor (p. 311)
     """
     errors: list[str] = []
-    warnings: list[str] = [f"This model expects 100 % thread availability for each executor in the host operating system. "
-                           f"If this is not the case, then there might be errors in the system not "
-                           f"covered by this model"]
+    warnings: list[str] = []
 
     if host.default_distribution not in VALID_ROS_DISTRIBUTIONS["V1"] \
     and host.default_distribution not in VALID_ROS_DISTRIBUTIONS["V2"]:
@@ -126,7 +121,7 @@ def validate_node(node : ros.Node,
     a valid Node:
     - Doesn't contain any actions (TODO: is this the case?)
     - Doesn't consider read/write-variables
-    - TODO: what about external i/o?
+    - Doesn't consider external i/o
     """
     errors: list[str] = []
     warnings: list[str] = []
@@ -222,8 +217,6 @@ def validate_callback(callback : ros.Callback,
     """
     A valid Callback:
     - does not consider read-variables and write-variables
-    - if it contains wall_times, not other callback is sending messages to the 
-      triggering interface
     """
     errors: list[str] = []
     warnings: list[str] = []
