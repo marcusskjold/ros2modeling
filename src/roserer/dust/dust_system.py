@@ -75,17 +75,17 @@ class UppaalTemplate(ABC):
 
 
 class ExecutorV1(UppaalTemplate):
-    def __init__(self, id : int, stopTime : int):
+    def __init__(self, id : int):
         self.id = id
-        self.stopTime = stopTime
+        self.stopTime = "StopTime"
     
     def name(self):
         return "ExecV1_" + str(self.id)
 
 class ExecutorV2(UppaalTemplate):
-    def __init__(self, id : int, stopTime : int):
+    def __init__(self, id : int):
         self.id = id
-        self.stopTime = stopTime
+        self.stopTime = "StopTime"
     
     def name(self):
         return "ExecV2_" + str(self.id)
@@ -220,11 +220,11 @@ class System():
                 raise ValueError("provided component_type not included among templates \
                         in this model!")
 
-    def add_executor_v1(self, id : int, stoptime : int):
-        self.executors.append(ExecutorV1(id, stoptime))
+    def add_executor_v1(self, id : int):
+        self.executors.append(ExecutorV1(id))
 
-    def add_executor_v2(self, id : int, stoptime : int):
-        self.executors.append(ExecutorV2(id, stoptime))
+    def add_executor_v2(self, id : int):
+        self.executors.append(ExecutorV2(id))
     
     def add_topic(self,
                   receiver_id : int,
@@ -343,13 +343,13 @@ class System():
         self.const_sizes["MAXPUB"] = self.get_max_pubs()
 
 
-
-    #TODO: Have the constants replaced in decl.-file
-    def gen_declaration(self) -> str:
+    # generates constant-declarations for system
+    def gen_declaration(self, stop_time : int = -1) -> str:
         # updates environment of constant-sizes
         self.gen_const_sizes()
         s = ""
         # applies constant sizes
+        s += "const int StopTime = " + str(stop_time) + ";\n"
         s += "const int MAX = " + str(self.const_sizes["MAX"]) + ";\n"
         s += "const int MAXX = " + str(self.const_sizes["MAXX"]) + ";\n"
         s += "const int MAXTOPICS = " + str( self.const_sizes["MAXTOPICS"]) + ";\n" #TODO: maybe 0 not very good?
@@ -360,44 +360,51 @@ class System():
             s += c.declaration(self.const_sizes)
         return s
 
-    def gen_system(self) -> str:
+    # generates instantiations in system-declaration
+    def gen_system(self, prioritized=True) -> str:
         s = ""
         components: list[UppaalTemplate] = self.executors + self.topics + self.callbacks
         for c in components:
             s += c.system()
+        s += "system "
+        # if callbacks released at scheduling time
+        if prioritized:
+            components = self.topics + self.callbacks
+            exec_names = [exe.name() for exe in self.executors]
+            s += ','.join(exec_names) + " &lt; " # translates to "<" in UPPAAL
         component_names = [c.name() for c in components]
-        s += "system " + ','.join(component_names) + ";\n"
+        s += ','.join(component_names) + ";\n"
         return s
 
-    def buffer_overflow(self):
-        self.write(INPUT_UPPAAL_FILE, OUTPUT_UPPAAL_FILE)
+    def buffer_overflow(self, prioritized : bool = True, stop_time : int = -1):
+        self.write(infile=INPUT_UPPAAL_FILE, outfile=OUTPUT_UPPAAL_FILE, prioritized=prioritized, stop_time=stop_time)
         checkables : list[UppaalTemplate] = self.topics + self.callbacks
         checkables_names = [c.name() for c in checkables]
         return UPPAAL.buffer_overflow(OUTPUT_UPPAAL_FILE, checkables_names)
     
     # assumes NO bufferoverflow or result will be trivially the size of the buffer
-    def max_buffer_size(self):
-        self.write(INPUT_UPPAAL_FILE, OUTPUT_UPPAAL_FILE)
+    def max_buffer_size(self, prioritized : bool = True, stop_time : int = -1):
+        self.write(infile=INPUT_UPPAAL_FILE, outfile=OUTPUT_UPPAAL_FILE, prioritized=prioritized, stop_time=stop_time)
         checkables = self.topics + self.callbacks
         checkables_names = [c.name() for c in checkables]
         return UPPAAL.max_buffer_size(OUTPUT_UPPAAL_FILE, checkables_names)
     
-    def max_latency(self):
-        self.write(INPUT_UPPAAL_FILE, OUTPUT_UPPAAL_FILE)
+    def max_latency(self, prioritized : bool = True, stop_time : int = -1):
+        self.write(infile=INPUT_UPPAAL_FILE, outfile=OUTPUT_UPPAAL_FILE, prioritized=prioritized, stop_time=stop_time)
         checkables_names = [c.name() for c in self.callbacks]
         return UPPAAL.max_latency(OUTPUT_UPPAAL_FILE, checkables_names)
     
-    def max_latency_trace(self, max_latencies: dict | None= None):
-        self.write(INPUT_UPPAAL_FILE, OUTPUT_UPPAAL_FILE)
+    def max_latency_trace(self, max_latencies : dict | None = None, prioritized : bool = True, stop_time : int = -1):
+        self.write(infile=INPUT_UPPAAL_FILE, outfile=OUTPUT_UPPAAL_FILE, prioritized=prioritized, stop_time=stop_time)
         checkables_names = [c.name() for c in self.callbacks]
         return UPPAAL.max_latency_trace(
                 OUTPUT_UPPAAL_FILE, checkables_names, max_latencies)
     
     #TODO: Extract into common utils lib
-    def write(self, infile : str, outfile : str):
+    def write(self, infile : str, outfile : str, prioritized : bool = True, stop_time : int = -1):
         output = ""
-        declarations_xml = self.gen_declaration()
-        system_xml = self.gen_system()
+        declarations_xml = self.gen_declaration(stop_time)
+        system_xml = self.gen_system(prioritized)
 
         # *Added to make sure location is read properly as per
         __location__ = os.path.realpath(
