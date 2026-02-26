@@ -649,6 +649,7 @@ def validate_subscription(
     if feedback != []:
         return feedback
     feedback += validate_qos(subscription.qos, pname)
+    #If triggered by wall_times, its topic is additionally registered in topics published to
     wt_triggered = True if subscription.wall_times else False
     feedback += add_interface(subscription.topic, subscription.callback,
                               "Topic", "topics subscribed to", interfaces, wt_triggered)
@@ -657,8 +658,6 @@ def validate_subscription(
                                     "callback", parent, pname, objects)
     if subscription.wall_times:
         feedback+= validate_wall_times(subscription.name, subscription.wall_times)
-        #for subscription in 
-
     return feedback
 
 
