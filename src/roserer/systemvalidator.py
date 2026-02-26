@@ -662,7 +662,7 @@ def validate_service(
         ) -> list[str]:
     """
     A service is well formed if:
-    - It has a name
+    - It has a unique name
     - It is only owned by one node
     - It has a valid quality of service profile
     - It calls a callback that is owned by the same node
@@ -855,6 +855,7 @@ def validate_system(system: ros.System) -> ValidationResult:
     - It has a valid dds
     - It has at least one host
     - All hosts are well formed
+    - All hosts forms a connected network of inter-node-communication
     - There is a server offering each service that a client requests
     - There is a publisher to each topic that a subscriber subscribes to
     """
