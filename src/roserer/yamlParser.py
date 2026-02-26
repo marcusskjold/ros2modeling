@@ -48,8 +48,8 @@ def parse_timers(ros_node: ros.Node, yaml_timers: dict) -> None:
         if 'begin' not in timer and 'end' in timer:
             timer_args['interval'] = (0, timer['end'])
         if 'begin' in timer and 'end' not in timer:
-            raise SyntaxError("A timer with begin-time must have an end-time")
-            # TODO: do we want to enforce this???
+            raise SyntaxError(f"A timer inside node, {ros_node.name} has a begin-time but no end time. "
+                              f"If you want a begin-time with no end-time, use 'offset'-attribute instead")
         ros_node.add_timer(**timer_args)
 
 
