@@ -673,9 +673,9 @@ def map_executor(out: ds.System, executor: ros.Executor) -> None:
     # get id
     id = next_exec()
     if executor.ros_distribution in VALID_ROS_DISTRIBUTIONS["V2"]:
-        out.add_executor_v2(id, -1)
+        out.add_executor_v2(id)
     else:
-        out.add_executor_v1(id, -1)
+        out.add_executor_v1(id)
     # register the executor_id for each node
     for node in executor.nodes:
         nodes[node.name] = id
