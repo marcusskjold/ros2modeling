@@ -541,14 +541,50 @@ def validate_callback_references(
     """
     A callback is well formed, with respect to its references to other callbacks, if:
     - it's 'calls' refers to a valid callback owned by the parent node
+    - it's 'calls' doesn't form a circular chain
     - Any request refer to a client owned by the parent node
     - Any response to a request refers to a defined, valid callback
     """
     feedback = []
     name = callback.name
+
+    # recursively:
+    # 1) checks registrations of cb's in calls, 
+    # 2) checks for circularity in calls, 
+    # 3) and adds the root-callback, cb, to the interface-array for all its nested calls
+    def validate_call_chain(cb : ros.Callback) -> list[str]:
+        fb = []
+        root_name = cb.name
+        call_chain = [root_name]
+        while cb.calls is not None:
+            # 1)
+            fb += verify_registration(
+                   cb.calls, "callback", parent, name, objects)
+            if fb != []:
+                break
+            nested_callback = parent.get_callback(cb.calls)
+            # 2)
+            if nested_callback.name in call_chain:
+                fb += [f"The chain of calls, {call_chain}, is circular. Ensure acyclic chain "
+                             f"of calls between callbacks."]
+                break
+            call_chain.append(nested_callback.name)
+            # 3)
+            cb = nested_callback
+            for publisher in cb.publishers:
+                interfaces["topics published to"][parent.get_publisher(publisher).topic].append(root_name)
+            for read in cb.read_variables:
+                read: ros.Variable
+                interfaces["variables read from"][read.name].append(root_name)
+            for write in cb.write_variables:
+                write: ros.Variable
+                interfaces["variables written to"][write.name].append(root_name)
+
+        return fb
+
+
     if callback.calls is not None:
-            feedback += verify_registration(
-                   callback.calls, "callback", parent, name, objects)
+            feedback += validate_call_chain(callback)
     if callback.request is not None:
             request = callback.request
             feedback += verify_registration(
@@ -764,7 +800,11 @@ def validate_node(
 
     # one more iteration for validating (potential) references to other callbacks
     for callback in node.callbacks:
-        validate_callback_references(callback, node, objects, interfaces)
+        fb = validate_callback_references(callback, node, objects, interfaces)
+        feedback += fb
+        # avoid redundant feedbacks on cyclic references
+        if fb != []:
+            break
 
     used_publishers = [publisher  
                        for callback in node.callbacks
