@@ -159,11 +159,21 @@ def validate_timer(timer : ros.Timer,
     A valid Timer:
     - Has a period larger than the wcet of its callback
     """
+    # gets sum of wcet of nested calls
+    def full_wcet(cb : ros.Callback, prnt : ros.Node) -> int:
+        wcet = cb.wcet
+        while cb.calls is not None:
+            nested_cb = prnt.get_callback(cb.calls)
+            cb = nested_cb
+            wcet+= cb.wcet
+        return wcet
+
     errors: list[str] = []
     warnings: list[str] = []
     parent = validations.objects.timer[timer.name]
     timer_callback = parent.get_callback(timer.callback)
-    if timer.period < timer_callback.wcet:
+    wcet = full_wcet(timer_callback, parent)
+    if timer.period < wcet:
         errors += [f"This model assumes fixed execution-time (equal to wcet). Make sure that wcet < period,"
                    f"or otherwise a bufferoverflow will trivially occur."]
     return errors, warnings
