@@ -301,12 +301,12 @@ CLIENT = 3
 #env from (python) name to exec-id (Uppaal)
 nodes : dict[str,int] = {}
 
-# convert interval to wall-times
+# convert interval to wall-times (includes end of interval)
 def get_interval_times(timer : ros.Timer) -> list[int]:
     if timer.interval is None:
         raise ValueError("Timer does not have specified intervals")
     wall_times = []
-    for wt in range(timer.interval[0]+timer.offset, timer.interval[1], timer.period):
+    for wt in range(timer.interval[0]+timer.offset, timer.interval[1]+1, timer.period):
         wall_times.append(wt)
     return wall_times
 
