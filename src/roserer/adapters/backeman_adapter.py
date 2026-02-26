@@ -222,7 +222,6 @@ def validate_node(node: ros.Node
         publishers = len(callback.publishers)
         reads = len(callback.read_variables)
         writes = len(callback.write_variables)
-        calls = len(callback.calls)
 
         if publishers == 1:
             main_tasks += 1
@@ -241,7 +240,7 @@ def validate_node(node: ros.Node
         if writes > 1:
             errors += [f"Callback '{callback.name}' writes to more than "
                        "one variable"]
-        if calls > 0:
+        if callback.calls is not None:
             errors += [f"Callback '{callback.name}' calls more than "
                        "one callback"]
     if main_tasks > 1:
