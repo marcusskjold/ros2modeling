@@ -40,7 +40,7 @@ class UppaalTemplate(ABC):
         ar += ",".join([str(elem) for elem in list_param])
         return ar + "}"
     
-    # generate declaration for declarations-file in UPPAAL
+    # generate declaration for declarations-file in UPPAAL (necessary arrays)
     def declaration(self, const_sizes : dict = None) -> str:
         decl = ""
         variables = vars(self).items()
@@ -298,12 +298,12 @@ class System():
                   amount_of_publishers, publisher_release_time, publisher_id, executorID))
 
 
-    # if size is 0, makes it 1 instead
-    def adapt_to_min(self, size : int) -> int:
-        if size == 0:
+    # for sizeconstants: if size is 0, makes it 1 instead
+    def adapt_to_min(self, const_size : int) -> int:
+        if const_size == 0:
             return 1
         else:
-            return size
+            return const_size
           
     # get the maximum number of callbacks of a single type in the system
     def get_max_cb_type(self)-> int:
@@ -319,7 +319,7 @@ class System():
         #get list of releases
         wall_timers = [cb.releases for cb in self.callbacks if isinstance(cb,SporadicCallback)]
         #return longest instance
-        return self.adapt_to_min(len(max(wall_timers, key=len, default=1)))
+        return self.adapt_to_min(len(max(wall_timers, key=len, default=[0])))
     
     # get number of topics (set to one if no occurences)
     def get_topics_size(self) -> int:
