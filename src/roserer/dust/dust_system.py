@@ -17,10 +17,10 @@ ARRAY_SIZES = {
 cb_types = ("TIMER", "SERVICE", "SUBSCRIBER", "CLIENT")
 
 # adds trailing 0'es to list till it has size n
-def adapt_list_size(l : list[int], n):
-    if len(l) < n:
-        l.extend([0] * (n - len(l)))
-    return l
+def adapt_list_size(li: list[int], n: int):
+    if len(li) < n:
+        li.extend([0] * (n - len(li)))
+    return li
 
 # common functionality for all python-UPPAAL-mappings
 class UppaalTemplate(ABC):
