@@ -4,7 +4,7 @@ System:
   - host:
     executors:
     - nodes:
-      - node_1:
+      - node: node_1
         publishers:
         - publisher: pub_1
           topic: topic_1

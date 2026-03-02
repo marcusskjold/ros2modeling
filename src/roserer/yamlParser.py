@@ -2,9 +2,36 @@ import roserer.ros2system as ros
 # from roserer.qos import QoS
 from ruamel.yaml import YAML
 
+VALID_ATTRIBUTES = {
+    'system' : ['system', 'dds_implementation', 'default_qos', 'default_distribution', 'hosts'],
+    'host' : ['host', 'architecture', 'operating_system', 'default_qos', 'default_distribution', 'executors'],
+    'executor' : ['executor', 'ros_distribution', 'implementation', 'default_qos', 'nodes'],
+    'node' : ['node', 'default_qos', 'publishers','callbacks', 'subscriptions', 'variables', 'timers', 'services', 'external_inputs', 'external_outputs', 'clients'],
+    'callback' : ['callback', 'wcet', 'read_variables', 'write_variables', 'calls', 'publishers', 'external_outputs', 'request'],
+    'publisher' : ['publisher', 'topic', 'qos'],
+    'timer' : ['timer', 'period', 'offset', 'callback', 'begin', 'end'],
+    'subscription' : ['subscription', 'topic', 'callback', 'qos', 'wall_times'],
+    'service' : ['service', 'callback', 'qos', 'wall_times'],
+    'client' : ['client', 'service', 'qos'],
+    'request' : ['client', 'response'],
+    'external_input' : ['external_input', 'callback'],
+    'external_output' : ['external_output'],
+    'variable' : ['variable', 'reset_after_read', 'condition']
+}
+
+def validate_yaml_attributes(component_type : str, yaml_object : dict) -> None:
+    '''
+    checks that the attributes of the yaml_object of type 'component_type' are all valid.
+    '''
+    for attribute in yaml_object.keys():
+        if attribute not in VALID_ATTRIBUTES[component_type]:
+            raise TypeError(f"One {component_type} contains invalid attribute-name, '{attribute}'. "
+                            f"Only the following attributes are valid for a {component_type}: "
+                            f"{VALID_ATTRIBUTES[component_type]}")
 
 def parse_services(ros_node: ros.Node, yaml_services: dict) -> None:
     for service in yaml_services:
+        validate_yaml_attributes("service", service)
         service_args = {k: service[k] for k in service.keys()
                         & {'qos', 'wall_times'}}
         if 'service' in service:
@@ -19,6 +46,7 @@ def parse_services(ros_node: ros.Node, yaml_services: dict) -> None:
 
 def parse_subscriptions(ros_node: ros.Node, yaml_subscriptions: dict) -> None:
     for subscription in yaml_subscriptions:
+        validate_yaml_attributes("subscription", subscription)
         subscription_args = {k: subscription[k] for k in subscription.keys()
                              & {'topic', 'qos', 'wall_times'}}
         if 'subscription' in subscription:
@@ -33,6 +61,7 @@ def parse_subscriptions(ros_node: ros.Node, yaml_subscriptions: dict) -> None:
 
 def parse_timers(ros_node: ros.Node, yaml_timers: dict) -> None:
     for timer in yaml_timers:
+        validate_yaml_attributes("timer", timer)
         timer_args = {k: timer[k] for k in timer.keys()
                       & {'period', 'offset'}}
         if 'timer' in timer:
@@ -55,6 +84,7 @@ def parse_timers(ros_node: ros.Node, yaml_timers: dict) -> None:
 
 def parse_external_inputs(ros_node: ros.Node, yaml_external_inputs: dict) -> None:
     for external_input in yaml_external_inputs:
+        validate_yaml_attributes("external_input", external_input)
         external_input_args = {
                 'name' : external_input['external_input']
                 } if 'external_input' in external_input else {}
@@ -68,6 +98,7 @@ def parse_external_inputs(ros_node: ros.Node, yaml_external_inputs: dict) -> Non
 
 def parse_external_outputs(ros_node: ros.Node, yaml_external__outputs: dict) -> None:
     for external_output in yaml_external__outputs:
+        validate_yaml_attributes("external_output", external_output)
         external_output_args = {
                 'name' : external_output['external_output']
                 } if 'external_output' in external_output else {}
@@ -76,17 +107,22 @@ def parse_external_outputs(ros_node: ros.Node, yaml_external__outputs: dict) -> 
 
 def parse_variables(ros_node: ros.Node, yaml_variables: dict) -> None:
     for variable in yaml_variables:
-        variable_args = {'name' : variable}
+        validate_yaml_attributes("variable", variable)
+        variable_args = {k: variable[k] for k in variable.keys()
+                         & {'reset_after_read', 'condition'}}
+        if 'variable' in variable:
+            variable_args['name'] = variable['variable']
         ros_node.add_variable(**variable_args)
 
 
 def parse_callbacks(ros_node: ros.Node, yaml_callbacks: dict) -> None:
     for callback in yaml_callbacks:
+        validate_yaml_attributes("callback", callback)
         callback_args = {k: callback[k] for k in callback.keys()
                          & {'wcet', 'calls'}}
         if 'callback' in callback:
             callback_args['name'] = callback['callback']
-        if 'publishers' in callback: # TODO: maybe validate args here?
+        if 'publishers' in callback: 
             callback_args['publishers'] = [ros_node.get_publisher(publisher['publisher']) for publisher in callback['publishers']]
         if 'external_outputs' in callback:
             # get list of output-names in current yaml-callback
@@ -107,6 +143,7 @@ def parse_callbacks(ros_node: ros.Node, yaml_callbacks: dict) -> None:
         if 'request' in callback:
             # add the request with the key-value pair of its content
             request_yaml = callback['request']
+            validate_yaml_attributes("request", request_yaml)
             request_args = {k: request_yaml[k] for k in request_yaml.keys()
                          & {'client', 'response'}}
             callback_args['request'] = ros.Request(**request_args)
@@ -115,6 +152,7 @@ def parse_callbacks(ros_node: ros.Node, yaml_callbacks: dict) -> None:
 
 def parse_clients(ros_node: ros.Node, yaml_clients: dict) -> None:
     for client in yaml_clients:
+        validate_yaml_attributes("client", client)
         client_args = {k: client[k] for k in client.keys() & {'service', 'qos'}}
         if 'client' in client:
             client_args['name'] = client['client']
@@ -123,6 +161,7 @@ def parse_clients(ros_node: ros.Node, yaml_clients: dict) -> None:
 
 def parse_publishers(ros_node: ros.Node, yaml_publishers: dict) -> None:
     for publisher in yaml_publishers:
+        validate_yaml_attributes("publisher", publisher)
         publisher_args = {k: publisher[k] for k in publisher.keys() & {'qos','topic'}}
         if 'publisher' in publisher:
             publisher_args['name'] = publisher['publisher']
@@ -131,6 +170,7 @@ def parse_publishers(ros_node: ros.Node, yaml_publishers: dict) -> None:
 
 def parse_nodes(ros_executor: ros.Executor, yaml_nodes: dict) -> None:
     for node in yaml_nodes:
+        validate_yaml_attributes("node", node)
         node_args = {k: node[k] for k in node.keys() & {'default_qos'}}
         if 'node' in node:
             node_args['name'] = node['node']
@@ -167,6 +207,7 @@ def parse_nodes(ros_executor: ros.Executor, yaml_nodes: dict) -> None:
 #recursively call this with current ros-object and current part of yaml-dict
 def parse_executors(ros_host: ros.Host, yaml_execs: dict) -> None:
     for executor in yaml_execs:
+        validate_yaml_attributes("executor", executor)
         exec_args = {k: executor[k] for k in executor.keys() 
                      & {'ros_distribution','implementation', 'default_qos'}}
         if 'executor' in executor:
@@ -178,11 +219,13 @@ def parse_executors(ros_host: ros.Host, yaml_execs: dict) -> None:
 
 def parse_hosts(ros_system: ros.System, yaml_hosts: dict) -> None:
     for host in yaml_hosts:
+        # checks that all attributes are valid
+        validate_yaml_attributes("host", host)
         #conditionally populating arguments for adding host
         host_args = {k: host[k] for k in host.keys()
                      & {'operating_system', 'architecture', 
                         'default_qos', 'default_distribution'}}
-            #change key 'name' to 'host'
+        #change key 'name' to 'host'
         if 'host' in host:
             host_args['name'] = host['host']
         #instantiate system-instance from args
@@ -194,6 +237,7 @@ def parse_hosts(ros_system: ros.System, yaml_hosts: dict) -> None:
 
 
 def parse_system(yaml_system: dict) -> ros.System:
+    validate_yaml_attributes("system", yaml_system)
     system_args = {k: yaml_system[k] for k in yaml_system.keys()
                    & {'dds_implementation', 'default_qos', 'default_distribution'}}
     if 'system' in yaml_system:
