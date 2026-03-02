@@ -71,10 +71,10 @@ def add_cb(graph: AGraph, cb: ros.Callback):
                 style="dashed",
                 penwidth=SPEN,
                 )
-    for call in cb.calls:
+    if cb.calls is not None:
         graph.add_edge(
                 cb.name,
-                call,
+                cb.calls,
                 arrowsize=ARWSZ,
                 color=ARWCLR,
                 penwidth=PENWDTH,
