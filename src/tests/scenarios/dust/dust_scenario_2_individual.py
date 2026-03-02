@@ -25,5 +25,5 @@ else:
         print(dust_system.gen_declaration())
         print(dust_system)
         print(dust_system.gen_system())
-    
-        print(dust_system.max_latency(stopTime=90))
+        # uses state-space saving strategy.
+        print(dust_system.max_latency(stop_time=90))
