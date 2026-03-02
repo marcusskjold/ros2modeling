@@ -1,0 +1,19 @@
+System:
+  system: test_validate_calls_detects_cycle
+  hosts:
+  - host:
+    executors:
+    - nodes:
+      - callbacks:
+        - callback: cb
+          wcet : 5
+          calls : nested_cb
+        - callback: nested_cb
+          wcet : 5
+          calls : nested_nested_cb
+        - callback : nested_nested_cb
+          wcet : 5
+          calls : cb
+        timers:
+        - period: 10
+          callback: cb
