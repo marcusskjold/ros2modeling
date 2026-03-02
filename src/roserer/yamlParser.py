@@ -83,9 +83,11 @@ def parse_variables(ros_node: ros.Node, yaml_variables: dict) -> None:
 def parse_callbacks(ros_node: ros.Node, yaml_callbacks: dict) -> None:
     for callback in yaml_callbacks:
         callback_args = {k: callback[k] for k in callback.keys()
-                         & {'wcet', 'calls', 'publishers'}}
+                         & {'wcet', 'calls'}}
         if 'callback' in callback:
             callback_args['name'] = callback['callback']
+        if 'publishers' in callback: # TODO: maybe validate args here?
+            callback_args['publishers'] = [ros_node.get_publisher(publisher['publisher']) for publisher in callback['publishers']]
         if 'external_outputs' in callback:
             # get list of output-names in current yaml-callback
             yaml_names = [external_output['external_output']
