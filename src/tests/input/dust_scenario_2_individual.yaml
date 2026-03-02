@@ -1,8 +1,8 @@
 System:
   system: dust_scenario_2_individual
+  default_distribution: Humble
   hosts:
   - host: 
-    default_distribution: Humble
     executors:
     - implementation: SingleThreadedExecutor
       nodes:
