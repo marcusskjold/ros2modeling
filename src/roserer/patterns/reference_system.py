@@ -20,8 +20,8 @@ def add_fusion_node(e: ros.Executor, name: str, wcet: int, sub_topic1: str, sub_
     v1 = n.add_variable(reset_after_read=True, condition=True)
     v2 = n.add_variable(reset_after_read=True, condition=True)
     cb3 = n.add_callback(wcet=wcet, read_variables=[v1, v2], publishers=[p])
-    cb1 = n.add_callback(0, write_variables=[v1], calls=[cb3.name])
-    cb2 = n.add_callback(0, write_variables=[v2], calls=[cb3.name])
+    cb1 = n.add_callback(0, write_variables=[v1], calls=cb3.name)
+    cb2 = n.add_callback(0, write_variables=[v2], calls=cb3.name)
     n.add_subscription(topic=sub_topic1, callback=cb1)
     n.add_subscription(topic=sub_topic2, callback=cb2)
     return n
