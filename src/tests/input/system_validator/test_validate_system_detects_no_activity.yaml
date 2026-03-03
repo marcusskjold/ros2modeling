@@ -1,0 +1,22 @@
+System:
+  system: test_validate_system_detects_no_activity
+  hosts:
+  - host:
+    executors:
+    - nodes:
+      - node: node_1
+        callbacks: 
+        - callback: cb_1 # This callback will never be called
+          wcet : 5
+          publishers:
+          - publisher: pub_1
+        - callback: cb_2
+          wcet: 5
+        subscriptions:
+        - subscription: sub_1
+          callback: cb_2
+          topic: topic_1
+          wall_times: [1,2,3]
+        publishers:
+        - publisher: pub_1
+          topic: topic_1

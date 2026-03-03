@@ -1,0 +1,59 @@
+System:
+  system: test_validation_results_detects_nested_service_cycle
+  hosts:
+  # TODO: include service-cycle here?
+  - host:
+    executors:
+    - nodes:
+      - node: node_1
+        # publishers:
+        # - publisher: pub_1
+        #   topic: topic_1
+        callbacks:
+        - callback: cb
+          wcet : 5
+          calls : nested_cb
+        - callback: nested_cb
+          wcet : 5
+          # publishers:
+          # - publisher: pub_1
+          request:
+            client: client_1
+            response: cb
+
+        # - callback : nested_nested_cb
+        #   wcet: 5
+        #   request:
+        #     client: client_1
+        #     response: response_cb
+        # - callback: response_cb
+        #   wcet: 5
+        timers:
+        - period: 10
+          callback: cb
+        # subscriptions:
+        #   - subscription: sub_2
+        #     topic: topic_1
+        #     callback: cb
+        clients: 
+        - client: client_1
+          service: service_1
+
+      - node: node_2
+        # publishers:
+        # - publisher: pub_2
+        #   topic: topic_1
+        callbacks:
+        - callback: service_cb 
+          wcet: 5
+        # - callback: sub_cb
+        #   wcet: 5
+        #   publishers:
+        #   - publisher: pub_2
+        # subscriptions: 
+        # - subscription: sub_1
+        #   topic: topic_1
+        #   callback: sub_cb
+        services:
+        - service: service_1
+          callback: service_cb

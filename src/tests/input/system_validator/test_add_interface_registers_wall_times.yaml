@@ -1,0 +1,24 @@
+System:
+  system: test_add_interface_registers_wall_times
+  hosts:
+  - host:
+    executors:
+    - nodes:
+      - node: node_1
+        callbacks:
+        - callback: cb_1
+          wcet : 5
+        subscriptions:
+        - subscription: sub_1
+          callback: cb_1
+          topic: topic_1
+          wall_times: [1,2,3]
+
+      - node: node_2
+        callbacks:
+        - callback: cb_2
+          wcet: 5
+        services:
+        - service: service_1
+          callback: cb_2
+          wall_times: [4,5,6]

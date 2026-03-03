@@ -1,6 +1,7 @@
 from roserer.systemvalidator import is_valid_value
 import roserer.yamlParser as yparser
 import roserer.systemvalidator as sv
+import pytest as pt
 
 
 def test_is_valid_value_dds_positive() -> None:
@@ -66,4 +67,46 @@ def test_validate_calls_registers_root() -> None:
         "variables written to" : 
             {}
     }
+    # TODO: might as well check graph-object here?
     assert val_result.interfaces == expected_interf
+
+def test_add_interface_registers_wall_times() -> None:
+    """
+    Tests that services/subscriptions with wall_times are validated such that
+    their corresponding service/topics are listed as posted to.
+    """
+    test_sys = yparser.parse_yaml("src/tests/input/system_validator/test_add_interface_registers_wall_times.yaml")
+    val_result = sv.validate_system(test_sys)
+    assert "service_1" in val_result.interfaces["services requested"]
+    assert "topic_1" in val_result.interfaces["topics published to"]
+
+def test_validate_system_detects_no_activity() -> None:
+    """
+    Tests that a system with parts lacking any activity is not accepted by the system_validator.
+    (Message must flow through the system)
+    """
+    test_sys = yparser.parse_yaml("src/tests/input/system_validator/test_validate_system_detects_no_activity.yaml")
+    val_result = sv.validate_system(test_sys)
+    print(val_result.errors)
+    assert val_result.errors != []
+
+# def test_validation_results_detects_nested_cycle() -> None:
+#     """
+#     Tests that cycle resulting from a nested is detected.
+#         cb has nested_cb in calls, and nested_cb calls cb_2, which calls cb_1
+#     """
+#     with pt.raises(Exception) as e:
+#         test_sys = yparser.parse_yaml("src/tests/input/system_validator/test_validation_results_detects_nested_topic_cycle.yaml")
+#         sv.validate_system(test_sys)
+#     assert "There is a cycle in the graph from " in str(e.value)
+
+
+# def test_validation_results_detects_nested_service_cycle() -> None:
+#     """
+#     Tests that cycle resulting from a nested is detected.
+#         cb has nested_cb in calls, and nested_cb calls cb_2, which calls cb_1
+#     """
+#     with pt.raises(Exception) as e:
+#         test_sys = yparser.parse_yaml("src/tests/input/system_validator/test_validation_results_detects_nested_service_cycle.yaml")
+#         sv.validate_system(test_sys)
+#     assert "There is a cycle in the graph from " in str(e.value)
