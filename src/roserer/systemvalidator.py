@@ -806,7 +806,7 @@ def validate_node(
     for output in node.external_outputs:
         feedback += register(output.name, "external_output", node, objects)
     if len(node.callbacks) < 1:
-        feedback += f"Node '{node.name}' must have at least one callback"
+        feedback += [f"Node '{node.name}' must have at least one callback"]
     for callback in node.callbacks:
         feedback += validate_callback(callback, node, objects, interfaces)
 
