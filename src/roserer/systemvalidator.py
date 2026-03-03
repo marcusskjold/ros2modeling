@@ -532,6 +532,37 @@ def validate_callback(
 
     return feedback
 
+def validate_request(
+        callback: ros.Callback,
+        parent: ros.Node,
+        objects: Containments, 
+        interfaces: Interfaces
+        ) -> list[str]:
+    """
+    A request is well-formed if:
+    - It refer to a client owned by the parent node
+    - Any response to a request refers to a defined, valid callback
+    """
+    feedback = []
+    name = callback.name
+    request = callback.request
+    feedback += verify_registration(
+        request.client, "client", parent, name, objects)
+    feedback += verify_registration(
+    request.response, "callback", parent, name, objects)
+    feedback += add_interface(
+        parent.get_client(request.client).service,
+        name, "Requesting client", "services requested", interfaces)
+    # add's the response-callback to the interfaces-dict also
+    feedback += add_interface(
+            parent.get_client(request.client).service,
+            request.response,
+            "Responding client",
+            "services received from",
+            interfaces
+            )
+    return feedback
+
 def validate_callback_references(
         callback: ros.Callback,
         parent: ros.Node,
@@ -539,69 +570,70 @@ def validate_callback_references(
         interfaces: Interfaces
         ) -> list[str]:
     """
-    A callback is well formed, with respect to its references to other callbacks, if:
-    - it's 'calls' refers to a valid callback owned by the parent node
-    - it's 'calls' doesn't form a circular chain
-    - Any request refer to a client owned by the parent node
-    - Any response to a request refers to a defined, valid callback
+    A the 'calls'-attribute of a callback is well formed if:
+    - it refers to a valid callback owned by the parent node
+    - it doesn't form a circular chain (from nested calls)
     """
-    feedback = []
-    name = callback.name
 
+    feedback = []
+    root_name = callback.name
+    call_chain = [root_name]
     # recursively:
     # 1) checks registrations of cb's in calls, 
     # 2) checks for circularity in calls, 
     # 3) and adds the root-callback, cb, to the interface-array for all its nested calls
-    def validate_call_chain(cb : ros.Callback) -> list[str]:
-        fb = []
-        root_name = cb.name
-        call_chain = [root_name]
-        while cb.calls is not None:
-            # 1)
-            fb += verify_registration(
-                   cb.calls, "callback", parent, name, objects)
-            if fb != []:
-                break
-            nested_callback = parent.get_callback(cb.calls)
-            # 2)
-            if nested_callback.name in call_chain:
-                fb += [f"The chain of calls, {call_chain}, is circular. Ensure acyclic chain "
-                             f"of calls between callbacks."]
-                break
-            call_chain.append(nested_callback.name)
-            # 3)
-            cb = nested_callback
-            for publisher in cb.publishers:
-                interfaces["topics published to"][parent.get_publisher(publisher).topic].append(root_name)
-            for read in cb.read_variables:
-                read: ros.Variable
-                interfaces["variables read from"][read.name].append(root_name)
-            for write in cb.write_variables:
-                write: ros.Variable
-                interfaces["variables written to"][write.name].append(root_name)
+    next_cb = callback
+    while next_cb.calls is not None:
+        # 1)
+        feedback += verify_registration(
+               next_cb.calls, "callback", parent, root_name, objects)
+        if feedback != []:
+            break
+        nested_callback = parent.get_callback(next_cb.calls)
+        # 2)
+        if nested_callback.name in call_chain:
+            feedback += [f"The chain of calls, {call_chain}, is circular. Ensure acyclic chain "
+                         f"of calls between callbacks."]
+            break
+        call_chain.append(nested_callback.name)
+        # 3)
+        next_cb = nested_callback
+        for publisher in next_cb.publishers:
+            interfaces["topics published to"][parent.get_publisher(publisher).topic].append(root_name)
+        if next_cb.request is not None:
+            interfaces["services requested"][parent.get_client(next_cb.request.client).service].append(root_name)
+            
+            
+            ###### can cause problems for ars
+            # for read in cb.read_variables:
+            #     read: ros.Variable
+            #     interfaces["variables read from"][read.name].append(root_name)
+            # for write in cb.write_variables:
+            #     write: ros.Variable
+            #     interfaces["variables written to"][write.name].append(root_name)
 
-        return fb
+        # return fb
 
 
-    if callback.calls is not None:
-            feedback += validate_call_chain(callback)
-    if callback.request is not None:
-            request = callback.request
-            feedback += verify_registration(
-                request.client, "client", parent, name, objects)
-            feedback += verify_registration(
-            request.response, "callback", parent, name, objects)
-            feedback += add_interface(
-                parent.get_client(request.client).service,
-                name, "Requesting client", "services requested", interfaces)
-            # add's the response-callback to the interfaces-dict also
-            feedback += add_interface(
-                    parent.get_client(request.client).service,
-                    request.response,
-                    "Responding client",
-                    "services received from",
-                    interfaces
-                    )
+    # if callback.calls is not None:
+    #         feedback += validate_call_chain(callback)
+    # if callback.request is not None:
+    #         request = callback.request
+    #         feedback += verify_registration(
+    #             request.client, "client", parent, name, objects)
+    #         feedback += verify_registration(
+    #         request.response, "callback", parent, name, objects)
+    #         feedback += add_interface(
+    #             parent.get_client(request.client).service,
+    #             name, "Requesting client", "services requested", interfaces)
+    #         # add's the response-callback to the interfaces-dict also
+    #         feedback += add_interface(
+    #                 parent.get_client(request.client).service,
+    #                 request.response,
+    #                 "Responding client",
+    #                 "services received from",
+    #                 interfaces
+    #                 )
     return feedback
 
 
@@ -795,16 +827,21 @@ def validate_node(
         validate_action(action, node)  # TODO: Add support for actions
         total_triggers += 1
     if total_triggers < 1:
-        feedback += f"Node '{node.name}' must have at least one trigger"
+        feedback += [f"Node '{node.name}' must have at least one trigger"]
 
-    # one more iteration for validating (potential) references to other callbacks
+    # validate requests:
     for callback in node.callbacks:
-        fb = validate_callback_references(callback, node, objects, interfaces)
-        feedback += fb
-        # avoid redundant feedbacks on cyclic references
-        if fb != []:
-            break
-
+        if callback.request is not None:
+            feedback += validate_request(callback, node, objects, interfaces)
+    # validate calls
+    for callback in node.callbacks:
+        if callback.calls is not None:
+            fb = validate_callback_references(callback, node, objects, interfaces)
+            feedback += fb
+            # avoid redundant feedbacks on cyclic references
+            if fb != []:
+                break
+    # TODO: could do the same for clients?
     used_publishers = [publisher  
                        for callback in node.callbacks
                        for publisher in callback.publishers]
