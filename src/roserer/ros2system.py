@@ -458,7 +458,22 @@ class System():
         return [subscription
                 for node in self.get_nodes()
                 for subscription in node.subscriptions]
-
+    
+    def get_services(self)->list[Service]:
+        """
+        returns list of all services in system
+        """
+        return [service
+                for node in self.get_nodes()
+                for service in node.services]
+    
+    def get_timers(self)->list[Service]:
+        """
+        returns list of all timers in system
+        """
+        return [timer
+                for node in self.get_nodes()
+                for timer in node.timers]
 
     def __init__(
             self,

@@ -35,6 +35,7 @@ def validate_system(system : ros.System,
     """
     System-constraints:
     - Number of hosts and DDS-implementation is not taken account of in model
+    - Each service can only be called from one source
     """
     errors : list[str]= ["Errors:"]
     warnings : list[str] = ["Warnings:"]
@@ -53,6 +54,39 @@ def validate_system(system : ros.System,
         errs, warns = validate_host(host, validations)
         errors += errs
         warnings += warns
+    
+    # TODO: consider refactoring
+    requested_services = []
+    # get all potential triggers for requesting service
+    triggers = system.get_subscriptions() + system.get_timers() + system.get_services()
+    for trigger in triggers:
+        # get parent on trigger, dependent on type
+        if isinstance(trigger, ros.Subscription):
+            prnt = validations.objects.subscription[trigger.name]
+        elif isinstance(trigger, ros.Timer):
+            prnt = validations.objects.timer[trigger.name]
+        else:
+            prnt = validations.objects.service[trigger.name]
+        prnt : ros.Node
+        # get cb_object
+        callback_obj = prnt.get_callback(trigger.callback)
+        # do-while loop, going through cb and nested calls
+        while True:
+            # if cb_object
+            if callback_obj.request is not None:
+                # add the requested service to list
+                client = prnt.get_client(callback_obj.request.client)
+                requested_services.append(client.service)
+            if callback_obj.calls is not None:
+                callback_obj = prnt.get_callback(callback_obj.calls)
+            else:
+                break
+
+    # if the same service requested more than once
+    if len(requested_services) != len(set(requested_services)):
+        errors += [f"The same service is being requested from multiple sources."
+                   f"This model only support a service being requested from one place"]
+
     return errors, warnings
 
 def validate_host(host : ros.Host,
