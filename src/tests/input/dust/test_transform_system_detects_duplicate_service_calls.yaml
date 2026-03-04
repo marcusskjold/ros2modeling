@@ -1,5 +1,5 @@
 System:
-  system: test_transform_system_unique_service_client
+  system: test_transform_system_detects_duplicate_service_calls
   default_distribution: Humble
   hosts:
   - host:

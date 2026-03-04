@@ -83,8 +83,8 @@ def validate_system(system : ros.System,
 
     # if the same service requested more than once
     if len(requested_services) != len(set(requested_services)):
-        errors += [f"The same service is being requested from multiple sources."
-                   f"This model only support a service being requested from one place"]
+        errors += [f"The same service is being requested from multiple sources. "
+                   f"This model only support a service being requested from one place."]
 
     return errors, warnings
 
