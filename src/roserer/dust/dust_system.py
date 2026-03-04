@@ -1,6 +1,7 @@
 from roserer.dust.dust_uppaal import UPPAAL # * added '.' in front of imports
 from abc import ABC, abstractmethod # for creating abstract class
 import os # * added to support proper pathing
+import itertools
 
 # input- and output-files for creating UPPAAL-system
 INPUT_UPPAAL_FILE = 'STTT_Full.xml'
@@ -192,6 +193,66 @@ class System():
         self.topics = []
         self.callbacks = []
         self.const_sizes = {}
+        ### internal variables for mapping ###
+        # counters for callback-id's
+        self._sub_id_counter = itertools.count()
+        self._timer_id_counter = itertools.count()
+        self._service_id_counter = itertools.count()
+        self._client_id_counter = itertools.count()
+        # id's for topics (sending to and receiving from)
+        self._sender_id_counter = itertools.count()
+        self._receiver_id_counter = itertools.count()
+        # id's for executors
+        self._ex_id_counter = itertools.count()
+        # env for which subscribers has been mapped
+        self._sub_register : dict[str,int] = {}
+        # env for nodes registered to executor-id
+        self._node_register : dict[str,int] = {}
+
+
+    # gets next id for a callback with type 'typ'
+    def gen_id(self, typ : int):
+        match typ:
+            case 0: # TIMER
+                return next(self._timer_id_counter)
+            case 1: # SERVICE
+                return next(self._service_id_counter)
+            case 2: # SUBSCRIPTION
+                return next(self._sub_id_counter)
+            case 3: # CLIENT
+                return next(self._client_id_counter)
+            case 4: # SENDER
+                return next(self._sender_id_counter)
+            case 5: # RECEIVER
+                return next(self._receiver_id_counter)
+            case 6: # EXECUTOR
+                return next(self._ex_id_counter)
+
+    # checks whether given receiver id exist for subs to 'topic'
+    def has_receiver_id(self, topic: str) -> bool:
+        return topic in self._sub_register
+
+    # gets id registered for receivers of this topic
+    # if no id is registered, creates a new one and registers it
+    def get_sub_register_id(self, topic : str) -> int:
+        if topic in self._sub_register:
+            return self._sub_register[topic]
+        else:
+            new_id = self.gen_id(5)
+            self._sub_register[topic] = new_id
+            return new_id
+
+    # register an executor-id for a given node
+    def register_node(self, node_name, exe_id)->None:
+        self._node_register[node_name] = exe_id
+
+    # get executor-id for a given node 
+    def get_exe_register_id(self, node_name : str) -> int:
+        if node_name in self._node_register:
+            return self._node_register[node_name]
+        else:
+            raise KeyError(f"The node, f{node_name}, hasn't been registered")
+    
 
     # for printing
     def __str__(self):
