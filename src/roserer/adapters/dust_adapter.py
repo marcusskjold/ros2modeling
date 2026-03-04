@@ -1,7 +1,6 @@
 import roserer.dust.dust_system as ds
 import roserer.ros2system as ros
 import roserer.systemvalidator as validator
-import itertools
 import roserer.qos as quality
 
 
@@ -264,25 +263,13 @@ def validate_callback(callback : ros.Callback,
     """
     errors: list[str] = []
     warnings: list[str] = []
-    # name: str
-    # wcet: TimeUnit
-    # read_variables: list[Variable]
-    # write_variables: list[Variable]
-    # calls: list[str]
-    # publishers: list[str]
-    # external_outputs: list[ExternalOutput]
-    # request: Request
     if callback.read_variables or callback.write_variables:
         warnings += unspecified_warning("read/write variables")
     return errors, warnings
     
-####All templates
-# calls doesn't make sense either. (maybe not even external i/o)
 
 
 ####All callbacks
-# INVARIANT: Timer-buffer size 1?
-# is the type-parameter within bounds (0 - 3)
 # a callback must be associated to exactly 1 executor
 # only 1 callback per service at the server-side
 
@@ -330,10 +317,10 @@ TIMER = 0
 SERVICE = 1
 SUBSCRIBER = 2
 CLIENT = 3
-
-
-#env from (python) name to exec-id (Uppaal)
-nodes : dict[str,int] = {}
+# (additional ones for counter)
+SENDER = 4
+RECEIVER = 5
+EXECUTOR = 6
 
 # convert interval to wall-times (includes end of interval)
 def get_interval_times(timer : ros.Timer) -> list[int]:
@@ -343,29 +330,6 @@ def get_interval_times(timer : ros.Timer) -> list[int]:
     for wt in range(timer.interval[0]+timer.offset, timer.interval[1]+1, timer.period):
         wall_times.append(wt)
     return wall_times
-
-
-
-
-# id's for callbacks
-sub_id_counter = itertools.count()
-timer_id_counter = itertools.count()
-service_id_counter = itertools.count()
-client_id_counter = itertools.count()
-def next_cb(typ : int):
-  match typ:
-      case 0:
-          return next(timer_id_counter)
-      case 1:
-          return next(service_id_counter)
-      case 2:
-          return next(sub_id_counter)
-      case 3:
-          return next(client_id_counter)
-          
-  
-  #return next(cb_id_counter)
-
 
 
 def map_data_sending(out: ds.System,
@@ -386,7 +350,7 @@ def map_data_sending(out: ds.System,
     # timestamp at which a given topic is posted to
     if interface_release_times is None:
         interface_release_times = []
-    #TODO: make this updated, somehow -> must depend on outer-nested calls
+    # net sum wcet of nested calls updated
     if wcet is None:
         wcet = callback.wcet
     else:
@@ -395,7 +359,7 @@ def map_data_sending(out: ds.System,
     for publisher in callback.publishers:
         # register sender
         interface_count += 1
-        sender_id = next_sender()
+        sender_id = out.gen_id(SENDER)
         interface_id_list.append(sender_id)
         interface_release_times.append(wcet)
 
@@ -417,7 +381,7 @@ def map_data_sending(out: ds.System,
     if callback.request is not None:
         #register sender
         interface_count += 1
-        sender_id = next_sender()
+        sender_id = out.gen_id(SENDER)
         interface_id_list.append(sender_id)
         interface_release_times.append(wcet)
 
@@ -482,7 +446,7 @@ def map_subscriber_cb(
             interface_count, interface_id_list, interface_release_times, wcet = map_data_sending(out=out, parent_node=node,
                                                                 callback=callback_obj,validations=validations)
             # create callback
-            out.add_data_callback(id= next_cb(SUBSCRIBER),
+            out.add_data_callback(id= out.gen_id(SUBSCRIBER),
                                   exec_time=wcet,
                                   topicID=receiver_id,
                                   type=SUBSCRIBER,
@@ -490,28 +454,8 @@ def map_subscriber_cb(
                                   amount_of_publishers=interface_count,
                                   publisher_release_time=interface_release_times,
                                   publisher_id=interface_id_list,
-                                  executorID=nodes[node.name]
+                                  executorID= out.get_exe_register_id(node.name)
                                   )
-
-
-
-#env from created topic-name to receiver-id (handling if more sending to same topic)
-subscribers : dict[str,int] = {}
-# for getting receiver-id's
-receiver_id_counter = itertools.count()
-def next_receiver(topic : str, validations : validator.ValidationResult):
-# if not receiver of topic create ID as normal
-  if topic not in validations.interfaces['topics subscribed to']:
-      return next(receiver_id_counter)
-# (if subscriber) check if there is already an ID for receivers of topic
-  elif topic in subscribers:
-      return subscribers[topic]
-# else create new one
-  else:
-    receiver_id = next(receiver_id_counter)
-    subscribers[topic] = receiver_id
-    return receiver_id
-
 
 # maps topic from client to server
 def map_req_topic(
@@ -520,9 +464,8 @@ def map_req_topic(
         sender_id : int,
         validations : validator.ValidationResult
         ) -> int:
-    service = client.service
     # id for requesting from client to server-callback
-    receiver_id = next_receiver(service, validations)
+    receiver_id = out.gen_id(RECEIVER)
     # add topic from client to server
     out.add_topic(receiver_id=receiver_id,
                   sender_id=sender_id,
@@ -542,13 +485,13 @@ def map_server(
         ) -> int:
     ### UPPAAL-DataCallback in server ###
     # id for sending back to client
-    sender_id = next_sender()
+    sender_id = out.gen_id(SENDER)
     server_callback = validations.interfaces['services offered'][service][0] 
     server_node : ros.Node = validations.objects.callback[server_callback]
     server_callback_object = server_node.get_callback(server_callback) 
     server = server_node.get_service(service)
     # create data-callback for sending back to client (upon receiving request)
-    out.add_data_callback(id=next_cb(SERVICE),
+    out.add_data_callback(id=out.gen_id(SERVICE),
                           exec_time=server_callback_object.wcet,
                           topicID=receiver_id,
                           type=SERVICE,
@@ -556,13 +499,13 @@ def map_server(
                           amount_of_publishers=1,
                           publisher_release_time=[0],
                           publisher_id=[sender_id],
-                          executorID=nodes[server_node.name])
+                          executorID=out.get_exe_register_id(server_node.name))
     
     ### UPPAAL-Topic back from server to client ###
     # needs additional receiver_id for this 
     # (callback in other end is unique to this relation)
     # id for sending back to client
-    receiver_id = next_receiver(service, validations)
+    receiver_id = out.gen_id(RECEIVER)
     out.add_topic(receiver_id=receiver_id,
                   sender_id=sender_id,
                   delay=0,
@@ -584,7 +527,7 @@ def map_client(
     interface_count, interface_id_list, interface_release_times, wcet = map_data_sending(out=out, parent_node=validations.objects.callback[client_callback.name],
                                                         callback=client_callback,validations=validations)
     # add callback for client (upon receiving back from server)
-    out.add_data_callback(id=next_cb(CLIENT), 
+    out.add_data_callback(id=out.gen_id(CLIENT), 
                           exec_time=wcet,
                           topicID=receiver_id,
                           type=CLIENT,
@@ -592,13 +535,7 @@ def map_client(
                           amount_of_publishers=interface_count,
                           publisher_release_time=interface_release_times,
                           publisher_id= interface_id_list,
-                          executorID=nodes[parent_node.name]) #TODO: check how qos (requst vs. offered) is resolved
-
-
-# id's for topics (sending to)
-sender_id_counter = itertools.count()
-def next_sender():
-  return next(sender_id_counter)
+                          executorID=out.get_exe_register_id(parent_node.name)) #TODO: check how qos (requst vs. offered) is resolved
 
 
 def map_topic(
@@ -607,10 +544,11 @@ def map_topic(
         topic : str,
         sender_id : int,
         validations: validator.ValidationResult) -> None:
+    
     # If subscribers for this topic hasn't been made already:
-    if topic not in subscribers:
-        # get receiver_id and record topic in subscribers-env:
-        receiver_id = next_receiver(topic, validations)
+    if not out.has_receiver_id(topic):
+        # get receiver_id from register
+        receiver_id = out.get_sub_register_id(topic)
         # map subscribers:
         for callback in validations.interfaces['topics subscribed to'][topic]:
             map_subscriber_cb(
@@ -620,7 +558,7 @@ def map_topic(
                     callback=callback,
                     validations=validations)
     else: 
-        receiver_id = subscribers[topic]
+        receiver_id = out.get_sub_register_id(topic)
     out.add_topic(receiver_id=receiver_id,
                   sender_id=sender_id,
                   delay=0,
@@ -637,7 +575,7 @@ def map_node(out: ds.System, node: ros.Node, validations: validator.ValidationRe
         if timer.interval:
             # convert interval to list of release-times
             wt = get_interval_times(timer)
-            out.add_sporadic_callback(id=next_cb(TIMER),
+            out.add_sporadic_callback(id=out.gen_id(TIMER),
                                       exec_time=wcet,
                                       length=len(wt),
                                       releases=wt,
@@ -646,11 +584,10 @@ def map_node(out: ds.System, node: ros.Node, validations: validator.ValidationRe
                                       amount_of_publishers=interface_count,
                                       publisher_release_time=interface_release_times,
                                       publisher_id=interface_id_list,
-                                      executorID=nodes[node.name]
+                                      executorID=out.get_exe_register_id(node.name)
                                       )
         else:
-            #TODO: for now 10 hardcoded as max-pub-size
-            out.add_periodic_callback(id=next_cb(TIMER),
+            out.add_periodic_callback(id=out.gen_id(TIMER),
                                       exec_time=wcet,
                                       period=timer.period,
                                       type=TIMER,
@@ -659,7 +596,7 @@ def map_node(out: ds.System, node: ros.Node, validations: validator.ValidationRe
                                       amount_of_publishers=interface_count,
                                       publisher_release_time=interface_release_times,
                                       publisher_id=interface_id_list,
-                                      executorID=nodes[node.name]
+                                      executorID=out.get_exe_register_id(node.name)
                                       )
     # case 2) service with wall_times 
     for service in node.services:
@@ -667,7 +604,7 @@ def map_node(out: ds.System, node: ros.Node, validations: validator.ValidationRe
             service_callback = node.get_callback(service.callback)
             interface_count, interface_id_list, interface_release_times, wcet = map_data_sending(out=out, parent_node=node,
                                                         callback=service_callback,validations=validations)
-            out.add_sporadic_callback(id=next_cb(SERVICE),
+            out.add_sporadic_callback(id=out.gen_id(SERVICE),
                                       exec_time=wcet,
                                       length=len(service.wall_times),
                                       type=SERVICE,
@@ -676,7 +613,7 @@ def map_node(out: ds.System, node: ros.Node, validations: validator.ValidationRe
                                       amount_of_publishers=interface_count,
                                       publisher_release_time=interface_release_times,
                                       publisher_id=interface_id_list,
-                                      executorID=nodes[node.name]
+                                      executorID=out.get_exe_register_id(node.name)
                                       )
     # case 3) subscriber with wall_times 
     for subscription in node.subscriptions:
@@ -684,7 +621,7 @@ def map_node(out: ds.System, node: ros.Node, validations: validator.ValidationRe
             subscription_callback = node.get_callback(subscription.callback)
             interface_count, interface_id_list, interface_release_times, wcet = map_data_sending(out=out, parent_node=node,
                                                         callback=subscription_callback,validations=validations)
-            out.add_sporadic_callback(id=next_cb(SUBSCRIBER),
+            out.add_sporadic_callback(id=out.gen_id(SUBSCRIBER),
                                       exec_time=wcet,
                                       length=len(subscription.wall_times),
                                       type=SUBSCRIBER,
@@ -693,26 +630,21 @@ def map_node(out: ds.System, node: ros.Node, validations: validator.ValidationRe
                                       amount_of_publishers=interface_count,
                                       publisher_release_time=interface_release_times,
                                       publisher_id=interface_id_list,
-                                      executorID=nodes[node.name]
+                                      executorID=out.get_exe_register_id(node.name)
                                       )
-
-# generate id for Executors
-ex_id_counter = itertools.count()
-def next_exec():
-  return next(ex_id_counter)
 
 
 # initiates executors (and maintain mapping from node_name to exec_id)
 def map_executor(out: ds.System, executor: ros.Executor) -> None:
     # get id
-    id = next_exec()
+    id = out.gen_id(EXECUTOR)
     if executor.ros_distribution in VALID_ROS_DISTRIBUTIONS["V2"]:
         out.add_executor_v2(id)
     else:
         out.add_executor_v1(id)
     # register the executor_id for each node
     for node in executor.nodes:
-        nodes[node.name] = id
+        out.register_node(node.name, id)
 
 def map_system(
         system: ros.System,
