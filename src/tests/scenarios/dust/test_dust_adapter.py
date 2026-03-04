@@ -16,18 +16,26 @@ def test_transform_system_no_duplicate_subscribers() -> None:
     assert len(dust_sys.topics) == 2
     assert len(dust_sys.callbacks) == 3
 
-def test_transform_system_unique_service_client() -> None:
+def test_transform_system_detects_duplicate_service_calls() -> None:
     """
-    Tests that a unique topic-templates are made for each client-service-communication
-    """
-    test_sys = yparser.parse_yaml("src/tests/input/dust/test_transform_system_unique_service_client.yaml")
+    Tests service invoked from more sources isn't accepted by validator
+    """ 
+    test_sys = yparser.parse_yaml("src/tests/input/dust/test_transform_system_detects_duplicate_service_calls.yaml")
     errors, warnings, dust_sys = da.transform_system(test_sys)
-    assert errors == []
-    assert warnings == []
-    print(dust_sys.gen_system())
-    assert len(dust_sys.topics) == 4
-    assert len(dust_sys.callbacks) == 3
+    assert "The same service is being requested from multiple sources. This model only support a service being requested from one place." in errors
 
+
+# def test_transform_system_unique_service_client() -> None:
+#     """
+#     Tests that a unique topic-templates are made for each client-service-communication
+#     """
+#     test_sys = yparser.parse_yaml("src/tests/input/dust/test_transform_system_unique_service_client.yaml")
+#     errors, warnings, dust_sys = da.transform_system(test_sys)
+#     assert errors == []
+#     assert warnings == []
+#     print(dust_sys.gen_system())
+#     assert len(dust_sys.topics) == 4
+#     assert len(dust_sys.callbacks) == 3
 
 def test_transform_system_nested_calls_collapsed() -> None:
     """
