@@ -41,7 +41,6 @@ SERVICE = NodeType.SERVICE
 ACTION = NodeType.ACTION
 TOPIC = NodeType.TOPIC
 
-
 @dataclass
 class GraphNode:
     name: str
@@ -83,22 +82,47 @@ class GraphNode:
 # A list can be provided if multiple edges from an origin should be added
 Elem = GraphNode | str | list[str]
 EdgeSpec = tuple[NodeType, Elem, NodeType, Elem]
+
 RosGraphView = dict[NodeType, dict[str, GraphNode]]
 
 def add_to_graph(graph: RosGraphView, node: GraphNode) -> GraphNode:
     _type = node.nodetype
     if graph[_type].get(node.name) is not None:
-        raise ValueError(f"Name is not unique for {node.name} of type {_type}")
+        raise ValueError(f"Name is not unique for {node.name} of type {_type} \
+                or the object is contained by more than one parent.")
     graph[_type][node.name] = node
     return node
 
+def string_resolve(graph: RosGraphView, e: str, t: NodeType) -> GraphNode:
+    x = graph[t].get(e)
+    if x is None:
+        if t == TOPIC:
+            x = GraphNode(e, TOPIC)
+            graph[TOPIC][e] = x
+        else:
+            raise ValueError(f"Element {e} of type {t} does not exist.")
+    return x
+
 def resolve_element(graph: RosGraphView, e: Elem, t: NodeType) -> list[GraphNode]:
+    """
+    Returns a list of graph nodes based on the element passed.
+    Used to narrow the union type Elem into the proper type GraphNode
+
+    Parameters
+    graph (RosGraphView):
+        Reference graph to find element
+    e (Elem):
+        The element to resolve. Is either already a graph node, a string 
+        or a list of strings
+    t (NodeType):
+        The type of the element. Used with the graph to resolve string elements
+    """
     if isinstance(e, GraphNode):
         return [e]
     elif isinstance(e, str):
-        return [graph[t][e]]
+        return [string_resolve(graph, e, t)]
     else:
-        return [graph[t][s] for s in e]
+        return [string_resolve(graph, s, t) for s in e]
 
 def add_edges(graph: RosGraphView, edge: EdgeSpec):
     froms = resolve_element(graph, edge[1], edge[0])
@@ -110,16 +134,15 @@ def add_edges(graph: RosGraphView, edge: EdgeSpec):
 
 def get_graph_view_from(system: ros.System) -> RosGraphView:
     g: RosGraphView = {}
-    systemnode = GraphNode(system.name, SYSTEM)
-    g[SYSTEM] = {system.name: systemnode}
+    _system = GraphNode(system.name, SYSTEM)
+    g[SYSTEM] = {system.name: _system}
     edgeq: list[EdgeSpec] = []
 
     for t in NodeType:
         g[t] = {}
 
     for host in system.hosts:
-        _host = add_to_graph(g, GraphNode(host.name, HOST, systemnode))
-        g[HOST][host.name] = _host
+        _host = add_to_graph(g, GraphNode(host.name, HOST, _system))
         for ex in host.executors:
             _executor = add_to_graph(g, GraphNode(ex.name, EXECUTOR, _host))
             for node in ex.nodes:
@@ -169,3 +192,58 @@ def get_graph_view_from(system: ros.System) -> RosGraphView:
             add_edges(g, e)
     return g
 
+def get_all_nodes(graph: RosGraphView) -> list[GraphNode]:
+    return [n for d in graph.values() for n in d.values()]
+
+def index_graph_list(graph_nodes: list[GraphNode]) -> RosGraphView:
+    graph: RosGraphView = {}
+    for node in graph_nodes:
+        graph.setdefault(node.nodetype, {})
+        add_to_graph(graph, node)
+    return graph
+
+def clone(graph: RosGraphView) -> RosGraphView:
+    newlist: list[GraphNode] = []
+
+    oldlist = get_all_nodes(graph)
+    for node in oldlist:
+        newlist.append(GraphNode(node.name, node.nodetype))
+    newgraph = index_graph_list(newlist)
+    for new, old in zip(newlist, oldlist): 
+        parent = old.parent
+        if parent is not None:
+            new.parent = newgraph[parent.nodetype][parent.name]
+        for child in old.children:
+            newchild = newgraph[child.nodetype][child.name]
+            new.children.append(newchild)
+        for target in old.outgoing:
+            newtarget = newgraph[target.nodetype][target.name]
+            new.outgoing.append(newtarget)
+        for source in old.incoming:
+            newsource = newgraph[source.nodetype][source.name]
+            new.incoming.append(newsource)
+    return newgraph
+
+def contract(node: GraphNode) -> None:
+    if node.parent:
+        node.parent.children.remove(node)
+    for child in node.children:
+        child.parent = node.parent
+    for source in node.incoming:
+        source.outgoing.remove(node)
+    for target in node.outgoing:
+        source.incoming.remove(node)
+        for source in node.incoming:
+            target.incoming.append(source)
+            source.outgoing.append(target)
+
+def contract_graph(graph: RosGraphView, allowed_types: set[NodeType]) -> RosGraphView:
+    cgraph = clone(graph)
+    tovisit = get_all_nodes(cgraph)
+
+    while len(tovisit) > 0:
+        node = tovisit.pop()
+        if node.nodetype not in allowed_types:
+            contract(node)
+    
+    return cgraph
