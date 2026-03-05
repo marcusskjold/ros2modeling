@@ -1,4 +1,4 @@
-from typing import Any, TypeVar
+from typing import Any, TypeVar, Protocol
 from dataclasses import dataclass
 import roserer.qos
 from roserer.qos import QoS
@@ -28,13 +28,28 @@ def _qos_init(q: QoS | dict[str, Any] | None, default: QoS) -> QoS:
     else:
         return q
 
-
 T = TypeVar ('T')
+
 def _empty_list_init(x: list[T] | None) -> list[T]:
     if x is None:
         return []
     else:
         return x
+
+class HasName(Protocol):
+    name: str
+
+N = TypeVar("N", bound=HasName)
+
+def _stringify_list(x: list[N] | list[str] | None) -> list[str]:
+    out: list[str] = []
+    if x is not None:
+        for e in x:
+            if isinstance(e, str):
+                out.append(e)
+            else:
+                out.append(e.name)
+    return out
 
 def _name_init(name: str | None, parent: str, type: str, position: int) -> str:
     if name is None:
@@ -45,11 +60,13 @@ def _name_init(name: str | None, parent: str, type: str, position: int) -> str:
 
 Topic = str
 
+
 @dataclass
 class Variable:
     name: str
     reset_after_read: bool
     condition: bool
+
 
 
 @dataclass
@@ -91,31 +108,31 @@ class Request():
 class Callback():
     name: str
     wcet: int
-    read_variables: list[Variable]
-    write_variables: list[Variable]
-    calls: str
+    read_variables: list[str]
+    write_variables: list[str]
+    calls: str | None
     publishers: list[str]
-    external_outputs: list[ExternalOutput]
+    external_outputs: list[str]
     request: Request | None
 
     def __init__(
             self,
             name: str,
             wcet: int,
-            read_variables: list[Variable] | None = None,
-            write_variables: list[Variable] | None = None,
+            read_variables: list[Variable] | list[str] | None = None,
+            write_variables: list[Variable] | list[str] | None = None,
             calls: str | None = None,
-            external_outputs: list[ExternalOutput] | None = None,
-            publishers: list[str] | None = None,
+            external_outputs: list[ExternalOutput] | list[str] | None = None,
+            publishers: list[Publisher] | list[str] | None = None,
             request: Request | None = None
             ) -> None:
         self.name = name
         self.wcet = wcet
-        self.read_variables = _empty_list_init(read_variables)
-        self.write_variables = _empty_list_init(write_variables)
+        self.read_variables = _stringify_list(read_variables)
+        self.write_variables = _stringify_list(write_variables)
+        self.publishers = _stringify_list(publishers)
+        self.external_outputs = _stringify_list(external_outputs)
         self.calls = calls
-        self.publishers = _empty_list_init(publishers)
-        self.external_outputs = _empty_list_init(external_outputs)
         self.request = request
 
 
@@ -237,21 +254,22 @@ class Node():
             self,
             wcet: int,
             name: str | None = None,
-            read_variables: list[Variable] | None = None,
-            write_variables: list[Variable] | None = None,
+            read_variables: list[str] | list[Variable] | None = None,
+            write_variables: list[str] | list[Variable] | None = None,
             calls: str | None = None,
-            outputs: list[ExternalOutput] | None = None,
-            publishers: list[Publisher] | None = None,
+            outputs: list[str] | list[ExternalOutput] | None = None,
+            publishers: list[str] | list[Publisher] | None = None,
             request: Request | None = None
             ) -> Callback:
+
         callback = Callback(
             name=_name_init(name, self.name, "cb", len(self.callbacks)),
             wcet=wcet,
             read_variables=read_variables,
             write_variables=write_variables,
             calls=calls,
-            publishers=[publisher.name for publisher in _empty_list_init(publishers)],
             external_outputs=outputs,
+            publishers=publishers,
             request=request
             )
         self.callbacks.append(callback)
@@ -475,7 +493,7 @@ class System():
                 for node in self.get_nodes()
                 for service in node.services]
     
-    def get_timers(self)->list[Service]:
+    def get_timers(self)->list[Timer]:
         """
         returns list of all timers in system
         """
