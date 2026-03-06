@@ -1,14 +1,57 @@
+from enum import Enum, auto
 from typing import Any, TypeVar, Protocol
 from dataclasses import dataclass
 import roserer.qos
 from roserer.qos import QoS
 
-#TODO: Make enums (in validator) available to the user of this class
 
+class DDS_IMPLEMENTATION(Enum):
+    Generic = auto()
+    Cyclone = auto()
+    Fast = auto()
+    Connext = auto()
+    Gurum = auto()
 
-DEFAULT_EXECUTOR = "SingleThreadedExecutor"
-DEFAULT_DISTRIBUTION = "Rolling"
-UNSPECIFIED = "Generic"
+class EXECUTOR(Enum):
+    SingleThreadedExecutor = auto()
+    MultiThreadedExecutor = auto()
+    StaticSingleThreadedExecutor = auto()
+    EventsExecutor = auto()
+
+class OPERATING_SYSTEM(Enum):
+    Generic = auto()
+    Windows = auto()
+    Debian = auto()
+    MacOS = auto()
+    Ubuntu = auto()
+    OpenEmbedded = auto()
+    RTLinuxKernel = auto()
+
+class ARCHITECTURE(Enum):
+    Generic = auto()
+    amd64 = auto()
+    arm64 = auto()
+    arm32 = auto()
+
+class DISTRIBUTION(Enum):
+    Rolling = auto()
+    Kilted = auto()
+    Jazzy = auto()
+    Iron = auto()
+    Humble = auto()
+    Galactic = auto()
+    Foxy = auto()
+    Eloquent = auto()
+    Dashing = auto()
+    Crystal = auto()
+    Bouncy = auto()
+    Ardent = auto()
+
+DEFAULT_EXECUTOR = EXECUTOR.SingleThreadedExecutor
+DEFAULT_DISTRIBUTION = DISTRIBUTION.Rolling
+GENERIC_ARCHITECTURE = ARCHITECTURE.Generic
+GENERIC_OPERATING_SYSTEM = OPERATING_SYSTEM.Generic
+GENERIC_DDS = DDS_IMPLEMENTATION.Generic
 DEFAULT_QOS = roserer.qos.qos_profile_default()
 
 
@@ -49,10 +92,8 @@ def _name_init(name: str | None, parent: str, type: str, position: int) -> str:
     else:
         return name
 
-
 TimeUnit = int
 Topic = str
-
 
 @dataclass
 class Variable:
@@ -60,12 +101,9 @@ class Variable:
     reset_after_read: bool
     condition: bool
 
-
-
 @dataclass
 class ExternalOutput:
     name: str
-
 
 @dataclass
 class Timer():
@@ -75,13 +113,11 @@ class Timer():
     callback: str
     interval: tuple[TimeUnit,TimeUnit] | None
 
-
 @dataclass
 class Publisher():
     name: str
     topic: Topic
     qos: QoS
-
 
 @dataclass
 class Client():
@@ -89,13 +125,11 @@ class Client():
     service: str
     qos: QoS
 
-
 @dataclass
 class Request():
     client: str
     # callback upon receiving response, e.g. handle_response(*args)
     response: str
-
 
 @dataclass
 class Callback():
@@ -128,7 +162,6 @@ class Callback():
         self.calls = calls
         self.request = request
 
-
 @dataclass
 class Subscription():
     name : str
@@ -137,7 +170,6 @@ class Subscription():
     qos: QoS
     wall_times: list[TimeUnit] | None
 
-
 @dataclass
 class Service():
     name: str
@@ -145,17 +177,14 @@ class Service():
     qos: QoS
     wall_times: list[TimeUnit] | None
 
-
 @dataclass
 class Action():
     name: str
-
 
 @dataclass
 class ExternalInput():
     name: str
     callback: str
-
 
 @dataclass
 class Node():
@@ -350,14 +379,12 @@ class Node():
             if serv.name == service_name:
                 return serv
         raise ValueError("Service requested is not contained in this node")
-        
-
 
 @dataclass
 class Executor():
     name: str
-    ros_distribution: str
-    implementation: str
+    ros_distribution: DISTRIBUTION
+    implementation: EXECUTOR
     default_qos: QoS
     nodes: list[Node]
 
@@ -398,21 +425,20 @@ class Executor():
     def add_nodes(self, nodenames: list[str]) -> list[Node]:
         return [self.add_node(name=name) for name in nodenames]
 
-
 @dataclass
 class Host():
     name: str
-    operating_system: str
-    architecture: str
+    operating_system: OPERATING_SYSTEM
+    architecture: ARCHITECTURE
     default_qos: QoS
-    default_distribution: str
+    default_distribution: DISTRIBUTION
     executors: list[Executor]
 
     def add_executor(
             self,
             name: str | None = None,
-            implementation: str = DEFAULT_EXECUTOR,
-            ros_distribution: str | None = None,
+            implementation: EXECUTOR = DEFAULT_EXECUTOR,
+            ros_distribution: DISTRIBUTION | None = None,
             default_qos: QoS | dict[str, Any] | None = None
             ) -> Executor:
 
@@ -431,22 +457,21 @@ class Host():
         executor = self.add_executor()
         return executor.add_node(name)
 
-
 @dataclass
 class System():
     name: str
-    dds_implementation: str
+    dds_implementation: DDS_IMPLEMENTATION
     default_qos: QoS
-    default_distribution: str
+    default_distribution: DISTRIBUTION
     hosts: list[Host]
 
     def add_host(
             self,
             name: str | None = None,
-            operating_system: str = UNSPECIFIED,
-            architecture: str = UNSPECIFIED,
+            operating_system: OPERATING_SYSTEM = GENERIC_OPERATING_SYSTEM,
+            architecture: ARCHITECTURE = GENERIC_ARCHITECTURE,
             default_qos: QoS | dict[str, Any]| None = None,
-            default_distribution: str | None = None
+            default_distribution: DISTRIBUTION | None = None
             ) -> Host:
         host = Host(executors=[],
                     operating_system=operating_system,
@@ -496,9 +521,9 @@ class System():
     def __init__(
             self,
             name: str,
-            dds_implementation: str = UNSPECIFIED,
+            dds_implementation: DDS_IMPLEMENTATION = GENERIC_DDS,
             default_qos: QoS | dict[str, Any] | None = None,
-            default_distribution: str = DEFAULT_DISTRIBUTION
+            default_distribution: DISTRIBUTION = DEFAULT_DISTRIBUTION,
             ):
 
         self.name = name
