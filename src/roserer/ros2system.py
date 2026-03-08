@@ -176,6 +176,7 @@ class Subscription():
     topic: Topic
     callback: str
     qos: QoS
+    # TODO: Can we convert "wall times" into external input?
     wall_times: list[int] | None
 
 @dataclass
@@ -183,6 +184,7 @@ class Service():
     name: str
     callback: str
     qos: QoS
+    # TODO: Can we convert "wall times" into external input?
     wall_times: list[int] | None
 
 @dataclass
