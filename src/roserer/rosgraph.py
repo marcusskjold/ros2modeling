@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Iterable
 from dataclasses import dataclass
 from enum import Enum, auto
 import roserer.ros2system as ros
@@ -74,6 +75,9 @@ class GraphNode:
         self.children = children
         self.incoming = incoming
         self.outgoing = outgoing
+
+    def __str__(self) -> str:
+        return f"Type: {self.nodetype}, Name: {self.name}"
     
 # for internal use
 # this is a list of edges that should be added after all graph nodes are created
@@ -133,6 +137,19 @@ def add_edges(graph: RosGraphView, edge: EdgeSpec):
             t.incoming.append(f)
 
 def get_graph_view_from(system: ros.System) -> RosGraphView:
+    """
+    Create a graph representation of the given ROS2 system.
+    The edges of the graph represents data flow.
+    The graph is indexed by node type and then by name.
+    Successful construction of the graph provides the following guarantees:
+
+    - Each graph node is owned by zero or one other node (e.g. two nodes cannot have
+      the same node listed in their `children` field.)
+    - Each string reference of a ros system entity refers to another ros system entity
+      (Except topics)
+    - Each edge in the graph is represented in both directions (parent-child, 
+      incoming-outgoing)
+    """
     g: RosGraphView = {}
     _system = GraphNode(system.name, SYSTEM)
     g[SYSTEM] = {system.name: _system}
@@ -153,10 +170,12 @@ def get_graph_view_from(system: ros.System) -> RosGraphView:
                     _pub = add_to_graph(g, GraphNode(pub.name, PUBLISHER, _node))
                     edgeq.append((PUBLISHER, _pub, TOPIC, pub.topic))
                 for sub in node.subscriptions:
+                    # TODO: Can we convert "wall times" into external input?
                     _sub = add_to_graph(g, GraphNode(sub.name, SUBSCRIBER, _node))
                     edgeq.append((TOPIC, sub.topic, SUBSCRIBER, _sub))
                     edgeq.append((SUBSCRIBER, _sub, CALLBACK, sub.callback))
                 for service in node.services:
+                    # TODO: Can we convert "wall times" into external input?
                     _service = add_to_graph(g, GraphNode(service.name, SERVICE, _node))
                     edgeq.append((SERVICE, _service, CALLBACK, service.callback))
                 for timer in node.timers:
@@ -234,10 +253,11 @@ def contract(node: GraphNode) -> None:
     for target in node.outgoing:
         source.incoming.remove(node)
         for source in node.incoming:
-            target.incoming.append(source)
-            source.outgoing.append(target)
+            if source != target and source not in target.incoming:
+                target.incoming.append(source)
+                source.outgoing.append(target)
 
-def contract_graph(graph: RosGraphView, allowed_types: set[NodeType]) -> RosGraphView:
+def contract_graph(graph: RosGraphView, allowed_types: Iterable[NodeType]) -> RosGraphView:
     cgraph = clone(graph)
     tovisit = get_all_nodes(cgraph)
 
