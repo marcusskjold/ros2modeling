@@ -274,3 +274,80 @@ def contract_graph(graph: RosGraphView, allowed_types: Iterable[NodeType]) -> Ro
             contract(node)
     
     return cgraph
+
+def get_sinks(graph: RosGraphView) -> list[GraphNode]:
+    return [node for node in get_all_nodes(graph) 
+            if node.outgoing == [] and node.children == []]
+        
+def get_sources(graph: RosGraphView) -> list[GraphNode]:
+    return [node for node in get_all_nodes(graph) 
+            if node.incoming == [] and node.children == []]
+
+def filter_type(list: list[GraphNode], types: Iterable[NodeType]) -> list[GraphNode]:
+    return [node for node in list if node.nodetype in types]
+
+def weakly_connected_with(node: GraphNode) -> set[GraphNode]:
+        visited = set()
+        def visit(node: GraphNode):
+            visited.add(node)
+            for neigh in node.outgoing and node.incoming:
+                if neigh not in visited:
+                    visit(neigh)
+        visit(node)
+        return visited
+
+def check_for_cycles_from(node: GraphNode, settled: set[GraphNode], visited: set[GraphNode]) -> bool:
+        if node in settled:
+            return False
+        if node in visited:
+            return True
+        visited.add(node)
+        dependents = node.outgoing
+        for dep in dependents:
+            if check_for_cycles_from(dep, settled, visited):
+                return True
+        settled.add(node)
+        return False
+
+def check_for_cycles_in(graph: RosGraphView) -> bool:
+
+    settled: set[GraphNode] = set()
+    visited: set[GraphNode] = set()
+
+
+    for node in get_all_nodes(graph):
+        if check_for_cycles_from(node, settled, visited):
+            return True
+
+    return False
+
+
+def get_paths_from(source: GraphNode, target: GraphNode) -> list[list[GraphNode]]:
+    queue: list[tuple[GraphNode, list[GraphNode]]] = [(source, [source])]
+    paths: list[list[GraphNode]] = []
+
+    if check_for_cycles_from(source, set(), set()):
+        raise Exception(f"There is a cycle in the graph from {source} callback, "
+                        "cannot find chains")
+
+    while len(queue) > 0:
+        current, path = queue.pop()
+        if current == target:
+            paths.append(path)
+            continue
+        nexts = current.outgoing
+        for n in nexts:
+            queue.append((n, path + [n]))
+
+    return paths
+
+
+def get_all_chains(graph: RosGraphView) -> list[list[GraphNode]]:
+    sources = get_sources(graph)
+    sinks = get_sinks(graph)
+    chains: list[list[GraphNode]] = []
+    for source in sources:
+        for sink in sinks:
+            chains += get_paths_from(source, sink)
+    return chains
+
