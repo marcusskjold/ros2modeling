@@ -1,4 +1,5 @@
 import roserer.ros2system as ros
+from roserer.ros2system import EXECUTOR, DISTRIBUTION
 from roserer.patterns.backeman import (
         add_datagenerator,
         add_subscriber,
@@ -10,13 +11,21 @@ from dotenv import load_dotenv
 # Except: We assume that fusion should read from the filters, not the sensors.
 #         Therefor we assume that it is a mistake in the original function.
 
-def backeman_st_scenario() -> ros.System:
-    load_dotenv()
-    s = ros.System("test", dds_implementation="Generic")
+def new_default_backeman_system() -> tuple[ros.System, ros.Executor]:
+    s = ros.System("backeman-st")
     s.default_qos.depth = 20
 
-    h = s.add_host(operating_system="Generic")
-    e = h.add_executor(implementation="SingleThreadedExecutor", ros_distribution="Eloquent")
+    h = s.add_host()
+    e = h.add_executor(
+            implementation=EXECUTOR.SingleThreadedExecutor,
+            ros_distribution=DISTRIBUTION.Eloquent)
+    return s, e
+
+
+
+def backeman_st_scenario() -> ros.System:
+    load_dotenv()
+    s, e = new_default_backeman_system()
 
     add_datagenerator(e, "SENSOR1", 10, 420, 0)
     add_datagenerator(e, "SENSOR2", 20, 420, 0)
@@ -29,11 +38,7 @@ def backeman_st_scenario() -> ros.System:
 
 def backeman_ss_scenario() -> ros.System:
     load_dotenv()
-    s = ros.System("test", dds_implementation="Generic")
-    s.default_qos.depth = 20
-
-    h = s.add_host(operating_system="Generic")
-    e = h.add_executor(implementation="SingleThreadedExecutor", ros_distribution="Eloquent")
+    s, e = new_default_backeman_system()
 
     add_datagenerator(e, "SENSOR1", 10, 360, 0)
     add_datagenerator(e, "SENSOR2", 20, 360, 0)
