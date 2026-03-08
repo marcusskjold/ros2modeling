@@ -42,6 +42,13 @@ SERVICE = NodeType.SERVICE
 ACTION = NodeType.ACTION
 TOPIC = NodeType.TOPIC
 
+ALL_TYPES: set[NodeType] = set([
+        SYSTEM, HOST, EXECUTOR, NODE,
+        CALLBACK, EXTERNAL_INPUT, EXTERNAL_OUTPUT, TIMER,
+        VARIABLE, PUBLISHER, SUBSCRIBER, CLIENT,
+        SERVICE, ACTION, TOPIC
+        ])
+
 @dataclass
 class GraphNode:
     name: str
