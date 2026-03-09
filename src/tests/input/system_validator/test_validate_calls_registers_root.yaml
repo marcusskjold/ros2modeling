@@ -14,8 +14,7 @@ System:
           calls : nested_cb
         - callback: nested_cb
           wcet : 5
-          publishers:
-          - publisher: pub_1
+          publishers: [pub_1]
           calls : nested_nested_cb
         - callback : nested_nested_cb
           wcet: 5
