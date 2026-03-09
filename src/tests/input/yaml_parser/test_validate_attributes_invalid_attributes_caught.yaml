@@ -1,0 +1,17 @@
+System:
+  system: test_validate_attributes_invalid_attributes_caught
+  hosts: 
+  - host:
+    executors:
+    - executor: exe_1
+      nodes:
+      - note: node_1  #WRONGLY SPELLED   
+        callbacks:
+        - callback: cb_1
+          wcet: 1
+        timers:
+        - timer: timer_1
+          period: 5
+          offset: 0
+          callback: cb_1
+          begin: 2

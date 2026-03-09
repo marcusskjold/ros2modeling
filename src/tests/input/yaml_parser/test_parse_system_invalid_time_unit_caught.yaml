@@ -1,0 +1,4 @@
+System:
+  system: test_parse_system_invalid_time_unit_caught
+  default_time_unit: "hours"
+  hosts: []
