@@ -58,7 +58,7 @@ def parse_subscriptions(ros_node: ros.Node, yaml_subscriptions: dict) -> None:
             subscription_args['callback'] = next(
                 (callback for callback in ros_node.callbacks
                     if callback.name == subscription['callback']),
-                None) # TODO: maybe use our own function instead
+                None)
         ros_node.add_subscription(**subscription_args)
 
 
@@ -239,27 +239,24 @@ def parse_hosts(ros_system: ros.System, yaml_hosts: dict) -> None:
         parse_executors(ros_host, yaml_executors)
 
 
+#helper-method for correctly parsing default_time_unit
+def parse_time_unit(unit : str) -> ros.TimeUnit:
+    match unit:
+        case 'nanoseconds' | 'ns':
+            return ros.TimeUnit.NANOSECONDS
+        case 'microseconds' | 'us':
+            return ros.TimeUnit.MICROSECONDS
+        case 'milliseconds' | 'ms':
+            return ros.TimeUnit.MILLISECONDS
+        case 'seconds' | 'sec':
+            return ros.TimeUnit.SECONDS
+        case 'minutes' | 'min':
+            return ros.TimeUnit.MINUTES
+        case _:
+            raise ValueError(f"Unspecified timeunit chosen. Choose among the following: "
+                             f"{VALID_TIME_UNITS}.")
 
-
-def parse_system(yaml_system: dict) -> ros.System:
-
-    #helper-method for correctly parsing default_time_unit
-    def parse_time_unit(unit : str) -> ros.TimeUnit:
-        match unit:
-            case 'nanoseconds' | 'ns':
-                return ros.TimeUnit.NANOSECONDS
-            case 'microseconds' | 'us':
-                return ros.TimeUnit.MICROSECONDS
-            case 'milliseconds' | 'ms':
-                return ros.TimeUnit.MILLISECONDS
-            case 'seconds' | 'sec':
-                return ros.TimeUnit.SECONDS
-            case 'minutes' | 'min':
-                return ros.TimeUnit.MINUTES
-            case _:
-                raise ValueError(f"Unspecified timeunit chosen. Choose among the following: "
-                                 f"{VALID_TIME_UNITS}.")
-            
+def parse_system(yaml_system: dict) -> ros.System: 
     validate_yaml_attributes("system", yaml_system)
     system_args = {k: yaml_system[k] for k in yaml_system.keys()
                    & {'dds_implementation', 'default_qos', 'default_distribution'}}
