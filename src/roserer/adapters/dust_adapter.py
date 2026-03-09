@@ -490,15 +490,23 @@ def map_server(
     server_node : ros.Node = validations.objects.callback[server_callback]
     server_callback_object = server_node.get_callback(server_callback) 
     server = server_node.get_service(service)
+
+    # get publishing-info (response to client included)
+    interface_count, interface_id_list, interface_release_times, wcet = map_data_sending(out=out, parent_node=server_node,
+                                                        callback=server_callback_object,validations=validations, interface_count=1,
+                                                        interface_id_list=[sender_id],
+                                                        interface_release_times=[server_callback_object.wcet])
+
+
     # create data-callback for sending back to client (upon receiving request)
     out.add_data_callback(id=out.gen_id(SERVICE),
-                          exec_time=server_callback_object.wcet,
+                          exec_time=wcet,
                           topicID=receiver_id,
                           type=SERVICE,
                           buffersize=server.qos.depth,
-                          amount_of_publishers=1,
-                          publisher_release_time=[0],
-                          publisher_id=[sender_id],
+                          amount_of_publishers=interface_count,
+                          publisher_release_time=interface_release_times,
+                          publisher_id=interface_id_list,
                           executorID=out.get_exe_register_id(server_node.name))
     
     ### UPPAAL-Topic back from server to client ###

@@ -3,6 +3,7 @@ import roserer.yamlParser as yparser
 import roserer.systemvalidator as sv
 import pytest as pt
 import roserer.adapters.dust_adapter as da
+import roserer.dust.dust_system as ds
 
 def test_transform_system_no_duplicate_subscribers() -> None:
     """
@@ -25,20 +26,43 @@ def test_transform_system_detects_duplicate_service_calls() -> None:
     assert "The same service is being requested from multiple sources. This model only support a service being requested from one place." in errors
 
 
-# def test_transform_system_unique_service_client() -> None:
-#     """
-#     Tests that a unique topic-templates are made for each client-service-communication
-#     """
-#     test_sys = yparser.parse_yaml("src/tests/input/dust/test_transform_system_unique_service_client.yaml")
-#     errors, warnings, dust_sys = da.transform_system(test_sys)
-#     assert errors == []
-#     assert warnings == []
-#     print(dust_sys.gen_system())
-#     assert len(dust_sys.topics) == 4
-#     assert len(dust_sys.callbacks) == 3
+def test_transform_system_service_client_correct_mapping() -> None:
+    """
+    Tests that a system simple system with service-client is mapped correctly
+    (topic back and forth between server-client)
+    """
+    test_sys = yparser.parse_yaml("src/tests/input/dust/test_transform_system_service_client_correct_mapping.yaml")
+    errors, warnings, dust_sys = da.transform_system(test_sys)
+    assert errors == []
+    assert warnings == []
+    assert len(dust_sys.executors) == 2
+    assert len(dust_sys.topics) == 2
+    assert len(dust_sys.callbacks) == 3
+    expected_request_cb = ds.PeriodicCallback(id=0,exec_time=3, period=5, type=0, offset=0, buffersize=1,amount_of_publishers=1,publisher_release_time=[3], publisher_id=[0], executorID=0)
+    expected_service_cb = ds.DataCallback(id=0, exec_time=7, topicID=0, type=1, buffersize=10,amount_of_publishers=1,publisher_release_time=[5], publisher_id=[1], executorID=1)
+    expected_client_cb = ds.DataCallback(id=0,exec_time=1, topicID=1, type=3, buffersize=10,amount_of_publishers=0,publisher_release_time=[], publisher_id=[], executorID=0)
+    expected_topic_1 = ds.Topic(receiver_id=0, sender_id=0, delay=0, max_jitter=0, buffersize=10)
+    expected_topic_2 = ds.Topic(receiver_id=1, sender_id=1, delay=0, max_jitter=0, buffersize=10)
+    component_attributes = [com.__dict__ for com in dust_sys.callbacks + dust_sys.topics]
+    assert expected_service_cb.__dict__ in component_attributes
+    assert expected_client_cb.__dict__ in component_attributes
+    assert expected_request_cb.__dict__ in component_attributes
+    assert expected_topic_1.__dict__ in component_attributes
+    assert expected_topic_2.__dict__ in component_attributes
 
 def test_transform_system_nested_calls_collapsed() -> None:
     """
     Tests that a callback with nested calls is collapsed into a single callback
     with wcet = the sum of the callbacks and correct arrays for sending.
+    """
+
+def test_transform_system_subs_correct_ids() -> None:
+    """
+    Tests that each subscriber is assigned correct id's
+    """
+
+def test_transform_system_callback_order_maintained() -> None:
+    """
+    Tests that the id's of callbacks reflects the order they were added
+    to the node (required for correctly prioritizing callbacks of same type)
     """
