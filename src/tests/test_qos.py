@@ -103,9 +103,9 @@ parse_enum__invalid = [
         (Dur, ValueError, -1),
         (Dur, TypeError, .0),
         (Dur, TypeError, None),
-        (Liv, ValueError, ""),
-        (Liv, ValueError, "test"),
-        (Liv, ValueError, "system default"),
+        (Liv, KeyError, ""),
+        (Liv, KeyError, "test"),
+        (Liv, KeyError, "system default"),
 
         ]
 
