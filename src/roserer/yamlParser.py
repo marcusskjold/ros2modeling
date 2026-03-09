@@ -3,7 +3,7 @@ import roserer.ros2system as ros
 from ruamel.yaml import YAML
 
 VALID_ATTRIBUTES = {
-    'system' : ['system', 'dds_implementation', 'default_qos', 'default_distribution', 'hosts'],
+    'system' : ['system', 'dds_implementation', 'default_qos', 'default_distribution', 'default_time_unit', 'hosts'],
     'host' : ['host', 'architecture', 'operating_system', 'default_qos', 'default_distribution', 'executors'],
     'executor' : ['executor', 'ros_distribution', 'implementation', 'default_qos', 'nodes'],
     'node' : ['node', 'default_qos', 'publishers','callbacks', 'subscriptions', 'variables', 'timers', 'services', 'external_inputs', 'external_outputs', 'clients'],
@@ -16,8 +16,11 @@ VALID_ATTRIBUTES = {
     'request' : ['client', 'response'],
     'external_input' : ['external_input', 'callback'],
     'external_output' : ['external_output'],
-    'variable' : ['variable', 'reset_after_read', 'condition']
+    'variable' : ['variable', 'reset_after_read', 'condition'],
 }
+
+VALID_TIME_UNITS = ['nanoseconds', 'ns', 'microseconds', 'us', 'milliseconds', 'ms', 'seconds', 'sec', 'minutes', 'min']
+
 
 def validate_yaml_attributes(component_type : str, yaml_object : dict) -> None:
     '''
@@ -55,7 +58,7 @@ def parse_subscriptions(ros_node: ros.Node, yaml_subscriptions: dict) -> None:
             subscription_args['callback'] = next(
                 (callback for callback in ros_node.callbacks
                     if callback.name == subscription['callback']),
-                None)
+                None) # TODO: maybe use our own function instead
         ros_node.add_subscription(**subscription_args)
 
 
@@ -123,10 +126,10 @@ def parse_callbacks(ros_node: ros.Node, yaml_callbacks: dict) -> None:
         if 'callback' in callback:
             callback_args['name'] = callback['callback']
         if 'publishers' in callback: 
-            callback_args['publishers'] = [ros_node.get_publisher(publisher['publisher']) for publisher in callback['publishers']]
+            callback_args['publishers'] = [ros_node.get_publisher(pub_name) for pub_name in callback['publishers']]
         if 'external_outputs' in callback:
             # get list of output-names in current yaml-callback
-            yaml_names = [external_output['external_output']
+            yaml_names = [external_output
                           for external_output in callback['external_outputs']]
             # add external outputs from node to args, if present among callbacks of node
             callback_args['outputs'] = [eo for eo in ros_node.external_outputs
@@ -236,10 +239,32 @@ def parse_hosts(ros_system: ros.System, yaml_hosts: dict) -> None:
         parse_executors(ros_host, yaml_executors)
 
 
+
+
 def parse_system(yaml_system: dict) -> ros.System:
+
+    #helper-method for correctly parsing default_time_unit
+    def parse_time_unit(unit : str) -> ros.TimeUnit:
+        match unit:
+            case 'nanoseconds' | 'ns':
+                return ros.TimeUnit.NANOSECONDS
+            case 'microseconds' | 'us':
+                return ros.TimeUnit.MICROSECONDS
+            case 'milliseconds' | 'ms':
+                return ros.TimeUnit.MILLISECONDS
+            case 'seconds' | 'sec':
+                return ros.TimeUnit.SECONDS
+            case 'minutes' | 'min':
+                return ros.TimeUnit.MINUTES
+            case _:
+                raise ValueError(f"Unspecified timeunit chosen. Choose among the following: "
+                                 f"{VALID_TIME_UNITS}.")
+            
     validate_yaml_attributes("system", yaml_system)
     system_args = {k: yaml_system[k] for k in yaml_system.keys()
                    & {'dds_implementation', 'default_qos', 'default_distribution'}}
+    if 'default_time_unit' in yaml_system:
+        system_args['default_time_unit'] = parse_time_unit(yaml_system['default_time_unit'])
     if 'system' in yaml_system:
          system_args['name'] = yaml_system['system']
     ros_sys = ros.System(**system_args)

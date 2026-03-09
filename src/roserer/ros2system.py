@@ -2,9 +2,17 @@ from typing import Any, TypeVar
 from dataclasses import dataclass
 import roserer.qos
 from roserer.qos import QoS
+from enum import Enum
 
 #TODO: Make enums (in validator) available to the user of this class
 
+class TimeUnit(Enum):
+    NANOSECONDS = 0
+    MICROSECONDS = 1
+    MILLISECONDS = 2
+    SECONDS = 3
+    MINUTES = 4
+    UNSPECIFIED = 5
 
 DEFAULT_EXECUTOR = "SingleThreadedExecutor"
 DEFAULT_DISTRIBUTION = "Rolling"
@@ -35,7 +43,6 @@ def _name_init(name: str | None, parent: str, type: str, position: int) -> str:
         return name
 
 
-TimeUnit = int
 Topic = str
 
 @dataclass
@@ -53,10 +60,10 @@ class ExternalOutput:
 @dataclass
 class Timer():
     name: str
-    period: TimeUnit
-    offset: TimeUnit
+    period: int
+    offset: int
     callback: str
-    interval: tuple[TimeUnit,TimeUnit] | None
+    interval: tuple[int,int] | None
 
 
 @dataclass
@@ -83,7 +90,7 @@ class Request():
 @dataclass
 class Callback():
     name: str
-    wcet: TimeUnit
+    wcet: int
     read_variables: list[Variable]
     write_variables: list[Variable]
     calls: str
@@ -118,7 +125,7 @@ class Subscription():
     topic: Topic
     callback: str
     qos: QoS
-    wall_times: list[TimeUnit] | None
+    wall_times: list[int] | None
 
 
 @dataclass
@@ -126,7 +133,7 @@ class Service():
     name: str
     callback: str
     qos: QoS
-    wall_times: list[TimeUnit] | None
+    wall_times: list[int] | None
 
 
 @dataclass
@@ -180,7 +187,7 @@ class Node():
             callback: Callback,
             name: str | None = None,
             qos: QoS | dict[str, Any] | None = None,
-            wall_times: list[TimeUnit] | None = None
+            wall_times: list[int] | None = None
             ) -> Subscription:
         subscription = Subscription(
                 name=_name_init(name, 
@@ -201,7 +208,7 @@ class Node():
             callback: Callback,
             name: str | None = None,
             qos: QoS | dict[str, Any] | None = None,
-            wall_times: list[TimeUnit] | None = None
+            wall_times: list[int] | None = None
             ) -> Service:
         service = Service(
                 name=_name_init(name, self.name, "service", len(self.services)),
@@ -228,7 +235,7 @@ class Node():
 
     def add_callback(
             self,
-            wcet: TimeUnit,
+            wcet: int,
             name: str | None = None,
             read_variables: list[Variable] | None = None,
             write_variables: list[Variable] | None = None,
@@ -266,11 +273,11 @@ class Node():
 
     def add_timer(
             self,
-            period: TimeUnit,
+            period: int,
             callback: Callback,
             name: str | None = None,
-            offset: TimeUnit = 0,
-            interval: tuple[TimeUnit, TimeUnit] | None = None
+            offset: int = 0,
+            interval: tuple[int, int] | None = None
             ) -> Timer:
         timer = Timer(
                 callback=callback.name,
@@ -420,6 +427,7 @@ class System():
     dds_implementation: str
     default_qos: QoS
     default_distribution: str
+    default_time_unit: TimeUnit
     hosts: list[Host]
 
     def add_host(
@@ -480,12 +488,13 @@ class System():
             name: str,
             dds_implementation: str = UNSPECIFIED,
             default_qos: QoS | dict[str, Any] | None = None,
-            default_distribution: str = DEFAULT_DISTRIBUTION
+            default_distribution: str = DEFAULT_DISTRIBUTION,
+            default_time_unit: TimeUnit = TimeUnit.UNSPECIFIED
             ):
-
         self.name = name
         self.hosts = []
         self.dds_implementation = dds_implementation
         self.default_qos = _qos_init(default_qos, DEFAULT_QOS)
         self.default_distribution = default_distribution
+        self.default_time_unit = default_time_unit
 
