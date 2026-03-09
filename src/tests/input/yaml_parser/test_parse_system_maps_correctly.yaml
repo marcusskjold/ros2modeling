@@ -1,0 +1,69 @@
+System:
+  system: test_parse_system_maps_correctly
+  default_distribution: Humble
+  dds_implementation: FastDDS
+  default_qos: {history: keep_all}
+  default_time_unit: 'milliseconds'
+  hosts:
+  - host: host_1
+    operating_system: windows 97
+    architecture: i8
+    default_distribution: Eloquent
+    default_qos: {reliability: reliable}
+    executors:
+    - executor: exe_1
+      ros_distribution: Humble
+      implementation: SingleThreadedExecutor
+      default_qos: {durability: volatile}
+      nodes:
+      - node: node_1  
+        default_qos: {deadline: "(5,10)" }   
+        publishers:
+        - publisher: pub_1
+          topic: topic_1
+          qos: {history: keep_last}
+        callbacks:
+        - callback: cb_1
+          wcet: 1
+          read_variables: [v_1]
+          write_variables: [v_2]
+          calls: cb_2
+          publishers: [pub_1]
+          external_outputs: [eo_1]
+          request:
+            client: client_1
+            response: cb_2
+        - callback: cb_2
+          wcet: 5
+        subscriptions:
+        - subscription: sub_1
+          topic: topic_1
+          callback: cb_1
+          wall_times: [1,2,3]
+          qos: {history: keep_last}
+        variables:
+        - variable: v_1
+          reset_after_read: True 
+          condition: False 
+        - variable: v_2
+        timers:
+        - timer: timer_1
+          period: 5
+          offset: 0
+          callback: cb_1
+          begin: 0
+          end: 10
+        services:
+        - service: service_1
+          callback: cb_1
+          qos: {history: keep_last}
+          wall_times: [4,5,6]
+        external_inputs:
+        - external_input: ei_1
+          callback: cb_1
+        external_outputs:
+        - external_output: eo_1
+        clients:
+        - client: client_1
+          service: service_1
+          qos: {history: keep_all}
