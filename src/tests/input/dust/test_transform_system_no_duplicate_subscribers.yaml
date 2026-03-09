@@ -14,7 +14,7 @@ System:
         - callback: cb_1
           wcet: 3
           publishers:
-          - publisher: pub_1
+          - pub_1
         timers:
         - timer: timer_1
           period: 5
