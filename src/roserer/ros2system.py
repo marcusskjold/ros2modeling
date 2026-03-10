@@ -444,37 +444,65 @@ class System():
         return host
 
     def get_nodes(self)->list[Node]:
-        """
-        returns list of all nodes in system
-        """
+        """ returns list of all nodes in system """
         return [node 
                 for host in self.hosts
                 for executor in host.executors
                 for node in executor.nodes]
     
     def get_subscriptions(self)->list[Subscription]:
-        """
-        returns list of all subscriptions in system
-        """
+        """ returns list of all subscriptions in system """
         return [subscription
                 for node in self.get_nodes()
                 for subscription in node.subscriptions]
     
     def get_services(self)->list[Service]:
-        """
-        returns list of all services in system
-        """
+        """ returns list of all services in system """
         return [service
                 for node in self.get_nodes()
                 for service in node.services]
     
     def get_timers(self)->list[Timer]:
-        """
-        returns list of all timers in system
-        """
+        """ returns list of all timers in system """
         return [timer
                 for node in self.get_nodes()
                 for timer in node.timers]
+
+    def get_callbacks(self) -> list[Callback]:
+        """Return all callbacks in the system"""
+        return [cb for node in self.get_nodes() for cb in node.callbacks]
+
+    def get_publishers(self) -> list[Publisher]:
+        return [pub for node in self.get_nodes() for pub in node.publishers]
+
+    def get_clients(self) -> list[Client]:
+        return [client for node in self.get_nodes() for client in node.clients]
+
+    def get_qos_profiles(self) -> list[tuple[QoS,str]]:
+        """Get each qos profile and the name of the object to which it belongs"""
+        return ([(pub.qos, pub.name) for pub in self.get_publishers()]
+                + [(client.qos, client.name) for client in self.get_clients()]
+                + [(sub.qos, sub.name) for sub in self.get_subscriptions()]
+                + [(service.qos, service.name) for service in self.get_services()]
+                # TODO: Add actions when implemented
+                )
+    def get_hosts(self) -> list[Host]:
+        return self.hosts
+
+    def get_executors(self) -> list[Executor]:
+        return [executor for host in self.hosts for executor in host.executors]
+
+    def get_external_inputs(self) -> list[ExternalInput]:
+        return [inp for node in self.get_nodes() for inp in node.external_inputs]
+
+    def get_external_outputs(self) -> list[ExternalOutput]:
+        return [outp for node in self.get_nodes() for outp in node.external_outputs]
+
+    def get_variables(self) -> list[Variable]:
+        return [var for node in self.get_nodes() for var in node.variables]
+
+    def get_actions(self) -> list[Action]:
+        return [act for node in self.get_nodes() for act in node.actions]
 
     def __init__(
             self,
