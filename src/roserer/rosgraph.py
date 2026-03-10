@@ -41,34 +41,20 @@ class GraphNode:
     incoming: list[GraphNode]
     outgoing: list[GraphNode]
 
-    def __init__(
-            self,
-            name: str,
-            nodetype: NodeType,
-            parent: GraphNode | None = None,
-            children: list[GraphNode] | None = None,
-            incoming: list[GraphNode] | None = None,
-            outgoing: list[GraphNode] | None = None,
-            ):
-        if children is None:
-            children = []
-        if incoming is None:
-            incoming = []
-        if outgoing is None:
-            outgoing = []
+    def __init__(self, name: str, nodetype: NodeType, parent: GraphNode | None = None):
         if parent is not None:
             parent.children.append(self)
 
         self.name = name
         self.nodetype = nodetype
         self.parent = parent
-        self.children = children
-        self.incoming = incoming
-        self.outgoing = outgoing
+        self.children = []
+        self.incoming = []
+        self.outgoing = []
 
     def __str__(self) -> str:
         return f"Type: {self.nodetype}, Name: {self.name}"
-    
+
 # for internal use
 # this is a list of edges that should be added after all graph nodes are created
 # First we have the type of the origin of the edge, then the origin object / name
@@ -77,9 +63,11 @@ class GraphNode:
 Elem = GraphNode | str | list[str]
 EdgeSpec = tuple[NodeType, Elem, NodeType, Elem]
 
+# For external use
 RosGraphView = dict[NodeType, dict[str, GraphNode]]
 
 def add_to_graph(graph: RosGraphView, node: GraphNode) -> GraphNode:
+    # TODO: Write docs
     _type = node.nodetype
     if graph[_type].get(node.name) is not None:
         raise ValueError(f"Name is not unique for {node.name} of type {_type} \
@@ -88,6 +76,7 @@ def add_to_graph(graph: RosGraphView, node: GraphNode) -> GraphNode:
     return node
 
 def string_resolve(graph: RosGraphView, e: str, t: NodeType) -> GraphNode:
+    # TODO: Write docs
     x = graph[t].get(e)
     if x is None:
         if t == TOPIC:
