@@ -1,0 +1,63 @@
+System:
+  system: test_transform_system_cbs_correct_ids
+  default_distribution: Humble
+  hosts:
+  - host:
+    executors:
+    - executor: exe_1
+      nodes:
+      - node: node_1 
+        publishers:
+        - publisher: pub_1
+          topic: topic_1
+        callbacks:
+        - callback: cb_1
+          wcet: 5
+          publishers:
+          - pub_1
+          request: 
+            client: client_1
+            response: response_cb_1
+        - callback: cb_2
+          wcet: 1
+          request: 
+            client: client_2
+            response: response_cb_2
+        - callback: response_cb_1
+          wcet: 1
+        - callback: response_cb_2
+          wcet: 2
+        timers:
+        - timer: timer_1
+          period: 10
+          offset: 0
+          callback: cb_1
+        - timer: timer_2
+          period: 20
+          offset: 0
+          callback: cb_2
+        clients:
+        - client: client_1
+          service: service_1
+        - client: client_2
+          service: service_2
+
+    - executor: exe_2
+      nodes:
+      - node: node_2
+        subscriptions:
+        - subscription: sub_1
+          callback: cb_3
+          topic: topic_1
+        - subscription: sub_2
+          callback: cb_3
+          topic: topic_1
+        callbacks:
+        - callback: cb_3
+          wcet: 10
+        services: 
+        - service: service_1
+          callback: cb_3
+        - service: service_2
+          callback: cb_3
+          
