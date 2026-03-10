@@ -9,6 +9,7 @@ def test_transform_system_no_duplicate_subscribers() -> None:
     """
     Tests that a callback- and topic-template is made for each publisher to a given topic,
     but only 1 subscription-callback for each subscription to a topic is made.
+    Even when same publisher used twice in two different callbacks.
     """
     test_sys = yparser.parse_yaml("src/tests/input/dust/test_transform_system_no_duplicate_subscribers.yaml")
     errors, warnings, dust_sys = da.transform_system(test_sys)
@@ -55,6 +56,26 @@ def test_transform_system_nested_calls_collapsed() -> None:
     Tests that a callback with nested calls is collapsed into a single callback
     with wcet = the sum of the callbacks and correct arrays for sending.
     """
+    test_sys = yparser.parse_yaml("src/tests/input/dust/test_transform_system_nested_calls_collapsed.yaml")
+    errors, warnings, dust_sys = da.transform_system(test_sys)
+    assert errors == []
+    assert warnings == []
+    expected_components = []
+    expected_components.append(ds.PeriodicCallback(id=0, exec_time=12, period=20, type=0, offset=0, buffersize=1, amount_of_publishers=3, publisher_release_time=[3,7,12], publisher_id=[0,1,2], executorID=0).__dict__)
+    expected_components.append(ds.Topic(receiver_id=0, sender_id=0, delay=0,max_jitter=0,buffersize=10).__dict__)
+    expected_components.append(ds.Topic(receiver_id=1, sender_id=1, delay=0,max_jitter=0,buffersize=10).__dict__)
+    expected_components.append(ds.Topic(receiver_id=0, sender_id=2, delay=0,max_jitter=0,buffersize=10).__dict__)
+    expected_components.append(ds.PeriodicCallback(id=1, exec_time=9, period=10, type=0, offset=0,buffersize=1,amount_of_publishers=2,publisher_release_time=[4,9],publisher_id=[3,4],executorID=0).__dict__) 
+    expected_components.append(ds.Topic(receiver_id=1, sender_id=3, delay=0,max_jitter=0,buffersize=10).__dict__)
+    expected_components.append(ds.Topic(receiver_id=0, sender_id=4, delay=0,max_jitter=0,buffersize=10).__dict__)
+    expected_components.append(ds.DataCallback(id=0,exec_time=5,topicID=0,type=2,buffersize=10,amount_of_publishers=0,publisher_release_time=[],publisher_id=[],executorID=1).__dict__)
+    expected_components.append(ds.DataCallback(id=1,exec_time=5,topicID=1,type=2,buffersize=10,amount_of_publishers=0,publisher_release_time=[],publisher_id=[],executorID=1).__dict__)
+    expected_components.append(ds.DataCallback(id=2,exec_time=5,topicID=1,type=2,buffersize=10,amount_of_publishers=0,publisher_release_time=[],publisher_id=[],executorID=1).__dict__)
+    component_attributes = [com.__dict__ for com in dust_sys.callbacks + dust_sys.topics]
+    for com in expected_components:
+        assert com in component_attributes
+    assert len(component_attributes) == len(expected_components)
+
 
 def test_transform_system_subs_correct_ids() -> None:
     """
@@ -65,4 +86,10 @@ def test_transform_system_callback_order_maintained() -> None:
     """
     Tests that the id's of callbacks reflects the order they were added
     to the node (required for correctly prioritizing callbacks of same type)
+    """
+
+def test_validate_timer_invalid_wcet_sum_caught() -> None:
+    """
+    Tests that a net sum wcet of a callback above the period of its timer
+    is caught (when individual wcet of calls is below)
     """

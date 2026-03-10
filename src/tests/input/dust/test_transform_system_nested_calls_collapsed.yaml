@@ -1,0 +1,57 @@
+System:
+  system: test_transform_system_nested_calls_collapsed
+  default_distribution: Humble
+  hosts:
+  - host:
+    executors:
+    - executor: exe_1
+      nodes:
+      - node: node_1
+        publishers:
+        - publisher: pub_1
+          topic: topic_1
+        - publisher: pub_2
+          topic: topic_2  
+        - publisher: pub_3
+          topic: topic_1     
+        callbacks:
+        - callback: cb_1
+          wcet: 3
+          publishers:
+          - pub_1
+          calls: cb_2
+        - callback: cb_2
+          wcet: 4
+          publishers:
+          - pub_2
+          calls: cb_3
+        - callback: cb_3
+          wcet: 5
+          publishers:
+          - pub_3
+        timers:
+        - timer: timer_1
+          period: 20
+          offset: 0
+          callback: cb_1
+        - timer: timer_2
+          period: 10
+          offset: 0
+          callback: cb_2
+        
+    - executor: exe_2
+      nodes:
+      - node: node_2
+        callbacks:
+        - callback: cb_4
+          wcet: 5
+        subscriptions:
+        - subscription: sub_1
+          callback: cb_4
+          topic: topic_1
+        - subscription: sub_2
+          callback: cb_4
+          topic: topic_2
+        - subscription: sub_3
+          callback: cb_4
+          topic: topic_2

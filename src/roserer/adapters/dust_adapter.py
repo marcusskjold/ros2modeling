@@ -557,8 +557,9 @@ def map_topic(
     if not out.has_receiver_id(topic):
         # get receiver_id from register
         receiver_id = out.get_sub_register_id(topic)
-        # map subscribers:
-        for callback in validations.interfaces['topics subscribed to'][topic]:
+        # map subscribers:   
+        # same callback can be here twice -> make it a set!!
+        for callback in set(validations.interfaces['topics subscribed to'][topic]):
             map_subscriber_cb(
                     out=out,
                     receiver_id=receiver_id,
