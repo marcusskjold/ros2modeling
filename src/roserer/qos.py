@@ -1,109 +1,17 @@
-# This documents relevant values and types used by rmw
-# https://github.com/ros2/rmw/blob/kilted/rmw/include/rmw/types.h
-# This is relevant to ensure correctness, and the values are used by tests
-# Types and values are introduced in the same order as in the rmw header file.
-# All line numbers reference the kilted file versions.
-# Refer also to https://design.ros2.org/articles/qos.html
-
-
-# The rmw_unique_network_flow_endpoints_requirement enum is not relevant here.
-import re
-from typing import TypeVar
-from dataclasses import dataclass
 from enum import Enum
-import math
-from typing import Union
+from roserer.types import (
+        Duration, DURATION_UNSPECIFIED, DURATION_BEST_AVAILABLE,
+        parse_enum, parse_int, parse_duration, parse_bool, 
+        )
+from dataclasses import dataclass
 
-### This class is taken and modified from the kilted version of rclpy/duration.py
-# Unnecessary dependencies have been removed, such that this is usable outside a full 
-# ROS installation.
-# Also the duration is stored as a simple duration in the class
-class Duration:
-    """A period between two time points, with nanosecond precision."""
-
-    def __init__(
-            self,
-            seconds: Union[int, float] = 0,
-            nanoseconds: Union[int, float] = 0
-            ) -> None:
-        """
-        Create an instance of :class:`Duration`, combined from given seconds and
-        nanoseconds.
-        :param seconds: Time span seconds, if any, fractional part will be included.
-        :param nanoseconds: Time span nanoseconds, if any, fractional part will be 
-                            discarded.
-        """
-        total_nanoseconds = int(seconds * S_TO_NS)
-        total_nanoseconds += int(nanoseconds)
-        if total_nanoseconds >= 2**63 or total_nanoseconds < -2**63:
-            # pybind11 would raise TypeError, but we want OverflowError
-            raise OverflowError(
-                'Total nanoseconds value is too large to store in C duration.')
-        self.nanoseconds = int(total_nanoseconds)
-
-    # @property
-    # def nanoseconds(self) -> int:
-    #     return self._duration_handle.nanoseconds
-
-    def __repr__(self) -> str:
-        return 'Duration(nanoseconds={0})'.format(self.nanoseconds)
-
-    def __str__(self) -> str:
-        if self == DURATION_INFINITE:
-            return 'Infinite'
-        return f'{self.nanoseconds} nanoseconds'
-
-    def __add__(self, other: 'Duration') -> 'Duration':
-        if isinstance(other, Duration):
-            return Duration(nanoseconds=other.nanoseconds + self.nanoseconds)
-        return NotImplemented
-
-    def __sub__(self, other: 'Duration') -> 'Duration':
-        if isinstance(other, Duration):
-            return Duration(nanoseconds=self.nanoseconds - other.nanoseconds)
-        return NotImplemented
-
-    def __mul__(self, other: Union[int, float]) -> 'Duration':
-        if isinstance(other, int):
-            return Duration(nanoseconds=self.nanoseconds * other)
-        if isinstance(other, float):
-            if not math.isfinite(other):
-                if other == float('inf'):
-                    return DURATION_INFINITE
-                else:
-                    raise ValueError("Can't multiply duration with nan")
-            return Duration(nanoseconds=int(self.nanoseconds * other))
-        return NotImplemented
-
-    def __eq__(self, other: object) -> bool:
-        if isinstance(other, Duration):
-            return self.nanoseconds == other.nanoseconds
-        return NotImplemented
-
-    def __ne__(self, other: object) -> bool:
-        if isinstance(other, Duration):
-            return not self.__eq__(other)
-        return NotImplemented
-
-    def __lt__(self, other: object) -> bool:
-        if isinstance(other, Duration):
-            return self.nanoseconds < other.nanoseconds
-        return NotImplemented
-
-    def __le__(self, other: object) -> bool:
-        if isinstance(other, Duration):
-            return self.nanoseconds <= other.nanoseconds
-        return NotImplemented
-
-    def __gt__(self, other: object) -> bool:
-        if isinstance(other, Duration):
-            return self.nanoseconds > other.nanoseconds
-        return NotImplemented
-
-    def __ge__(self, other: object) -> bool:
-        if isinstance(other, Duration):
-            return self.nanoseconds >= other.nanoseconds
-        return NotImplemented
+DEADLINE_DEFAULT = DURATION_UNSPECIFIED
+LIVELINESS_LEASE_DURATION_DEFAULT = DURATION_UNSPECIFIED
+LIFESPAN_DEFAULT = DURATION_UNSPECIFIED
+DEADLINE_BEST_AVAILABLE = DURATION_BEST_AVAILABLE
+LIVELINESS_LEASE_DURATION_BEST_AVAILABLE = DURATION_BEST_AVAILABLE
+# rmw/types.h:728
+DEPTH_SYSTEM_DEFAULT = 0
 
 
 # rmw/types.h:370 | rclpy/qos.py:334
@@ -140,74 +48,6 @@ class QOSLivelinessPolicy(Enum):
     UNKNOWN = 4
     BEST_AVAILABLE = 5
 
-
-# Duration = tuple[int, int]
-
-S_TO_NS = 1_000_000_000
-
-# Time in rmw is encoded as a second part + nanosecond part (rmw/time.h)
-# rmw/time.h:54
-# Deadline default (rmw/types.h:517)
-DURATION_INFINITE: Duration = Duration(9223372036, 854775807) 
-# Lease duration default (rmw/types.h:542)
-# Lifespan default (rwm/type.h:537)
-DURATION_UNSPECIFIED: Duration = Duration(0, 0) # rmw/time.h:55
-DEADLINE_DEFAULT = DURATION_UNSPECIFIED
-LIVELINESS_LEASE_DURATION_DEFAULT = DURATION_UNSPECIFIED
-LIFESPAN_DEFAULT = DURATION_UNSPECIFIED
-# for both deadline (rmw/types.h:539) and for lease duration (rmw/types.h:567)
-DURATION_BEST_AVAILABLE: Duration = Duration(9223372036, 854775806)  # rmw/types.h:520
-DEADLINE_BEST_AVAILABLE = DURATION_BEST_AVAILABLE
-LIVELINESS_LEASE_DURATION_BEST_AVAILABLE = DURATION_BEST_AVAILABLE
-
-# rmw/types.h:728
-DEPTH_SYSTEM_DEFAULT = 0
-
-
-def parse_bool(arg: bool | str) -> bool:
-    if isinstance(arg, bool):
-        return arg
-    elif arg in ["True", "true"]:
-        return True
-    elif arg in ["False", "false"]:
-        return False
-    else:
-        raise ValueError(f"{arg} is not convertible to bool")
-
-
-def parse_duration(arg: Duration | str) -> Duration:
-    if isinstance(arg, Duration):
-        return arg
-    elif isinstance(arg, str):
-        p = re.compile(r'^\( *(-?\d+) *, *(-?\d+) *\)\Z')
-        m = p.match(arg)
-        if m is None:
-            raise ValueError(
-                    f"Invalid format of argument string. Expected '(int, int)',\
-                            got \"{arg}\"")
-        return Duration(int(m.group(1)),int(m.group(2)))
-    else:
-        raise TypeError(f"{arg} is neither a string nor a Duration")
-
-
-def parse_int(arg: int | str) -> int:
-    if isinstance(arg, int):
-        return arg
-    elif isinstance(arg, str):
-        return int(arg)
-    else:
-        raise TypeError(f"{arg} is not convertible to int")
-
-
-E = TypeVar('E', bound=Enum)
-def parse_enum(enumtype: type[E], arg: E | str | int) -> E:
-    if not isinstance(arg, str) and isinstance(arg, enumtype):
-        return arg
-    elif isinstance(arg, (str, int)):
-        return enumtype(arg)
-    else:
-        raise TypeError("")
-
 # rmw/types.h:569 | rclpy/qos.py:56
 @dataclass
 class QualityOfService():
@@ -231,7 +71,7 @@ class QualityOfService():
         deadline: Duration | str = DEADLINE_DEFAULT,
         lifespan: Duration | str = LIFESPAN_DEFAULT,
         liveliness: QOSLivelinessPolicy | str = QOSLivelinessPolicy.SYSTEM_DEFAULT,
-        liveliness_lease_duration: Duration | str = LIVELINESS_LEASE_DURATION_DEFAULT,
+        liveliness_lease_duration: Duration | str = DURATION_UNSPECIFIED,
         avoid_ros_namespace_conventions: bool | str = False
     ):
         self.history = parse_enum(QOSHistoryPolicy, history)
