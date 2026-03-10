@@ -169,6 +169,14 @@ def parse_enum(enumtype: type[E], arg: E | str | int) -> E:
 
 # ====================== System, host, executor enums =================================
 
+class TimeUnit(Enum):
+    NANOSECONDS = 0
+    MICROSECONDS = 1
+    MILLISECONDS = 2
+    SECONDS = 3
+    MINUTES = 4
+    UNSPECIFIED = 5
+
 class DDS_IMPLEMENTATION(Enum):
     Generic = auto()
     Cyclone = auto()

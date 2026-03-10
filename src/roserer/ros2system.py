@@ -1,68 +1,16 @@
-from enum import Enum, auto
 from typing import Any, TypeVar, Protocol
 from dataclasses import dataclass
-import roserer.qos
-from roserer.qos import QoS
-from enum import Enum
-
-
-class TimeUnit(Enum):
-    NANOSECONDS = 0
-    MICROSECONDS = 1
-    MILLISECONDS = 2
-    SECONDS = 3
-    MINUTES = 4
-    UNSPECIFIED = 5
-
-class DDS_IMPLEMENTATION(Enum):
-    Generic = auto()
-    Cyclone = auto()
-    Fast = auto()
-    Connext = auto()
-    Gurum = auto()
-
-class EXECUTOR(Enum):
-    SingleThreadedExecutor = auto()
-    MultiThreadedExecutor = auto()
-    StaticSingleThreadedExecutor = auto()
-    EventsExecutor = auto()
-
-class OPERATING_SYSTEM(Enum):
-    Generic = auto()
-    Windows = auto()
-    Debian = auto()
-    MacOS = auto()
-    Ubuntu = auto()
-    OpenEmbedded = auto()
-    RTLinuxKernel = auto()
-
-class ARCHITECTURE(Enum):
-    Generic = auto()
-    amd64 = auto()
-    arm64 = auto()
-    arm32 = auto()
-
-class DISTRIBUTION(Enum):
-    Rolling = auto()
-    Kilted = auto()
-    Jazzy = auto()
-    Iron = auto()
-    Humble = auto()
-    Galactic = auto()
-    Foxy = auto()
-    Eloquent = auto()
-    Dashing = auto()
-    Crystal = auto()
-    Bouncy = auto()
-    Ardent = auto()
+from roserer.qos import QoS, qos_profile_default
+from roserer.types import (
+        EXECUTOR, DISTRIBUTION, ARCHITECTURE, OPERATING_SYSTEM, DDS_IMPLEMENTATION,
+        TimeUnit)
 
 DEFAULT_EXECUTOR = EXECUTOR.SingleThreadedExecutor
 DEFAULT_DISTRIBUTION = DISTRIBUTION.Rolling
 GENERIC_ARCHITECTURE = ARCHITECTURE.Generic
 GENERIC_OPERATING_SYSTEM = OPERATING_SYSTEM.Generic
 GENERIC_DDS = DDS_IMPLEMENTATION.Generic
-DEFAULT_QOS = roserer.qos.qos_profile_default()
-
+DEFAULT_QOS = qos_profile_default()
 
 def _qos_init(q: QoS | dict[str, Any] | None, default: QoS) -> QoS:
     if q is None:
