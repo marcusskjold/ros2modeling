@@ -18,7 +18,7 @@ ARRAY_SIZES = {
 cb_types = ("TIMER", "SERVICE", "SUBSCRIBER", "CLIENT")
 
 # adds trailing 0'es to list till it has size n
-def adapt_list_size(li: list[int], n: int):
+def adapt_list_size(li: list[int], n: int) -> list[int]:
     if len(li) < n:
         li.extend([0] * (n - len(li)))
     return li
@@ -80,7 +80,7 @@ class ExecutorV1(UppaalTemplate):
         self.id = id
         self.stopTime = "StopTime"
     
-    def name(self):
+    def name(self) -> str:
         return "ExecV1_" + str(self.id)
 
 class ExecutorV2(UppaalTemplate):
@@ -88,7 +88,7 @@ class ExecutorV2(UppaalTemplate):
         self.id = id
         self.stopTime = "StopTime"
     
-    def name(self):
+    def name(self) -> str:
         return "ExecV2_" + str(self.id)
 
 class Topic(UppaalTemplate):
@@ -100,7 +100,7 @@ class Topic(UppaalTemplate):
         self.max_jitter = max_jitter
         self.buffersize = buffersize
 
-    def name(self):
+    def name(self) -> str:
         return "Topic_" + str(self.sender_id) + "to" + str(self.receiver_id)
 
 class PeriodicCallback(UppaalTemplate):
@@ -127,7 +127,7 @@ class PeriodicCallback(UppaalTemplate):
         self.publisher_id = publisher_id
         self.executorID = executorID
 
-    def name(self):
+    def name(self) -> str:
         return self.type + str(self.id)
 
 
@@ -211,7 +211,7 @@ class System():
 
 
     # gets next id for a callback with type 'typ'
-    def gen_id(self, typ : int):
+    def gen_id(self, typ : int) -> int:
         match typ:
             case 0: # TIMER
                 return next(self._timer_id_counter)
@@ -243,7 +243,7 @@ class System():
             return new_id
 
     # register an executor-id for a given node
-    def register_node(self, node_name, exe_id)->None:
+    def register_node(self, node_name, exe_id) -> None:
         self._node_register[node_name] = exe_id
 
     # get executor-id for a given node 
@@ -263,7 +263,7 @@ class System():
         return s
     
     # generalized version of below methods (harder to use)
-    def add_component(self, component_t : str, *args):
+    def add_component(self, component_t : str, *args) -> None:
         match component_t:
             case "executor_v1":
                 self.executors.append(ExecutorV1(*args))
@@ -293,7 +293,7 @@ class System():
                   delay : int,
                   max_jitter : int,
                   buffersize : int
-                  ):
+                  ) -> None:
         self.topics.append(Topic(
             receiver_id=receiver_id,
             sender_id=sender_id,
@@ -314,7 +314,7 @@ class System():
             publisher_release_time : list[int],
             publisher_id : list[int],
             executorID : int
-            ):
+            ) -> None:
         self.callbacks.append(PeriodicCallback(
             id, exec_time, period, type, offset, buffersize, amount_of_publishers,
             publisher_release_time, publisher_id, executorID))
@@ -331,7 +331,7 @@ class System():
             publisher_release_time : list[int],
             publisher_id : list[int],
             executorID : int
-            ):
+            ) -> None:
         self.callbacks.append(SporadicCallback(
             id, exec_time, length, releases, type, buffersize, amount_of_publishers, 
             publisher_release_time, publisher_id, executorID))
@@ -347,7 +347,7 @@ class System():
             publisher_release_time : list[int],
             publisher_id : list[int],
             executorID : int
-            ):
+            ) -> None:
         self.callbacks.append(DataCallback(
             id, exec_time, topicID, type, buffersize, amount_of_publishers,
             publisher_release_time, publisher_id, executorID))
@@ -437,20 +437,20 @@ class System():
         s += ','.join(component_names) + ";\n"
         return s
 
-    def buffer_overflow(self, prioritized : bool = True, stop_time : int = -1):
+    def buffer_overflow(self, prioritized : bool = True, stop_time : int = -1) -> dict:
         self.write(infile=INPUT_UPPAAL_FILE, outfile=OUTPUT_UPPAAL_FILE, prioritized=prioritized, stop_time=stop_time)
         checkables : list[UppaalTemplate] = self.topics + self.callbacks
         checkables_names = [c.name() for c in checkables]
         return UPPAAL.buffer_overflow(OUTPUT_UPPAAL_FILE, checkables_names)
     
     # assumes NO bufferoverflow or result will be trivially the size of the buffer
-    def max_buffer_size(self, prioritized : bool = True, stop_time : int = -1):
+    def max_buffer_size(self, prioritized : bool = True, stop_time : int = -1) -> dict[str,int]:
         self.write(infile=INPUT_UPPAAL_FILE, outfile=OUTPUT_UPPAAL_FILE, prioritized=prioritized, stop_time=stop_time)
         checkables = self.topics + self.callbacks
         checkables_names = [c.name() for c in checkables]
         return UPPAAL.max_buffer_size(OUTPUT_UPPAAL_FILE, checkables_names)
     
-    def max_latency(self, prioritized : bool = True, stop_time : int = -1):
+    def max_latency(self, prioritized : bool = True, stop_time : int = -1) -> dict[str,int]:
         self.write(infile=INPUT_UPPAAL_FILE, outfile=OUTPUT_UPPAAL_FILE, prioritized=prioritized, stop_time=stop_time)
         checkables_names = [c.name() for c in self.callbacks]
         return UPPAAL.max_latency(OUTPUT_UPPAAL_FILE, checkables_names)
