@@ -160,7 +160,9 @@ E = TypeVar('E', bound=Enum)
 def parse_enum(enumtype: type[E], arg: E | str | int) -> E:
     if not isinstance(arg, str) and isinstance(arg, enumtype):
         return arg
-    elif isinstance(arg, (str, int)):
+    elif isinstance(arg, str):
+        return enumtype[arg.upper()]
+    elif isinstance(arg, int):
         return enumtype(arg)
     else:
         raise TypeError("")
