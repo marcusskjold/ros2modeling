@@ -54,7 +54,7 @@ class UPPAAL():
         return results
 
     # query 3) from paper
-    def max_buffer_size(modelfile : str, checkables : list[str]):
+    def max_buffer_size(modelfile : str, checkables : list[str]) -> dict[str,int]:
         queryfile = modelfile + '.q'
         UPPAAL.write_max_buffer_size_query(queryfile, checkables)
         output = UPPAAL.run_uppaal(modelfile, queryfile)
@@ -62,7 +62,7 @@ class UPPAAL():
         ## debug
         #return output
 
-    def write_max_buffer_size_query(queryfile : str, checkables : list[str]):
+    def write_max_buffer_size_query(queryfile : str, checkables : list[str]) -> str:
         fout = open(queryfile, 'w')
         q = ""
         for checkable in checkables:
@@ -70,17 +70,17 @@ class UPPAAL():
         fout.write(q)
         return q
 
-    def parse_max_buffer_size_query(output : str, checkables : list[str]):
+    def parse_max_buffer_size_query(output : str, checkables : list[str]) -> dict[str,int]:
         return UPPAAL.parse_sup_query(output, checkables)
 
     # query 4) from paper
-    def max_latency(modelfile : str, checkables : list[str]):
+    def max_latency(modelfile : str, checkables : list[str]) -> dict[str,int]:
         queryfile = modelfile + '.q'
         UPPAAL.write_max_latency_query(queryfile, checkables)
         output = UPPAAL.run_uppaal(modelfile, queryfile)
         return UPPAAL.parse_max_latency_query(output, checkables)
 
-    def write_max_latency_query(queryfile : str, checkables : list[str]):
+    def write_max_latency_query(queryfile : str, checkables : list[str]) -> str:
         fout = open(queryfile, 'w')
         q = ""
         for checkable in checkables:
@@ -88,7 +88,7 @@ class UPPAAL():
         fout.write(q)
         return q
 
-    def parse_max_latency_query(output : str, checkables : list[str]):
+    def parse_max_latency_query(output : str, checkables : list[str]) -> dict[str,int]:
         return UPPAAL.parse_sup_query(output, checkables)
     
     # query 5) from paper
@@ -108,7 +108,7 @@ class UPPAAL():
         ##debug
         return output
 
-    def write_max_latency_trace_query(queryfile : str, max_latencies : dict):
+    def write_max_latency_trace_query(queryfile : str, max_latencies : dict) -> str:
         fout = open(queryfile, 'w')
         q = ""
         for checkable, max_latency in max_latencies.items():
@@ -120,7 +120,7 @@ class UPPAAL():
     def parse_max_latency_trace_query():
         return ""
 
-    def parse_sup_query(output: str, checkables: list[str]):
+    def parse_sup_query(output: str, checkables: list[str]) -> dict[str,int]:
         lines = output.split("\n")
         results = {}
         idx = 0
