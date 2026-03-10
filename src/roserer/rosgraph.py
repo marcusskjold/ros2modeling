@@ -1,25 +1,8 @@
 from __future__ import annotations
 from typing import Iterable
 from dataclasses import dataclass
-from enum import Enum, auto
 import roserer.ros2system as ros
-
-class NodeType(Enum):
-    SYSTEM = auto()
-    HOST = auto()
-    EXECUTOR = auto()
-    NODE = auto()
-    CALLBACK = auto()
-    EXTERNAL_INPUT = auto()
-    EXTERNAL_OUTPUT = auto()
-    TIMER = auto()
-    SERVICE = auto()
-    CLIENT = auto()
-    VARIABLE = auto()
-    PUBLISHER = auto()
-    SUBSCRIBER = auto()
-    ACTION = auto()
-    TOPIC = auto()
+from roserer.types import NodeType
 
 # Containers
 SYSTEM = NodeType.SYSTEM
@@ -314,13 +297,11 @@ def check_for_cycles_in(graph: RosGraphView) -> bool:
     settled: set[GraphNode] = set()
     visited: set[GraphNode] = set()
 
-
     for node in get_all_nodes(graph):
         if check_for_cycles_from(node, settled, visited):
             return True
 
     return False
-
 
 def get_paths_from(source: GraphNode, target: GraphNode) -> list[list[GraphNode]]:
     queue: list[tuple[GraphNode, list[GraphNode]]] = [(source, [source])]
@@ -340,7 +321,6 @@ def get_paths_from(source: GraphNode, target: GraphNode) -> list[list[GraphNode]
             queue.append((n, path + [n]))
 
     return paths
-
 
 def get_all_chains(graph: RosGraphView) -> list[list[GraphNode]]:
     sources = get_sources(graph)
