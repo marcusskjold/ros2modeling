@@ -77,19 +77,34 @@ def test_transform_system_nested_calls_collapsed() -> None:
     assert len(component_attributes) == len(expected_components)
 
 
-def test_transform_system_subs_correct_ids() -> None:
+def test_transform_system_cbs_correct_ids() -> None:
     """
-    Tests that each subscriber is assigned correct id's
+    Tests that each callback is assigned correct id's
+    -> id's should be assigned on a per callback-type basis
     """
+    test_sys = yparser.parse_yaml("src/tests/input/dust/test_transform_system_cbs_correct_ids.yaml")
+    errors, warnings, dust_sys = da.transform_system(test_sys)
+    assert errors == []
+    assert warnings == []
+    timer_cb_ids = [cb.id for cb in dust_sys.callbacks if cb.type == 'TIMER']
+    service_cb_ids = [cb.id for cb in dust_sys.callbacks if cb.type == 'SERVICE']
+    subscription_cb_ids = [cb.id for cb in dust_sys.callbacks if cb.type == 'SUBSCRIBER']
+    client_cb_ids = [cb.id for cb in dust_sys.callbacks if cb.type == 'CLIENT']
+    assert timer_cb_ids == [0,1]
+    assert service_cb_ids == [0,1]
+    assert subscription_cb_ids == [0,1]
+    assert client_cb_ids == [0,1]
 
-def test_transform_system_callback_order_maintained() -> None:
-    """
-    Tests that the id's of callbacks reflects the order they were added
-    to the node (required for correctly prioritizing callbacks of same type)
-    """
 
 def test_validate_timer_invalid_wcet_sum_caught() -> None:
     """
     Tests that a net sum wcet of a callback above the period of its timer
     is caught (when individual wcet of calls is below)
+    """
+    
+
+def test_transform_system_callback_order_maintained() -> None:
+    """
+    Tests that the id's of callbacks reflects the order they were added
+    to the node (required for correctly prioritizing callbacks of same type)
     """
