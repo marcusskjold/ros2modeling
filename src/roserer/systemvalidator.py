@@ -1,3 +1,4 @@
+from typing import Callable, TypeVar
 from roserer.rosgraph import RosGraphView, get_graph_view_from, filter_type, get_sinks, TOPIC, get_sources, SERVICE, TIMER, EXTERNAL_INPUT, ALL_TYPES, NodeType, SYSTEM, HOST, NODE, EXECUTOR, get_all_nodes, ACTION, contract_graph, GraphNode, check_for_cycles_in
 import roserer.ros2system as ros
 import roserer.qos as qos
@@ -42,7 +43,8 @@ Validation has four stages:
 
 """
 
-# ===================== GRAPH ===================================
+# ===================== GRAPH / RELATIONSHIPS ===================================
+
 # ==================== WARNINGS ===================================
 
 def warning_graph_unbalanced_interfaces(graph: RosGraphView) -> list[str]:
@@ -128,7 +130,7 @@ def warning_graph_disconnected_at_host_level(graph: RosGraphView) -> list[str]:
         list.
     """
     hosts = get_all_nodes(contract_graph(graph, [HOST]))
-    if len(hosts) > 0:
+    if len(hosts) > 1:
         origin = hosts[0]
         visited = set()
         def visit(host: GraphNode):
@@ -165,6 +167,7 @@ def error_graph_invalid_source(graph: RosGraphView) -> list[str]:
         A list of errors represented as strings. If no errors are found, returns the empty
         list.
     """
+    # TODO: Revisit after wall times discussion
     valid_sources: set[NodeType] = set([TIMER, TOPIC, EXTERNAL_INPUT, SERVICE])
     invalid_sources = ALL_TYPES - valid_sources
     sources = get_sources(graph)
@@ -229,7 +232,7 @@ def error_graph_inter_node_shared_memory(graph: RosGraphView) -> list[str]:
     """
     # TODO: Properly support topics
     interfaces = set([SERVICE, ACTION, TOPIC])
-    return [f"{child.nodetype} '{child.name}' communicates with {target.nodetype} \
+    return [f"{child.nodetype} '{child.name}' shares data with {target.nodetype} \
             '{target.name}', even though they belong to different nodes."
             for node in graph[NODE].values()
             for child in node.children
@@ -273,7 +276,7 @@ def error_system_different_subscription_times(system : ros.System) -> list[str]:
                     " Make sure that you are using the same times for consistency"]
     return feedback
 
-# ==================== VALIDATORS ===================================
+# ==================== OBJECT VALIDATORS ===================================
 
 def validate_qos(qos: qos.QoS, parent: str) -> list[str]:
     """
@@ -306,37 +309,39 @@ def validate_wall_times(owner : str, wall_times : list[int]) -> list[str]:
         feedback += [f"Wall-times of {owner} include negative time"]
     return feedback
 
-def validate_client( client: ros.Client,) -> list[str]:
-    return validate_qos(client.qos, client.name)
+def validate_client(client: ros.Client) -> list[str]:
+    return []
 
-def validate_publisher( publisher: ros.Publisher,) -> list[str]:
-    return validate_qos(publisher.qos, publisher.name)
+def validate_publisher(publisher: ros.Publisher) -> list[str]:
+    return []
+
+def validate_variable(var: ros.Variable) -> list[str]:
+    return []
 
 def validate_callback(callback: ros.Callback,) -> list[str]:
     if callback.wcet < 0:
         return [f"Callback '{callback.name}' has a negative wcet"]
+    # Remember to validate requests if necessary
+    # Not currently necessary
     return []
 
-def validate_request(callback: ros.Callback) -> list[str]:
+def validate_external_input(input: ros.ExternalInput) -> list[str]:
+    # TODO: External input should be external to the node object.
     return []
 
-def validate_input(input: ros.ExternalInput) -> list[str]:
+def validate_external_output(output: ros.ExternalOutput) -> list[str]:
     return []
 
 def validate_subscription(subscription: ros.Subscription) -> list[str]:
     """
     A subscription is well formed if:
-    - It has a valid quality of service profile
     - It has well-formed wall-times (if any)
     - It has the same wall_times (in terms of length and values) as other subscriptions
       with the same topic
     """
-    feedback = []
-    feedback += validate_qos(subscription.qos, subscription.name)
-    #If triggered by wall_times, its topic is additionally registered in topics published to
     if subscription.wall_times:
-        feedback += validate_wall_times(subscription.name, subscription.wall_times)
-    return feedback
+        return validate_wall_times(subscription.name, subscription.wall_times)
+    return []
 
 def validate_timer(timer: ros.Timer) -> list[str]:
     """
@@ -360,11 +365,9 @@ def validate_timer(timer: ros.Timer) -> list[str]:
 def validate_service(service: ros.Service) -> list[str]:
     """
     A service is well formed if:
-    - It has a valid quality of service profile
     - It has well-formed wall-times (if any)
     """
     feedback = []
-    feedback += validate_qos(service.qos, service.name)
     if service.wall_times:
         feedback+= validate_wall_times(service.name, service.wall_times)
     return feedback
@@ -379,88 +382,58 @@ def validate_node(node: ros.Node) -> list[str]:
     - It has at least one trigger 
       [timer, subscription, service, external input, action]
     - It has at least one callback
-    - All contained items are well formed:
-      [External inputs, Services, Subscriptions, Actions, Timers, Actions, Clients,
-      Publishers, Callbacks]
-    - All publishers are used by at least one callback
     """
     feedback = []
-
-    # outputs
-    for client in node.clients:
-        feedback += validate_client(client)
-    for publisher in node.publishers:
-        feedback += validate_publisher(publisher)
 
     # internal
     if len(node.callbacks) < 1:
         feedback += [f"Node '{node.name}' must have at least one callback"]
-    for callback in node.callbacks:
-        feedback += validate_callback(callback)
 
-    total_triggers = 0
-    for input in node.external_inputs:
-        # TODO: External input should be external to the node object.
-        feedback += validate_input(input)
-        total_triggers += 1
-    for subscription in node.subscriptions:
-        feedback += validate_subscription(subscription)
-        total_triggers += 1
-    for timer in node.timers:
-        feedback += validate_timer(timer)
-        total_triggers += 1
-    for service in node.services:
-        feedback += validate_service(service)
-        total_triggers += 1
-    for action in node.actions:
-        validate_action(action)  # TODO: Add support for actions
-        total_triggers += 1
+    total_triggers = (0
+            + len(node.external_inputs)
+            + len(node.subscriptions)
+            + len(node.timers)
+            + len(node.services)
+            + len(node.actions)
+            )
     if total_triggers < 1:
         feedback += [f"Node '{node.name}' must have at least one trigger"]
-
-    # validate requests:
-    for callback in node.callbacks:
-        if callback.request is not None:
-            feedback += validate_request(callback)
-    # TODO: Why did we validate calls here?
-    # TODO: could do the same for clients?
-    # TODO: Consider that the check for correct sources and sinks should also catch this.
-    #       See error_graph_invalid_source()
-    used_publishers = [publisher
-                       for callback in node.callbacks
-                       for publisher in callback.publishers]
-    for publisher in node.publishers:
-        if publisher.name not in used_publishers:
-            feedback += [f"Publisher '{publisher.name}' inside node '{node.name}' "
-                         "is unused"]
     return feedback
-
 
 def validate_executor(executor: ros.Executor) -> list[str]: 
-    feedback = []
-    for node in executor.nodes:
-        feedback += validate_node(node)
-    return feedback
-
+    return []
 
 def validate_host(host: ros.Host) -> list[str]:
-    feedback = []
-    for executor in host.executors:
-        feedback += validate_executor(executor)
-    return feedback
+    return []
 
+T = TypeVar('T')
+def validate_objects(objects: list[T], func: Callable[[T],list[str]]) -> list[str]:
+    return [s for o in objects for s in func(o)]
 
 def validate_system(system: ros.System) -> tuple[list[str],list[str]]:
     errors: list[str] = []
     warnings: list[str] = []
-
-    for host in system.hosts:
-        errors += validate_host(host)
-
-    errors += error_system_different_subscription_times(system)
-
     graph: RosGraphView = get_graph_view_from(system)
 
+    # Validate objects
+    errors += validate_objects(system.hosts, validate_host)
+    errors += validate_objects(system.get_executors(), validate_executor)
+    errors += validate_objects(system.get_nodes(), validate_node)
+    errors += validate_objects(system.get_callbacks(), validate_callback)
+    errors += validate_objects(system.get_subscriptions(), validate_subscription)
+    errors += validate_objects(system.get_publishers(), validate_publisher)
+    errors += validate_objects(system.get_clients(), validate_client)
+    errors += validate_objects(system.get_services(), validate_service)
+    errors += validate_objects(system.get_external_inputs(), validate_external_input)
+    errors += validate_objects(system.get_external_outputs(), validate_external_output)
+    errors += validate_objects(system.get_timers(), validate_timer)
+    errors += validate_objects(system.get_variables(), validate_variable)
+    errors += validate_objects(system.get_executors(), validate_executor)
+    for profile, parent in system.get_qos_profiles():
+            errors += validate_qos(profile, parent)
+
+    # Validate relationships
+    errors += error_system_different_subscription_times(system)
     errors += error_graph_contains_cycles(graph)
     errors += error_graph_inter_node_shared_memory(graph)
     errors += error_graph_invalid_container_type(graph)
