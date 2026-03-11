@@ -3,44 +3,44 @@ import roserer.backeman.system as bk
 import roserer.ros2system as ros
 import roserer.systemvalidator as validator
 """
-TODO: Implement mapping
+TODO: Constraint: Reject offsets smaller than -period
 TODO: Write test cases
 TODO: Add check that no variable is written to that is not also read from and vice versa
+      Sink check
 TODO: Add validity check that all names should be unique
-
 TODO: check for wall_times
 ---
 
-For the notes ros will refer to the models from the ros2system module
-while bk will refer to models as specified by backeman.system
-'pd' is the default data variable, meant for synchronous communication
-through uppaal broadcast channels
-ros systems can specify dds_implementation, whereas
-bk systems do not care about this information, and so it is ignored
-ros systems have external inputs and output, which bk also ignores
-ros systems have hosts, which have executors, whereas
-bk systems assume that a system consists of one host with an executor.
-therefor a ros system with a different amount of either is invalid.
+- For the notes 'ros' will refer to the models from the ros2system module while 'bk'
+  will refer to models as specified by backeman.system.
+- 'pd' is the default data variable, meant for synchronous communication through uppaal
+  broadcast channels
+- Fields that bk systems ignore:
+    - System.dds_implementation
+    - Node.external_input
+    - Node.external_output
+- bk systems assume a single executor on a single host.
+- bk systems must specify a data generator and a node ('actuator') to monitor.
+- The monitored actuator is assumed to be a sink, when the graph is abstracted to a
+  callback graph.
 
-TODO: Double check this assumption
-bk assumes that executors are the default SingleThreadedExecutor
+TODO: Find reference for this assumption:
+      bk assumes that executors are the default SingleThreadedExecutor
 
 TODO: bk systems allow for nondeterministic hosts.
-This include both nondeterminism in the sense that
-a task's execution time can vary between a best case
-(BCET, which is taken by bk to mean half of WCET) and a worst case (WCET).
-Also, nodes can be nondeterministic, which is relevant further down.
-For now, we only consider nondeterministic hosts.
+      This include both nondeterminism in the sense that a task's execution time can
+      vary between a best case (BCET, which is taken by bk to mean half of WCET) and a
+      worst case (WCET).
+      Also, nodes can be nondeterministic, which is relevant further down.
+      For now, we only consider nondeterministic hosts.
 
-TODO: bk systems have a designated monitored node and monitored actuator,
-and specifies the period og the monitored data generator.
 
-bk uses the SingleThreadedExecutor that was the default before Jazzy,
-it has a deterministic ordering of what task is executed in the wait set.
-Timers are before topics which are before services, also the order that
-tasks of the same type are registered determines the ordering of execution.
-This behavior is recreated by giving higher priority to timers, and by ordering
-otherwise according to their place in the list of nodes.
+- bk uses the SingleThreadedExecutor that was the default before Jazzy, it has a
+  deterministic ordering of what task is executed in the wait set. Timers are before
+  topics which are before services, also the order that tasks of the same type are
+  registered determines the ordering of execution. This behavior is recreated by giving
+  higher priority to timers, and by ordering otherwise according to their place in the
+  list of nodes.
 """
 
 # https://github.com/ros2/rclcpp/issues/2532
