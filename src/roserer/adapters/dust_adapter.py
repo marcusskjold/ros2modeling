@@ -360,23 +360,30 @@ def map_data_sending(out: ds.System,
     for publisher in callback.publishers:
         # register sender
         interface_count += 1
-        sender_id = out.gen_id(SENDER)
-        interface_id_list.append(sender_id)
-        interface_release_times.append(wcet)
+        # create topic-template if publisher not yet mapped
+        if not out.has_sender_id(publisher):      
+            sender_id = out.get_pub_register_id(publisher)
+            interface_id_list.append(sender_id)
+            interface_release_times.append(wcet)
 
-        # find publisher-object with name <publisher>
-        publisher_obj = parent_node.get_publisher(publisher)
-        topic = publisher_obj.topic
-        
-        # Map communication to RECEIVING node 
-        # 1 template per publisher, so will never be redundant
-        map_topic(
-                out=out,
-                publisher=publisher_obj,
-                topic=topic,
-                sender_id=sender_id,
-                validations=validations
-                )
+            # find publisher-object with name <publisher>
+            publisher_obj = parent_node.get_publisher(publisher)
+            topic = publisher_obj.topic
+
+            # Map communication to RECEIVING node 
+            # 1 template per publisher, so will never be redundant
+            map_topic(
+                    out=out,
+                    publisher=publisher_obj,
+                    topic=topic,
+                    sender_id=sender_id,
+                    validations=validations
+                    )
+        # else just register among publishers in template
+        else:
+            sender_id = out.get_pub_register_id(publisher)
+            interface_id_list.append(sender_id)
+            interface_release_times.append(wcet)
 
     # look for request
     if callback.request is not None:

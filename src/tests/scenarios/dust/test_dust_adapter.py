@@ -7,8 +7,9 @@ import roserer.dust.dust_system as ds
 
 def test_transform_system_no_duplicate_subscribers() -> None:
     """
-    Tests that a callback- and topic-template is made for each publisher to a given topic,
+    Tests that a callback- and topic-template is made for each publisher to the same topic,
     but only 1 subscription-callback for each subscription to a topic is made.
+    # TODO: also check no duplicate topics when same publisher!!!
     Even when same publisher used twice in two different callbacks.
     """
     test_sys = yparser.parse_yaml("src/tests/input/dust/test_transform_system_no_duplicate_subscribers.yaml")
@@ -65,9 +66,7 @@ def test_transform_system_nested_calls_collapsed() -> None:
     expected_components.append(ds.Topic(receiver_id=0, sender_id=0, delay=0,max_jitter=0,buffersize=10).__dict__)
     expected_components.append(ds.Topic(receiver_id=1, sender_id=1, delay=0,max_jitter=0,buffersize=10).__dict__)
     expected_components.append(ds.Topic(receiver_id=0, sender_id=2, delay=0,max_jitter=0,buffersize=10).__dict__)
-    expected_components.append(ds.PeriodicCallback(id=1, exec_time=9, period=10, type=0, offset=0,buffersize=1,amount_of_publishers=2,publisher_release_time=[4,9],publisher_id=[3,4],executorID=0).__dict__) 
-    expected_components.append(ds.Topic(receiver_id=1, sender_id=3, delay=0,max_jitter=0,buffersize=10).__dict__)
-    expected_components.append(ds.Topic(receiver_id=0, sender_id=4, delay=0,max_jitter=0,buffersize=10).__dict__)
+    expected_components.append(ds.PeriodicCallback(id=1, exec_time=9, period=10, type=0, offset=0,buffersize=1,amount_of_publishers=2,publisher_release_time=[4,9],publisher_id=[1,2],executorID=0).__dict__) 
     expected_components.append(ds.DataCallback(id=0,exec_time=5,topicID=0,type=2,buffersize=10,amount_of_publishers=0,publisher_release_time=[],publisher_id=[],executorID=1).__dict__)
     expected_components.append(ds.DataCallback(id=1,exec_time=5,topicID=1,type=2,buffersize=10,amount_of_publishers=0,publisher_release_time=[],publisher_id=[],executorID=1).__dict__)
     expected_components.append(ds.DataCallback(id=2,exec_time=5,topicID=1,type=2,buffersize=10,amount_of_publishers=0,publisher_release_time=[],publisher_id=[],executorID=1).__dict__)
@@ -101,6 +100,9 @@ def test_validate_timer_invalid_wcet_sum_caught() -> None:
     Tests that a net sum wcet of a callback above the period of its timer
     is caught (when individual wcet of calls is below)
     """
+    test_sys = yparser.parse_yaml("src/tests/input/dust/test_validate_timer_invalid_wcet_sum_caught.yaml")
+    errors, warnings, dust_sys = da.transform_system(test_sys)
+
 
 
 def test_transform_system_callback_order_maintained() -> None:
