@@ -413,7 +413,12 @@ def validate_objects(objects: list[T], func: Callable[[T],list[str]]) -> list[st
 def validate_system(system: ros.System) -> tuple[list[str],list[str]]:
     errors: list[str] = []
     warnings: list[str] = []
-    graph: RosGraphView = get_graph_view_from(system)
+    try:
+        graph: RosGraphView = get_graph_view_from(system)
+    except ValueError as ve:
+        return [f"[Err1]: System is not a valid data graph.\n{ve}"], []
+    if len(graph[NODE]) < 1:
+        return ["[Error]: System has no nodes"], []
 
     # Validate objects
     errors += validate_objects(system.hosts, validate_host)
