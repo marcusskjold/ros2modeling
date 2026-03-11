@@ -201,6 +201,8 @@ class System():
         self._ex_id_counter = itertools.count()
         # env for which subscribers has been mapped
         self._sub_register : dict[str,int] = {}
+        # env for which publishers has been mapped
+        self._pub_register : dict[str, int] = {}
         # env for nodes registered to executor-id
         self._node_register : dict[str,int] = {}
         # env for id's for each callback tied to given executor
@@ -216,6 +218,21 @@ class System():
                 return next(self._receiver_id_counter)
             case 6: # EXECUTOR
                 return next(self._ex_id_counter)
+
+    # TODO: combine these somehow
+    # checks whether topic template has already been made for publisher
+    def has_sender_id(self, publisher: str) -> bool:
+        return publisher in self._pub_register
+
+    # gets sender_id registered for this publisher
+    # if no id is registered, creates a new one and registers it
+    def get_pub_register_id(self, publisher : str) -> int:
+        if publisher in self._pub_register:
+            return self._pub_register[publisher]
+        else:
+            new_id = self.gen_id(4)
+            self._pub_register[publisher] = new_id
+            return new_id
 
     # checks whether given receiver id exist for subs to 'topic'
     def has_receiver_id(self, topic: str) -> bool:

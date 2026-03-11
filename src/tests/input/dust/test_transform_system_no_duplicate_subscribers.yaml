@@ -9,12 +9,15 @@ System:
       - node: node_1
         publishers:
         - publisher: pub_1
-          topic: topic_1       
+          topic: topic_1    
+        - publisher: pub_2
+          topic: topic_1   
         callbacks:
         - callback: cb_1
           wcet: 3
           publishers:
           - pub_1
+          - pub_2
         timers:
         - timer: timer_1
           period: 5
