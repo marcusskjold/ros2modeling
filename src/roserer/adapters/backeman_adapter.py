@@ -51,28 +51,10 @@ TODO: bk systems allow for nondeterministic hosts.
 # it is nondeterministic, and order is only imposed between different callback types
 # TODO: Find the source for why distributions before eloquent are not valid
 
-# ======================= VALIDATION ======================
+# ======================= HELPER ======================
 
-
-def check_buffers(executor: ros.Executor) -> list[str]:
-    feedback = []
-    for node in executor.nodes:
-        for publisher in node.publishers:
-            buffer = publisher.qos.depth
-            if buffer != 20:
-                feedback += [
-                    f"'{publisher.name}' has buffersize {str(buffer)}"]
-        for subscriber in node.subscriptions:
-            buffer = subscriber.qos.depth
-            if buffer != 20:
-                feedback += [f"A subscription of '{node.name}' "
-                             f"has buffersize {str(buffer)}"]
-    if feedback != []:
-        feedback += ["Note that the Backeman model assumes buffers are large "
-                     "enough to avoid overflow. In the concrete Uppaal model, "
-                     "a buffersize of 20 is used."]
-    return feedback
-
+def is_main_task(callback: ros.Callback) -> bool:
+    return callback.publishers == 1
 
 def is_valid_data_generator(node: ros.Node) -> bool:
     """
@@ -84,17 +66,14 @@ def is_valid_data_generator(node: ros.Node) -> bool:
     – t ∈ T is the result-topic,
     – wv ∈ V is the write-variable.
     """
-    if (
-        len(node.timers) == 1 and
-        len(node.subscriptions) == 0 and
-        len(node.callbacks) == 1 and
-        len(node.variables) == 0
+    if (len(node.timers) == 1 
+        and len(node.subscriptions) == 0 
+        and len(node.callbacks) == 1 
+        and len(node.variables) == 0):
         # Note that these variables are different from backeman write variables
-    ):
         return True
     else:
         return False
-
 
 def is_valid_timer(node: ros.Node) -> bool:
     """
@@ -111,16 +90,14 @@ def is_valid_timer(node: ros.Node) -> bool:
     rv ∈ V, is the read-variable,
     wv ∈ V is the write-variable.
     """
-    if (
-        len(node.timers) == 1 and
-        len(node.subscriptions) > 0 and
-        len(node.variables) == 1 and
-        len(node.callbacks) > 1
-    ):
+    main, _ = get_main_and_sub_tasks(node)
+    if (len(node.timers) == 1
+        and len(node.subscriptions) > 0
+        and len(node.callbacks) == len(node.subscriptions) + 1
+        and len(main.read_variables) > 0):
         return True
     else:
         return False
-
 
 def is_valid_subscriber(node: ros.Node) -> bool:
     """
@@ -135,306 +112,222 @@ def is_valid_subscriber(node: ros.Node) -> bool:
     – rv ∈ V, is the read-variable,
     – wv ∈ V is the write-variable.
     """
-    if (
-        len(node.timers) == 0 and
-        len(node.subscriptions) > 0 and
-        len(node.variables) <= 1
-    ):
+    if (len(node.timers) == 0 
+        and len(node.subscriptions) > 0 
+        and len(node.callbacks) == len(node.subscriptions)):
         return True
     else:
         return False
 
+# ====================== GRAPH / RELATIONSHIP VALIDATION =================
 
-def validate_node(node: ros.Node
-                  ) -> tuple[list[str], list[str], Nodespec | None]:
+def error_graph_limited_node_types(graph: RosGraphView) -> list[str]:
+
+    LIMITED_GRAPH_NODE_TYPES: dict[NodeType, int] = {
+            NodeType.HOST: 1,
+            NodeType.EXECUTOR: 1,
+            NodeType.SERVICE: 0,
+            NodeType.CLIENT: 0,
+            NodeType.ACTION: 0,
+            NodeType.EXTERNAL_INPUT: 0,
+            NodeType.EXTERNAL_OUTPUT: 0
+    }
+    errors = []
+    for nodetype in LIMITED_GRAPH_NODE_TYPES:
+        n = len(graph[nodetype])
+        limit = LIMITED_GRAPH_NODE_TYPES[nodetype]
+        if not n <= limit:
+            errors += [f"[ERROR]: System has {n} {nodetype.name.lower()}s, but target \
+                    metamodel supports at most {limit}"]
+    return errors
+
+def error_graph_multiple_topic_publishers(graph: RosGraphView) -> list[str]:
+    return [f"[Error]: Topic '{topic.name}' has more than one publishing node:\n    \
+            Publishers: {topic.incoming}"
+            for topic in graph[TOPIC].values() if len(topic.incoming) != 1]
+
+def error_graph_multiple_variable_writers(graph: RosGraphView) -> list[str]:
+    return [f"[Error]: Topic '{variable.name}' has more than one writer:\n    \
+            Writers: {variable.incoming}"
+            for variable in graph[VARIABLE].values() if len(variable.incoming) != 1]
+
+def error_graph_multiple_callback_triggers(graph: RosGraphView) -> list[str]:
+    return [f"[Error]: Topic '{cb.name}' has more than one trigger"
+            for cb in graph[CALLBACK].values() 
+            if 1 != sum(trigger.nodetype in [SUBSCRIBER, TIMER] 
+                        for trigger in cb.incoming)]
+
+def warning_topic_case_insensitive(graph: RosGraphView) -> list[str]:
+    return [f"[Warning]: Topic '{topic.name} is not upper case, model assumes upper \
+            case names. Name is forced to upper case during transformation"
+            for topic in graph[TOPIC].values() if topic.name != topic.name.upper()]
+
+def validate_chain(chain: list[GraphNode], graph: RosGraphView) -> list[str]:
+    errors = []
+    if chain[0].nodetype != TIMER:
+        errors += ["[Error] Invalid chain: Monitored chain starts with a non-timer \
+                object"]
+    endt = chain[-1].nodetype
+    if not (endt == CALLBACK or endt == TOPIC):
+        errors += [f"[Error] Invalid chain: Monitored chain ends with an {endt.name}"]
+    for node, next_node in zip(chain, chain[1:]):
+        if next_node not in node.outgoing:
+            errors += [f"[Error] Invalid chain: {node.name} is not linked to \
+                    {next_node.name}"]
+    try:
+        chain = find_equivalent_chain_in(graph, chain)
+    except ValueError as ve:
+        errors += [f"[Error] Invalid chain: {ve}"]
+    return errors
+
+
+# ======================= OBJECT VALIDATION ======================
+
+def warning_buffer_size(system: ros.System) -> list[str]:
+    """
+    Report each object with a buffer where the buffer size is not 20.
+
+    The buffer sizes of bk models are hard-coded to be 20.
+    This is assumed to be sufficient to avoid overflow.
+
+    Arguments:
+    executor (ros.Executor):
+    The executor containing the entire ros2system to validate.
+
+    Returns:
+    A list of warnings for each object contained by the executor that has a quality of
+    service profile with a buffersize != 20.
+    """
+    feedback = []
+    for qos, parent in system.get_qos_profiles():
+        if qos.depth != 20:
+            feedback += [f"Warning: '{parent}' has buffersize {str(qos.depth)}"]
+    if feedback != []:
+        feedback += ["    Note that the Backeman model assumes buffers are large \
+                          enough to avoid overflow.", 
+                     "    In the concrete Uppaal model, a buffersize of 20 is used."]
+    return feedback
+
+def warning_timer_end_time(timer: ros.Timer) -> list[str]:
+    if timer.interval:
+        return [f"[Warning]: Timer {timer.name} has end time, this model assumes that \
+                timers continue indefinitely"]
+    else:
+        return []
+
+
+def validate_variable(var: ros.Variable) -> Feedback:
+    feedback = ([], [])
+    errors, warnings = feedback
+    if var.condition:
+        errors += [
+                f"[Error] Variable {var.name}: This model does not support conditions"]
+    if var.reset_after_read:
+        warnings += [f"[Warning] Variable {var.name}: This model does not support \
+                reset after read, but this should not affect results"]
+    return feedback
+
+def validate_callback(cb: ros.Callback) -> list[str]:
+    errors = []
+    reads = len(cb.read_variables)
+    writes = len(cb.write_variables)
+
+    if is_main_task(cb):
+        if writes != 0:
+            errors += [f"Main task '{cb.name}' writes to internal variables"]
+    else:
+        if reads != 0:
+            errors += [f"Subtask '{cb.name}' reads variables"]
+        if writes > 1:
+            errors += [f"Subtask '{cb.name}' writes to more than one variable"]
+
+    if cb.calls is not None:
+        errors += [f"cb '{cb.name}' calls other callbacks"]
+
+    return errors
+
+def validate_node(node: ros.Node) -> Feedback:
     """
     A bk node is a ros node with one primary trigger, publisher and callback,
     along with a list of secondary triggers, and callbacks.
     bk nodes are of three different fundamental types:
     Subscriber, Timer, and DataGenerator.
-    TODO: DataGenerator can be probabilistic
     See section 3 in Backeman & Seceleanu 2025
     """
-    errors: list[str] = []
-    warnings: list[str] = []
-
+    # TODO: DataGenerator can be probabilistic
+    feedback = ([], [])
+    errors, warnings = feedback
     if node.name != node.name.upper():
-        warnings += [f"Name of node '{node.name}' is not upper case, model "
-                     f"assumes upper case names. Name is forced to upper case"]
+        warnings += [f"Name of node '{node.name}' is not upper case, model assumes \
+                       upper case names. Name is forced to upper case"]
     if len(node.publishers) > 1:
         errors += [f"Node '{node.name}' publishes to more than one topic"]
     if len(node.publishers) < 1:
         errors += [f"Node '{node.name}' does not have a publisher"]
 
-    subtasks: list[ros.Callback] = []
-    main_task: ros.Callback | None = None
-    read_variable: ros.Variable | None = None
-    node_type: str | None = None
-    main_tasks = 0
-
-    for callback in node.callbacks:
-        publishers = len(callback.publishers)
-        reads = len(callback.read_variables)
-        writes = len(callback.write_variables)
-
-        if publishers == 1:
-            main_tasks += 1
-            main_task = callback
-            if len(callback.write_variables) != 0:
-                errors += [f"Main task '{callback.name}' writes to "
-                           "internal variables"]
-        else:
-            subtasks.append(callback)
-            if len(callback.read_variables) != 0:
-                errors += [f"Subtask '{callback.name}' reads variables"]
-
-        if reads > 1:
-            errors += [f"Callback '{callback.name}' reads from more than "
-                       "one variable"]
-        if writes > 1:
-            errors += [f"Callback '{callback.name}' writes to more than "
-                       "one variable"]
-        if callback.calls is not None:
-            errors += [f"Callback '{callback.name}' calls more than "
-                       "one callback"]
+    main_tasks = sum(is_main_task(cb) for cb in node.callbacks)
     if main_tasks > 1:
         errors += [f"Node '{node.name}' has more than one main task"]
     elif main_tasks == 0:
         errors += [f"Node '{node.name}' does not have a main task"]
-    elif len(subtasks) > 0:
-        assert main_task is not None
-        if len(main_task.read_variables) != 1:
-            errors += [f"Main task '{main_task.name}' has subtasks, "
-                       "but does not read from any of them"]
-        else:
-            read_variable = main_task.read_variables[0]
 
-    if is_valid_data_generator(node):
-        node_type = "data generator"
-    elif is_valid_timer(node):
-        node_type = "timer"
-    elif is_valid_subscriber(node):
-        node_type = "subscriber"
-    else:
-        errors += [f"Node '{node.name}' is neither a data generator, "
+    if not (is_valid_data_generator(node) 
+            or is_valid_timer(node)
+            or is_valid_subscriber(node)):
+        errors += [f"[Error] Node '{node.name}': is neither a data generator, "
                    "timer or subscriber"]
-        errors += ["Full contents of node:",
+        errors += ["    Full contents of node:",
                    f"    Timers:        {len(node.timers)}",
                    f"    Subscriptions: {len(node.subscriptions)}",
                    f"    Callbacks:     {len(node.callbacks)}",
                    f"    Variables:     {len(node.variables)}"]
 
-    if main_task is not None and node_type is not None:
-        nodespec = Nodespec(
-                subtasks=subtasks,
-                main_task=main_task,
-                read_variable=read_variable,
-                node_type=node_type)
-    else:
-        nodespec = None
+    return feedback
 
-    return errors, warnings, nodespec
-
-
-def validate_system(system: ros.System,
-                    objects : validator.Containments,
-                    interfaces
-                    ) -> tuple[list[str], list[str], dict[str, Nodespec]]:
-    errors = ["Errors:"]
-    warnings = ["Warnings:"]
-    for elem in LIMITED_ELEMENTS:
-        num = len(getattr(objects, elem))
-        exp = LIMITED_ELEMENTS[elem]
-        if num != exp:
-            errors += [f"System has {num} {elem}s, but target metamodel "
-                       f"supports at most {exp}"]
-
-    for interface in INVALID_INTERFACES:
-        if interfaces[interface] != {}:
-            errors += [f"System has {interface}, which are not supported by "
-                       "target metamodel"]
-    for topic in interfaces["topics published to"]:
-        publishers = interfaces["topics published to"][topic]
-        if len(publishers) != 1:
-            errors += [f"Topic '{topic}' has more than one publishing node: "
-                       f"{publishers}"]
-
-    executor = system.hosts[0].executors[0]
+def validate_executor(executor: ros.Executor) -> list[str]:
+    VALID_ROS_DISTRIBUTIONS = set([
+        DISTRIBUTION.Iron,
+        DISTRIBUTION.Humble,
+        DISTRIBUTION.Galactic,
+        DISTRIBUTION.Foxy,
+        DISTRIBUTION.Eloquent,
+        ])
+    VALID_EXECUTORS = set([EXECUTOR.SingleThreadedExecutor])
     impl = executor.implementation
-    if impl in INVALID_EXECUTORS:
+    errors = []
+    if impl not in VALID_EXECUTORS:
         errors += [f"Host uses an unsupported executor {impl}"]
     ros = executor.ros_distribution
-    if ros in INVALID_ROS_DISTRIBUTIONS:
+    if ros not in VALID_ROS_DISTRIBUTIONS:
         errors += [f"Host uses an unsupported ros distribution {ros}"]
+    return errors
 
-    nodemap: dict[str, Nodespec] = {}
+def validate_system(system: ros.System, chain: list[GraphNode]) -> Feedback:
+
+    errors, warnings = feedback = ([],[])
+    executor = system.hosts[0].executors[0]
+
+    graph = get_graph_view_from(system)
+    error_graph_limited_node_types(graph)
+    error_graph_multiple_topic_publishers(graph)
+    error_graph_multiple_variable_writers(graph)
+    validate_chain(chain, graph)
+
+    errors += validate_executor(executor)
+    warnings += warning_buffer_size(system)
 
     for node in executor.nodes:
-        errs, warns, nodespec = validate_node(node)
+        errs, warns = validate_node(node)
         errors += errs
         warnings += warns
-        if nodespec is not None:
-            nodemap[node.name] = nodespec
+    for cb in system.get_callbacks():
+        errors += validate_callback(cb)
+    for timer in system.get_timers():
+        warnings += warning_timer_end_time(timer)
 
-    warnings += check_buffers(executor)
+    return feedback
 
-    return errors, warnings, nodemap
-
-
-# ============================== MAPPING ===============================
-
-
-def resolve_subscription_topic(subscriptions: list[ros.Subscription],
-                               callback: str) -> str:
-    for subscription in subscriptions:
-        if subscription.callback == callback:
-            return subscription.topic
-
-    raise ValueError(
-            f"Callback {callback} is not present among subscriptions: {subscriptions}")
-
-
-def map_subtask(
-        sub: ros.Callback,
-        read_variable: str,
-        subscriptions: list[ros.Subscription]
-        ) -> tuple[str, int, bool]:
-    subtopic = resolve_subscription_topic(subscriptions, sub.name).upper()
-    wcet = sub.wcet
-    is_writer = False
-    if sub.write_variables[0].name == read_variable:
-        is_writer = True
-
-    return subtopic, wcet, is_writer
-
-
-def map_subtasks(
-        sub_tasks: list[ros.Callback],
-        read_variable: str,
-        subscriptions: list[ros.Subscription]
-        ) -> tuple[list[str], list[int], str]:
-    subscribers = []
-    wcets = []
-    writer = None
-
-    for sub in sub_tasks:
-        subtopic, wcet, is_writer = map_subtask(sub, read_variable, subscriptions)
-        subscribers.append(subtopic)
-        wcets.append(wcet)
-        if is_writer:
-            writer = subtopic
-
-    assert writer is not None
-
-    return subscribers, wcets, writer
-
-
-def map_system(system: ros.System,
-               nodemap: dict[str, Nodespec],
-               objects: validator.Containments,
-               chain: list[str]) -> bk.System:
-    name = system.name
-    deterministic = True  # TODO: Support this
-
-    out = bk.System(name.upper())
-    out.deterministic_hosts(deterministic)
-    nodes = system.hosts[0].executors[0].nodes
-    # TODO: Does this need to be length of all callbacks rather than nodes?
-    max_priority = len(nodes) 
-
-    for node in nodes:
-        spec = nodemap[node.name]
-        main_task = spec.main_task
-        sub_tasks = spec.subtasks
-        node_type = spec.node_type
-
-        name = node.name
-        wcet = main_task.wcet
-
-        if node_type == "data generator":
-            period = node.timers[0].period
-            delay = node.timers[0].offset
-            out.add_datagenerator(name=name.upper(), period=period,
-                                  wcet=wcet, delay=delay,
-                                  prio=max_priority
-                                  )
-            max_priority -= 1
-        elif node_type == "timer":
-            assert spec.read_variable is not None
-            period = node.timers[0].period
-            delay = node.timers[0].offset
-            read_variable = spec.read_variable.name
-            subscribers, wcets, data_source = map_subtasks(
-                sub_tasks, read_variable, node.subscriptions)
-            data_source = name.upper() + "x" + data_source.upper() + "_data"
-
-            out.add_timer(name=name.upper(), period=period,
-                          wcet=wcet, delay=delay,
-                          subscribers=subscribers,
-                          wcets=wcets,
-                          data_source=data_source,
-                          prio=max_priority
-                          )
-            max_priority -= 1
-        elif node_type == "subscriber":
-            topic = resolve_subscription_topic(node.subscriptions, main_task.name)
-            data_source = "pd"
-
-            read_variable = spec.read_variable
-            if read_variable is not None:
-                subscribers, wcets, writer = map_subtasks(
-                    sub_tasks, read_variable.name, node.subscriptions)
-                if main_task in chain:
-                    prev = chain[chain.index(main_task.name)-1]
-                    prevnode = objects.callback[prev].name
-                    if prevnode == name:
-                        data_source = name.upper() + "x" + writer.upper() + "_data"
-            else:
-                subscribers = []
-                wcets = []
-
-            out.add_subscriber(name=name.upper(),
-                               topic=topic.upper(),
-                               wcet=wcet,
-                               subscribers=subscribers,
-                               wcets=wcets,
-                               data_source=data_source)
-
-    monitor(out, chain[0], chain[-1])
-
-    return out
-
-# ===================== TRANSFORMATION ===========================
-
-
-def transform_system(
-        system: ros.System,
-        chain: list[str],
-        validationresult: validator.ValidationResult | None = None
-        ) -> tuple[list[str], list[str], bk.System | None]:
-
-    if validationresult is None:
-        validationresult = validator.validate_system(system)
-        validationresult: validator.ValidationResult
-        if validationresult.errors != []:
-            return ([
-                "System is not well formed, cannot start transformation. "
-                "Validation feedback:"] + validationresult.errors,
-                [],
-                None)
-
-    errors, warnings, nodemap = validate_system(
-        system, validationresult.objects, validationresult.interfaces)
-
-    if errors != ["Errors:"]:
-        return errors, warnings, None
-    if warnings == ["Warnings:"]:
-        warnings = []
-
-    return [], warnings, map_system(system, nodemap, validationresult.objects, chain)
-
-# ========================== MONITORING ==========================
-
+# ========================== MONITORING ================================
 
 def monitor(system: bk.System, generator: str, actuator: str):
     system.actuator = actuator.upper()
@@ -447,3 +340,136 @@ def monitor(system: bk.System, generator: str, actuator: str):
             period = node.period
     system.period = period
 
+# ============================== MAPPING ===============================
+
+def get_main_and_sub_tasks(node: ros.Node) -> tuple[ros.Callback, list[ros.Callback]]:
+    main_task: ros.Callback
+    sub_tasks: list[ros.Callback] = []
+    # This needs to be the amount of callbacks
+    # See backeman/system.py:System.add_dependencies() + System.next_id()
+    for cb in node.callbacks:
+        if is_main_task(cb):
+            main_task=cb
+        else:
+            sub_tasks.append(cb)
+    assert main_task
+    return main_task, sub_tasks
+
+def add_datagenerator(bksystem: bk.System, node: ros.Node, priority: int) -> None:
+    period = node.timers[0].period
+    delay = node.timers[0].offset
+    wcet = node.callbacks[0].wcet
+    name = node.name.upper()
+    bksystem.add_datagenerator(
+            name=name, period=period, wcet=wcet, delay=delay, prio=priority)
+
+# TODO: Move and improve this note
+# For examples of how to construct different systems according to which node
+# is monitored, see Backeman & Seceleanu (2025), section 4.2
+# See also backeman/demo:validation_ss(), prio_inversion() & case_study()
+
+def data_source_for_cb_in_chain(cb: GraphNode, chain: list[GraphNode]) -> str:
+    prev = chain[chain.index(cb)-1]
+    if prev.nodetype == VARIABLE:
+        writer = prev.incoming[0]
+        data_source = cb.name.upper() + "x" + writer.name.upper() + "_data"
+    assert data_source
+    return data_source
+
+def add_timer(bksystem: bk.System, node: ros.Node, priority: int, chain: list[GraphNode]
+              ) -> None:
+    main_task, sub_tasks = get_main_and_sub_tasks(node)
+    name: str = node.name.upper()
+    wcet: int = main_task.wcet
+    subscribers: list[str] = [t.name for t in sub_tasks]
+    wcets: list[int] = [t.wcet for t in sub_tasks]
+    period = node.timers[0].period
+    delay = node.timers[0].offset
+    # NOTE: This is an arbitrary assignment.
+    #       Supposing the timer is not part of the monitored chain:
+    #       Then any timer or subscriber downstream of the timer that are part of the
+    #       monitored chain will not read from a variable that contains data
+    #       originating from this timer.
+    data_source = name + "x" + node.subscriptions[0].callback.upper() + "_data"
+
+    main_task_in_chain: GraphNode
+    for cb in chain:
+        if cb.nodetype == CALLBACK and cb.name == main_task.name:
+            main_task_in_chain = cb
+
+    if (main_task_in_chain):
+        data_source = data_source_for_cb_in_chain(main_task_in_chain, chain)
+
+    bksystem.add_timer(name=name, period=period, wcet=wcet, delay=delay, 
+                       subscribers=subscribers, wcets=wcets, data_source=data_source,
+                       prio=priority)
+
+def add_subscriber(bksystem: bk.System, node: ros.Node, chain: list[GraphNode]) -> None:
+    
+    main_task, sub_tasks = get_main_and_sub_tasks(node)
+    name: str = node.name.upper()
+    wcet: int = main_task.wcet
+    data_source: str = "pd"
+    topic: str
+    subscribers: list[str] = [t.name for t in sub_tasks]
+    wcets: list[int] = [t.wcet for t in sub_tasks]
+
+    for sub in node.subscriptions:
+        if sub.callback == main_task.name:
+            topic = sub.topic.upper()
+    assert topic
+
+    main_task_in_chain: GraphNode
+    for cb in chain:
+        if cb.nodetype == CALLBACK and cb.name == main_task.name:
+            main_task_in_chain = cb
+    
+    if (sub_tasks != [] and main_task_in_chain):
+        data_source = data_source_for_cb_in_chain(main_task_in_chain, chain)
+
+    bksystem.add_subscriber(name=name,
+                       topic=topic,
+                       wcet=wcet,
+                       subscribers=subscribers,
+                       wcets=wcets,
+                       data_source=data_source)
+
+def map_system(system: ros.System, chain: list[GraphNode]) -> bk.System:
+    out = bk.System(system.name.upper())
+    out.deterministic_hosts(True) # TODO: Support nondeterminism
+    graph = get_graph_view_from(system)
+    chain = find_equivalent_chain_in(graph, chain)
+    nodes = system.get_nodes()
+    max_priority = len(graph[CALLBACK])
+    for node in nodes:
+        if is_valid_data_generator(node):
+            add_datagenerator(out, node, max_priority)
+            max_priority -= 1
+        elif is_valid_timer(node):
+            add_timer(out, node, max_priority, chain)
+            max_priority -= 1
+        elif is_valid_subscriber(node):
+            add_subscriber(out, node, chain)
+        else:
+            raise Exception("Node failed to be added - validation must be incorrect")
+
+    monitor(out, chain[0].name, chain[-1].name)
+
+    return out
+
+# ===================== TRANSFORMATION ===========================
+
+def transform_system(system: ros.System, chain: list[GraphNode]
+                     ) -> tuple[list[str] | bk.System, list[str]]:
+
+    valerr, valwarn = validator.validate_system(system)
+    if valerr != []:
+        return (["System is not well formed, cannot start transformation. \
+                Validation feedback:"] + valerr, valwarn)
+    
+    errors, warnings = validate_system(system, chain)
+
+    if errors != []:
+        return errors, warnings
+    else:
+        return map_system(system, chain), warnings
