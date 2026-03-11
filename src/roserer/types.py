@@ -13,6 +13,8 @@ from enum import Enum, auto
 import math
 from typing import Union
 
+Feedback = tuple[list[str], list[str]]
+
 ### This class is taken and modified from the kilted version of rclpy/duration.py
 # Unnecessary dependencies have been removed, such that this is usable outside a full
 # ROS installation.
