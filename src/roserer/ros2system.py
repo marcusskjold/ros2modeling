@@ -111,6 +111,7 @@ class Callback():
             ) -> None:
         self.name = name
         self.wcet = wcet
+        # TODO: Move to parser
         self.read_variables = _stringify_list(read_variables)
         self.write_variables = _stringify_list(write_variables)
         self.publishers = _stringify_list(publishers)
