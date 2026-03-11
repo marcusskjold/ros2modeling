@@ -3,14 +3,11 @@ import roserer.ros2system as ros
 import roserer.systemvalidator as validator
 import roserer.qos as quality
 
-
-
 ############################----VALIDATION----############################
 
 def unspecified_warning(component : str) -> list[str]:
     return [f"Be aware that this model doesn't take account of {component}. "
             f"Use another model, if you want {component} to be taken account of"]
-
 
 def validate_qos(component_name : str, qos : ros.QoS) -> list[str]:
     """A valid QoS:
@@ -24,8 +21,6 @@ def validate_qos(component_name : str, qos : ros.QoS) -> list[str]:
             errors += [f"Policy {config} in {component_name} isn't the same as in qos_profile_default. Make sure it is"
                        f" set to {getattr(default_qos,config)}"]
     return errors
-    
-
 
 #TODO: This could perhaps return an object that can have validations (and maybe counters) etc. as fields
 def validate_system(system : ros.System,
@@ -266,20 +261,6 @@ def validate_callback(callback : ros.Callback,
     if callback.read_variables or callback.write_variables:
         warnings += unspecified_warning("read/write variables")
     return errors, warnings
-    
-
-
-####All callbacks
-# a callback must be associated to exactly 1 executor
-# only 1 callback per service at the server-side
-
-
-
-####Sporadic callback
-# INVARIANT: length must correspond to non-zero values in releases-array 
-#            (except if first is zero?)
-
-
 
 ################ TRANSLATION ################
 
@@ -310,8 +291,6 @@ VALID_ROS_DISTRIBUTIONS = {
     ]
 }
 
-
-
 # cb_type encodings for the UPPAAL-model
 TIMER = 0
 SERVICE = 1
@@ -334,7 +313,6 @@ def get_interval_times(timer : ros.Timer) -> list[int]:
     for wt in range(first_release, timer.end+1, timer.period):
         wall_times.append(wt)
     return wall_times
-
 
 def map_data_sending(out: ds.System,
                      parent_node : ros.Node,
@@ -430,21 +408,21 @@ def map_data_sending(out: ds.System,
     # if any nested calls: recursively map their sending and add it to parameters before return
     if callback.calls is not None: #TODO: check that circularity of calls are validated against!!!!
         nested_cb = parent_node.get_callback(callback.calls)
-        call_interface_count, call_interface_id_list, call_interface_release_times, call_wcet = map_data_sending(out=out,
-                                                                                                       parent_node=parent_node,
-                                                                                                       callback=nested_cb,
-                                                                                                       validations=validations,
-                                                                                                       interface_count=interface_count,
-                                                                                                       interface_id_list=interface_id_list,
-                                                                                                       interface_release_times=interface_release_times,
-                                                                                                       wcet=wcet
-                                                                                                       )
+        call_interface_count, call_interface_id_list, call_interface_release_times, call_wcet = map_data_sending(
+                out=out,
+                parent_node=parent_node,
+                callback=nested_cb,
+                validations=validations,
+                interface_count=interface_count,
+                interface_id_list=interface_id_list,
+                interface_release_times=interface_release_times,
+                wcet=wcet
+                )
         interface_count = call_interface_count
         interface_id_list = call_interface_id_list
         interface_release_times = call_interface_release_times
         wcet = call_wcet 
     return interface_count, interface_id_list, interface_release_times, wcet
-
 
 def map_subscriber_cb(
         out: ds.System,
@@ -565,8 +543,8 @@ def map_client(
                           amount_of_publishers=interface_count,
                           publisher_release_time=interface_release_times,
                           publisher_id= interface_id_list,
-                          executorID=out.get_exe_register_id(parent_node.name)) #TODO: check how qos (requst vs. offered) is resolved
-
+                          executorID=out.get_exe_register_id(parent_node.name)) 
+                          #TODO: check how qos (requst vs. offered) is resolved
 
 def map_topic(
         out: ds.System,
@@ -596,7 +574,6 @@ def map_topic(
                   delay=0,
                   max_jitter=0,
                   buffersize=publisher.qos.depth)
-
 
 def map_node(out: ds.System, node: ros.Node, validations: validator.ValidationResult):
     # case 1) timers
@@ -669,7 +646,6 @@ def map_node(out: ds.System, node: ros.Node, validations: validator.ValidationRe
                                       executorID=out.get_exe_register_id(node.name)
                                       )
 
-
 # initiates executors (and maintain mapping from node_name to exec_id)
 def map_executor(out: ds.System, executor: ros.Executor) -> None:
     # get id
@@ -715,7 +691,6 @@ def map_system(
                 map_node(out=out,node=node,validations=validations) 
                 # TODO: maybe other name
     return out
-
 
 # ===================== TRANSFORMATION ===========================
 
