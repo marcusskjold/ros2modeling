@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Iterable
+from typing import Iterable, Any, TypeVar, Protocol
 from dataclasses import dataclass
 import roserer.ros2system as ros
 from roserer.types import NodeType
@@ -54,6 +54,14 @@ class GraphNode:
 
     def __str__(self) -> str:
         return f"Type: {self.nodetype}, Name: {self.name}"
+
+    def equivalent(self, other: GraphNode) -> bool:
+        if (self.name == other.name
+            and self.nodetype == other.nodetype
+            and self.parent == other.parent):
+            return True
+        else:
+            return False
 
 # for internal use
 # this is a list of edges that should be added after all graph nodes are created
@@ -320,3 +328,13 @@ def get_all_chains(graph: RosGraphView) -> list[list[GraphNode]]:
             chains += get_paths_from(source, sink)
     return chains
 
+def find_equivalent_chain_in(graph: RosGraphView, chain: list[GraphNode]
+                             ) -> list[GraphNode]:
+    out: list[GraphNode] = []
+    for node in chain:
+        other = graph[node.nodetype].get(node.name)
+        if other is None or not node.equivalent(other):
+            raise ValueError(f"Graph and chain does not refer to equivalent systems. \
+                    There is no equivalent to {node.name} in graph")
+        out.append(other)
+    return out
