@@ -60,4 +60,9 @@ System:
           callback: cb_3
         - service: service_2
           callback: cb_3
+        timers:
+        - timer: timer_3
+          callback: cb_3
+          period: 20
+          offset: 1
           

@@ -194,11 +194,6 @@ class System():
         self.callbacks = []
         self.const_sizes = {}
         ### internal variables for mapping ###
-        # counters for callback-id's
-        self._sub_id_counter = itertools.count()
-        self._timer_id_counter = itertools.count()
-        self._service_id_counter = itertools.count()
-        self._client_id_counter = itertools.count()
         # id's for topics (sending to and receiving from)
         self._sender_id_counter = itertools.count()
         self._receiver_id_counter = itertools.count()
@@ -208,19 +203,13 @@ class System():
         self._sub_register : dict[str,int] = {}
         # env for nodes registered to executor-id
         self._node_register : dict[str,int] = {}
+        # env for id's for each callback tied to given executor
+        self._callback_ids : dict[str,dict[str,int]] = {}
 
 
     # gets next id for a callback with type 'typ'
     def gen_id(self, typ : int) -> int:
         match typ:
-            case 0: # TIMER
-                return next(self._timer_id_counter)
-            case 1: # SERVICE
-                return next(self._service_id_counter)
-            case 2: # SUBSCRIPTION
-                return next(self._sub_id_counter)
-            case 3: # CLIENT
-                return next(self._client_id_counter)
             case 4: # SENDER
                 return next(self._sender_id_counter)
             case 5: # RECEIVER
@@ -253,6 +242,12 @@ class System():
         else:
             raise KeyError(f"The node, f{node_name}, hasn't been registered")
     
+    # registers the id for a callback within a given executor
+    def register_callback(self, executor : str, component: str, id : int) -> None:
+        self._callback_ids.setdefault(executor,{})[component] = id
+
+    def get_cb_id(self, executor : str, component) -> int:
+        return self._callback_ids[executor][component]
 
     # for printing
     def __str__(self):
