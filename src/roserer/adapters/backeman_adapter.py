@@ -1,7 +1,8 @@
-from dataclasses import dataclass
+from roserer.rosgraph import get_graph_view_from, CALLBACK, RosGraphView, TOPIC, GraphNode, TIMER, find_equivalent_chain_in, SUBSCRIBER, VARIABLE
 import roserer.backeman.system as bk
 import roserer.ros2system as ros
 import roserer.systemvalidator as validator
+from roserer.types import DISTRIBUTION, EXECUTOR, NodeType, Feedback
 """
 TODO: Constraint: Reject offsets smaller than -period
 TODO: Write test cases
@@ -48,54 +49,7 @@ TODO: bk systems allow for nondeterministic hosts.
 # Previously, execution of callbacks of the same type in the wait set would be
 # ordered deterministically based on order of callback registration, but since,
 # it is nondeterministic, and order is only imposed between different callback types
-# TODO: Change to valid, so future editions of ros do not have to be manually included
-INVALID_ROS_DISTRIBUTIONS = [
-    "Rolling",
-    "Kilted",
-    "Jazzy",
-    "Dashing",
-    "Crystal",
-    "Bouncy",
-    "Ardent",
-    "Rolling Ridley",
-    "Kilted Kaiju",
-    "Jazzy Jalisco",
-    "Dashing Diademata",
-    "Crystal Clemmys",
-    "Bouncy Bolson",
-    "Ardent Apalone"
-]
-
-
-INVALID_EXECUTORS = [
-    "MultiThreadedExecutor",
-    "StaticSingleThreadedExecutor",
-    "EventsExecutor"
-]
-
-INVALID_INTERFACES = [
-    "services requested",
-    "services offered",
-    # also actions
-]
-
-LIMITED_ELEMENTS = {
-    "host": 1,
-    "executor": 1,
-    "service": 0,
-    "client": 0,
-    "action": 0,
-    "external_input": 0,
-    "external_output": 0,
-}
-
-@dataclass
-class Nodespec():
-    subtasks: list[ros.Callback]
-    main_task: ros.Callback
-    read_variable: ros.Variable | None
-    node_type: str
-
+# TODO: Find the source for why distributions before eloquent are not valid
 
 # ======================= VALIDATION ======================
 
