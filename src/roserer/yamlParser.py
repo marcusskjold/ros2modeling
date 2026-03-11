@@ -9,7 +9,7 @@ VALID_ATTRIBUTES = {
     'node' : ['node', 'default_qos', 'publishers','callbacks', 'subscriptions', 'variables', 'timers', 'services', 'external_inputs', 'external_outputs', 'clients'],
     'callback' : ['callback', 'wcet', 'read_variables', 'write_variables', 'calls', 'publishers', 'external_outputs', 'request'],
     'publisher' : ['publisher', 'topic', 'qos'],
-    'timer' : ['timer', 'period', 'offset', 'callback', 'begin', 'end'],
+    'timer' : ['timer', 'period', 'offset', 'callback', 'end'],
     'subscription' : ['subscription', 'topic', 'callback', 'qos', 'wall_times'],
     'service' : ['service', 'callback', 'qos', 'wall_times'],
     'client' : ['client', 'service', 'qos'],
@@ -66,7 +66,7 @@ def parse_timers(ros_node: ros.Node, yaml_timers: dict) -> None:
     for timer in yaml_timers:
         validate_yaml_attributes("timer", timer)
         timer_args = {k: timer[k] for k in timer.keys()
-                      & {'period', 'offset'}}
+                      & {'period', 'offset', 'end'}}
         if 'timer' in timer:
             timer_args['name'] = timer['timer']
         # find callback that has the specified name
@@ -75,13 +75,6 @@ def parse_timers(ros_node: ros.Node, yaml_timers: dict) -> None:
                     (callback for callback in ros_node.callbacks
                         if callback.name == timer['callback']),
                     None)
-        if 'begin' in timer and 'end' in timer:
-            timer_args['interval'] = (timer['begin'], timer['end'])
-        if 'begin' not in timer and 'end' in timer:
-            timer_args['interval'] = (0, timer['end'])
-        if 'begin' in timer and 'end' not in timer:
-            raise SyntaxError(f"A timer inside node, {ros_node.name} has a begin-time but no end time. "
-                              f"If you want a begin-time with no end-time, use 'offset'-attribute instead")
         ros_node.add_timer(**timer_args)
 
 

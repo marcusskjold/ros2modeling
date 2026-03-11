@@ -12,12 +12,10 @@ System:
         timers:
         - timer: timer_1
           period: 5
-          offset: 0
+          offset: -3
           callback: cb_1
-          begin: 2
           end: 20
         - timer: timer_2
           period: 6
-          offset: 0
           callback: cb_1
           end: 20

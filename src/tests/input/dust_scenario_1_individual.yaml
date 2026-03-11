@@ -13,27 +13,23 @@ System:
         timers:
         - timer: T0
           callback: cb_1
-          period: 10
-          offset: 2
-          begin: 0
+          period: 5
+          offset: -3
           end: 2
         - timer: T1
           callback: cb_1
-          period: 10
-          offset: 2
-          begin: 0
+          period: 5
+          offset: -3
           end: 2
         - timer: T2
           callback: cb_1
-          period: 10
-          offset: 23
-          begin: 0
+          period: 23
+          offset: 0
           end: 23
         - timer: T3
           callback: cb_1
-          period: 10
-          offset: 23
-          begin: 0
+          period: 23
+          offset: 0
           end: 23
         subscriptions:
         - subscription: H

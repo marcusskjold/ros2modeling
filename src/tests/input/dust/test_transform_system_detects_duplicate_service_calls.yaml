@@ -23,11 +23,11 @@ System:
         timers:
         - timer: timer_1
           period: 5
-          offset: 0
+          offset: -5
           callback: cb_1
         - timer: timer_2
           period: 10
-          offset: 0
+          offset: -10
           callback: cb_2
         clients:
         - client: client_1

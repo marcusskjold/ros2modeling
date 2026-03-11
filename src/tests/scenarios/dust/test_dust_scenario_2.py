@@ -18,8 +18,8 @@ def test_dust_scenario_2_individual_A2_max_latency() -> None:
             raise Exception("Something went wrong when validating the system!")
     else:
         errors, warnings, dust_system = da.transform_system(system=ros_system, validationresult=test_result)
-        for ln in errors:
-            print(ln)
+        if errors != []:
+            print(errors)
             raise Exception("Something went wrong transforming the system!")
         for ln in warnings:
             print(ln)

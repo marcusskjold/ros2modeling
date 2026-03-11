@@ -62,8 +62,8 @@ class Timer():
     name: str
     period: int
     offset: int
+    end: int | None
     callback: str
-    interval: tuple[int,int] | None
 
 
 @dataclass
@@ -277,14 +277,14 @@ class Node():
             callback: Callback,
             name: str | None = None,
             offset: int = 0,
-            interval: tuple[int, int] | None = None
+            end: int | None = None
             ) -> Timer:
         timer = Timer(
                 callback=callback.name,
                 period=period,
                 offset=offset,
                 name=_name_init(name, self.name, "timer", len(self.timers)),
-                interval=interval
+                end=end
                 )
         self.timers.append(timer)
         return timer
