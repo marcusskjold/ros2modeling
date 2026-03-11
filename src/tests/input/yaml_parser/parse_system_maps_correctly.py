@@ -51,7 +51,7 @@ node.add_subscription(topic='topic_1',
                       wall_times=[1,2,3],
                       )
 
-node.add_timer(period=5, offset=0, interval=(0,10), callback=callback_1,name='timer_1')
+node.add_timer(period=5, offset=-5, end=10, callback=callback_1,name='timer_1')
 
 node.add_service(name='service_1',
                  callback=callback_1,

@@ -14,7 +14,7 @@ System:
         - timer: T0
           callback: cb_1
           period: 13
-          offset: 13
+          offset: 0
           
         subscriptions:
         - subscription: H

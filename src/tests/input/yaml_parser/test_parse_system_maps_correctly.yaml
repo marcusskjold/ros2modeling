@@ -49,10 +49,9 @@ System:
         timers:
         - timer: timer_1
           period: 5
-          offset: 0
-          callback: cb_1
-          begin: 0
+          offset: -5
           end: 10
+          callback: cb_1
         services:
         - service: service_1
           callback: cb_1

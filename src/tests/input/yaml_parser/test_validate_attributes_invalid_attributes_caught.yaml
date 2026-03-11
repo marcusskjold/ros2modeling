@@ -14,4 +14,3 @@ System:
           period: 5
           offset: 0
           callback: cb_1
-          begin: 2

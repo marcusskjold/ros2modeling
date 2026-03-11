@@ -207,7 +207,7 @@ def validate_timer(timer : ros.Timer,
     timer_callback = parent.get_callback(timer.callback)
     wcet = full_wcet(timer_callback, parent)
     if timer.period < wcet:
-        errors += [f"This model assumes fixed execution-time (equal to wcet). Make sure that wcet < period,"
+        errors += [f"This model assumes fixed execution-time (equal to wcet). Make sure that {timer.name} has wcet < period,"
                    f"or otherwise a bufferoverflow will trivially occur."]
     return errors, warnings
 
@@ -322,12 +322,13 @@ SENDER = 4
 RECEIVER = 5
 EXECUTOR = 6
 
-# convert interval to wall-times (includes end of interval)
+# convert offset and end to wall-times (including 'end' timepoint)
 def get_interval_times(timer : ros.Timer) -> list[int]:
-    if timer.interval is None:
-        raise ValueError("Timer does not have specified intervals")
+    if timer.end is None:
+        raise ValueError("Timer does not have finite lifetime")
     wall_times = []
-    for wt in range(timer.interval[0]+timer.offset, timer.interval[1]+1, timer.period):
+    first_release = (timer.offset % timer.period) if timer.offset < 0 else timer.period + timer.offset
+    for wt in range(first_release, timer.end+1, timer.period):
         wall_times.append(wt)
     return wall_times
 
@@ -586,7 +587,7 @@ def map_node(out: ds.System, node: ros.Node, validations: validator.ValidationRe
         interface_count, interface_id_list, interface_release_times, wcet = map_data_sending(out=out, parent_node=node,
                                                         callback=timer_cb,validations=validations)
         cb_id = out.get_cb_id(validations.objects.node[node.name].name, timer.name)
-        if timer.interval:
+        if timer.end:
             # convert interval to list of release-times
             wt = get_interval_times(timer)
             out.add_sporadic_callback(id=cb_id,
@@ -601,11 +602,12 @@ def map_node(out: ds.System, node: ros.Node, validations: validator.ValidationRe
                                       executorID=out.get_exe_register_id(node.name)
                                       )
         else:
+            first_release = (timer.offset % timer.period) if timer.offset < 0 else timer.period + timer.offset
             out.add_periodic_callback(id=cb_id,
                                       exec_time=wcet,
                                       period=timer.period,
                                       type=TIMER,
-                                      offset=timer.offset,
+                                      offset=first_release,
                                       buffersize=1, #TODO: make sure that this is 100 % the case?
                                       amount_of_publishers=interface_count,
                                       publisher_release_time=interface_release_times,

@@ -20,9 +20,10 @@ def test_parse_system_cb_order_maintained() -> None:
     actual_callback_names = [cb.name for cb in test_sys.hosts[0].executors[0].nodes[0].callbacks]
     assert actual_callback_names == ['cb_1', 'cb_2', 'cb_3']
 
+# TODO: Might be redundant now
 def test_parse_timer_interval_endpoints_parsed() -> None:
     """ 
-    Tests that the interval specified in begin and end of a timer is correctly parsed.
+    Tests that offset and end is correctly parsed.
     """
     test_sys = yparser.parse_yaml("src/tests/input/yaml_parser/test_parse_timer_interval_endpoints_parsed.yaml")
     actual_timers = [timer.__dict__ for timer in test_sys.hosts[0].executors[0].nodes[0].timers]
@@ -31,26 +32,19 @@ def test_parse_timer_interval_endpoints_parsed() -> None:
             'name' : 'timer_1',
             'callback' : 'cb_1',
             'period' : 5,
-            'offset' : 0,
-            'interval' : (2,20)
+            'offset' : -3,
+            'end' : 20
         },
         'timer_2': {
             'name' : 'timer_2',
             'callback' : 'cb_1',
             'period' : 6,
             'offset' : 0,
-            'interval' : (0,20)
+            'end' : 20
         }
     }
     assert expected_timers['timer_1'] in actual_timers
     assert expected_timers['timer_2'] in actual_timers
-    
-def test_parse_timer_missing_endpoints_caught() -> None:
-    """
-    Tests that a timer with only begin-interval raises an error.
-    """
-    with pytest.raises(SyntaxError):
-        yparser.parse_yaml("src/tests/input/yaml_parser/test_parse_timer_missing_endpoints_caught.yaml")
 
 def test_parse_system_duplicate_keys_caught() -> None:
     """
