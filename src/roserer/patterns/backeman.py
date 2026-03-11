@@ -10,8 +10,8 @@ def add_dependencies(
         subscribers: list[str],
         wcets: list[int]
         ) -> list[ros.Variable]:
+    var = []
     for s, w in zip(subscribers, wcets):
-        var = []
         v = n.add_variable()
         var.append(v)
         cb = n.add_callback(wcet=w, write_variables=[v])
