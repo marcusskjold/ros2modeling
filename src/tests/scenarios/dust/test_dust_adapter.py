@@ -80,7 +80,7 @@ def test_transform_system_nested_calls_collapsed() -> None:
 def test_transform_system_cbs_correct_ids() -> None:
     """
     Tests that each callback is assigned correct id's
-    -> id's should be assigned on a per callback-type basis
+    -> id's should be assigned on a per callback-type per executor basis
     """
     test_sys = yparser.parse_yaml("src/tests/input/dust/test_transform_system_cbs_correct_ids.yaml")
     errors, warnings, dust_sys = da.transform_system(test_sys)
@@ -90,7 +90,7 @@ def test_transform_system_cbs_correct_ids() -> None:
     service_cb_ids = [cb.id for cb in dust_sys.callbacks if cb.type == 'SERVICE']
     subscription_cb_ids = [cb.id for cb in dust_sys.callbacks if cb.type == 'SUBSCRIBER']
     client_cb_ids = [cb.id for cb in dust_sys.callbacks if cb.type == 'CLIENT']
-    assert timer_cb_ids == [0,1]
+    assert timer_cb_ids == [0,1,0]
     assert service_cb_ids == [0,1]
     assert subscription_cb_ids == [0,1]
     assert client_cb_ids == [0,1]
@@ -101,7 +101,7 @@ def test_validate_timer_invalid_wcet_sum_caught() -> None:
     Tests that a net sum wcet of a callback above the period of its timer
     is caught (when individual wcet of calls is below)
     """
-    
+
 
 def test_transform_system_callback_order_maintained() -> None:
     """

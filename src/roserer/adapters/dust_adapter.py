@@ -406,6 +406,7 @@ def map_data_sending(out: ds.System,
                 validations=validations)
 
         # map client's response-callback
+        # only one will exist, as service can only be invoked from one place
         map_client(out=out, receiver_id=client_receiver_id, validations=validations, request=request)
     
     # if any nested calls: recursively map their sending and add it to parameters before return
@@ -446,7 +447,8 @@ def map_subscriber_cb(
             interface_count, interface_id_list, interface_release_times, wcet = map_data_sending(out=out, parent_node=node,
                                                                 callback=callback_obj,validations=validations)
             # create callback
-            out.add_data_callback(id= out.gen_id(SUBSCRIBER),
+            cb_id = out.get_cb_id(validations.objects.node[node.name].name, subscription.name)
+            out.add_data_callback(id= cb_id,
                                   exec_time=wcet,
                                   topicID=receiver_id,
                                   type=SUBSCRIBER,
@@ -499,7 +501,8 @@ def map_server(
 
 
     # create data-callback for sending back to client (upon receiving request)
-    out.add_data_callback(id=out.gen_id(SERVICE),
+    cb_id = out.get_cb_id(validations.objects.node[server_node.name].name, service)
+    out.add_data_callback(id=cb_id,
                           exec_time=wcet,
                           topicID=receiver_id,
                           type=SERVICE,
@@ -535,7 +538,8 @@ def map_client(
     interface_count, interface_id_list, interface_release_times, wcet = map_data_sending(out=out, parent_node=validations.objects.callback[client_callback.name],
                                                         callback=client_callback,validations=validations)
     # add callback for client (upon receiving back from server)
-    out.add_data_callback(id=out.gen_id(CLIENT), 
+    cb_id = out.get_cb_id(validations.objects.node[parent_node.name].name, client_obj.name)
+    out.add_data_callback(id=cb_id, 
                           exec_time=wcet,
                           topicID=receiver_id,
                           type=CLIENT,
@@ -581,10 +585,11 @@ def map_node(out: ds.System, node: ros.Node, validations: validator.ValidationRe
         timer_cb = node.get_callback(timer.callback)
         interface_count, interface_id_list, interface_release_times, wcet = map_data_sending(out=out, parent_node=node,
                                                         callback=timer_cb,validations=validations)
+        cb_id = out.get_cb_id(validations.objects.node[node.name].name, timer.name)
         if timer.interval:
             # convert interval to list of release-times
             wt = get_interval_times(timer)
-            out.add_sporadic_callback(id=out.gen_id(TIMER),
+            out.add_sporadic_callback(id=cb_id,
                                       exec_time=wcet,
                                       length=len(wt),
                                       releases=wt,
@@ -596,7 +601,7 @@ def map_node(out: ds.System, node: ros.Node, validations: validator.ValidationRe
                                       executorID=out.get_exe_register_id(node.name)
                                       )
         else:
-            out.add_periodic_callback(id=out.gen_id(TIMER),
+            out.add_periodic_callback(id=cb_id,
                                       exec_time=wcet,
                                       period=timer.period,
                                       type=TIMER,
@@ -613,7 +618,8 @@ def map_node(out: ds.System, node: ros.Node, validations: validator.ValidationRe
             service_callback = node.get_callback(service.callback)
             interface_count, interface_id_list, interface_release_times, wcet = map_data_sending(out=out, parent_node=node,
                                                         callback=service_callback,validations=validations)
-            out.add_sporadic_callback(id=out.gen_id(SERVICE),
+            cb_id = out.get_cb_id(validations.objects.node[node.name].name, service.name)
+            out.add_sporadic_callback(id=cb_id,
                                       exec_time=wcet,
                                       length=len(service.wall_times),
                                       type=SERVICE,
@@ -630,7 +636,8 @@ def map_node(out: ds.System, node: ros.Node, validations: validator.ValidationRe
             subscription_callback = node.get_callback(subscription.callback)
             interface_count, interface_id_list, interface_release_times, wcet = map_data_sending(out=out, parent_node=node,
                                                         callback=subscription_callback,validations=validations)
-            out.add_sporadic_callback(id=out.gen_id(SUBSCRIBER),
+            cb_id = out.get_cb_id(validations.objects.node[node.name].name, subscription.name)
+            out.add_sporadic_callback(id=cb_id,
                                       exec_time=wcet,
                                       length=len(subscription.wall_times),
                                       type=SUBSCRIBER,
@@ -651,9 +658,26 @@ def map_executor(out: ds.System, executor: ros.Executor) -> None:
         out.add_executor_v2(id)
     else:
         out.add_executor_v1(id)
+    timer_id = 0
+    subscription_id = 0
+    service_id = 0
+    client_id = 0
     # register the executor_id for each node
+    # and callback-id for timer/sub/service/client
     for node in executor.nodes:
         out.register_node(node.name, id)
+        for timer in node.timers:
+            out.register_callback(executor.name, timer.name, timer_id)
+            timer_id += 1
+        for subscription in node.subscriptions:
+            out.register_callback(executor.name, subscription.name, subscription_id)
+            subscription_id += 1
+        for service in node.services:
+            out.register_callback(executor.name, service.name, service_id)
+            service_id +=1
+        for client in node.clients:
+            out.register_callback(executor.name, client.name, client_id)
+            client_id+=1
 
 def map_system(
         system: ros.System,
