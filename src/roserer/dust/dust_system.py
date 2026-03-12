@@ -199,14 +199,6 @@ class System():
         self._receiver_id_counter = itertools.count()
         # id's for executors
         self._ex_id_counter = itertools.count()
-        # env for which subscribers has been mapped
-        self._sub_register : dict[str,int] = {}
-        # env for which publishers has been mapped
-        self._pub_register : dict[str, int] = {}
-        # env for which client-requests has been mapped
-        self._request_register : dict[str,int] = {}
-        # env for which client-responses has been mapped
-        self._response_register : dict[str,int] = {}
         # env for nodes registered to executor-id
         self._node_register : dict[str,int] = {}
         # env for id's for each callback tied to given executor
@@ -214,84 +206,99 @@ class System():
         # register for all id's related to topics (given for each publisher, subscriber, request and response)
         #{type: {name : id}...}
         self._topic_id_register : dict[str,dict[str,int]] = { 
-            "publisher" : {}, #if node-specific, has to be set to node -> this is assuming that each nod
-            "subscriber": {},
+            "publisher" : {}, # doesn't have to discern between nodes, as pub/sub etc. names are unique
+            "subscription": {},
             "request"   : {},
             "response"  : {}
         }
 
-    # gets next id for a callback with type 'typ'
-    def gen_id(self, typ : int) -> int:
-        match typ:
-            case 4: # SENDER
-                return next(self._sender_id_counter)
-            case 5: # RECEIVER
-                return next(self._receiver_id_counter)
-            case 6: # EXECUTOR
-                return next(self._ex_id_counter)
+    # # gets next id for a callback with type 'typ'
+    # def gen_id(self, typ : int) -> int:
+    #     match typ:
+    #         case 4: # SENDER
+    #             return next(self._sender_id_counter)
+    #         case 5: # RECEIVER
+    #             return next(self._receiver_id_counter)
+    #         case 6: # EXECUTOR
+    #             return next(self._ex_id_counter)
 
 
     # combined version:
-    # TODO: can add executor if needed 
-    def has_id(self, component: str, type : str, executor: str = None) -> bool:
-        match type:
-            case "publisher":
-                return component in self._pub_register
-            case "subscriber":
-                return component in self._sub_register
-            case "request":
-                return component in self._request_register
-            case "response":
-                return component in self._response_register
+    def has_id(self, component: str, type : str) -> bool:
+        return component in self._topic_id_register[type]
+        # match type:
+        #     case "publisher":
+        #         return component in self._pub_register
+        #     case "subscriber":
+        #         return component in self._sub_register
+        #     case "request":
+        #         return component in self._request_register
+        #     case "response":
+        #         return component in self._response_register
 
-    def get_registered_id(self, component : str, type : str, executor: str = None) -> int:
+    def gen_id(self, typ: str) -> int:
+        match typ:
+            case "publisher" | "request" | "server": # SENDER   (Maybe just use "sender" instead)
+                return next(self._sender_id_counter)
+            case "subscription" | "response": # RECEIVER
+                return next(self._receiver_id_counter)
+            case "executor": # EXECUTOR
+                return next(self._ex_id_counter)
+
+    # if topic-related id already stored, fetches that
+    # otherwise creates new one and registers it
+    def get_registered_id(self, component : str, type : str) -> int:
         #registry = {}
-        match type:
-            case "publisher":
-                registry = self._pub_register
-                typ = 4
-            case "subscriber":
-                registry = self._sub_register
-                typ = 5
-            case "client":
-                registry = self._client_register
-                typ = 7 # TODO: implement -> maybe get rid of integer by now
-            case _:
-                raise ValueError(f"The type, {type}, given is invalid for this function.")
-        if component in registry:
-            return registry[component]
+        # match type:
+        #     case "publisher":
+        #         registry = self._pub_register
+        #     case "subscriber":
+        #         registry = self._sub_register
+        #     case "client":
+        #         registry = self._client_register
+        #     case _:
+        #         raise ValueError(f"The type, {type}, given is invalid for this function.")
+
+        if self.has_id(component, type):
+            return self._topic_id_register[type][component]
         else:
-            new_id = self.gen_id(typ)
+            new_id = self.gen_id(type)
+            self._topic_id_register[type][component] = new_id
             return new_id
+        # if component in registry:
+        #     return registry[component]
+        # else:
+        #     new_id = self.gen_new_id(type)
+        #     return new_id
 
-    # TODO: combine these somehow
-    # checks whether topic template has already been made for publisher
-    def has_sender_id(self, publisher: str) -> bool:
-        return publisher in self._pub_register
+    # # TODO: combine these somehow
+    # # checks whether topic template has already been made for publisher
+    # def has_sender_id(self, publisher: str) -> bool:
+    #     return publisher in self._pub_register
 
-    # gets sender_id registered for this publisher
-    # if no id is registered, creates a new one and registers it
-    def get_pub_register_id(self, publisher : str) -> int:
-        if publisher in self._pub_register:
-            return self._pub_register[publisher]
-        else:
-            new_id = self.gen_id(4)
-            self._pub_register[publisher] = new_id
-            return new_id
+    # # gets sender_id registered for this publisher
+    # # if no id is registered, creates a new one and registers it
+    # def get_pub_register_id(self, publisher : str) -> int:
+    #     if publisher in self._pub_register:
+    #         return self._pub_register[publisher]
+    #     else:
+    #         new_id = self.gen_id(4)
+    #         self._pub_register[publisher] = new_id
+    #         return new_id
 
-    # checks whether given receiver id exist for subs to 'topic'
-    def has_receiver_id(self, topic: str) -> bool:
-        return topic in self._sub_register
+    # # checks whether given receiver id exist for subs to 'topic'
+    # def has_receiver_id(self, topic: str) -> bool:
+    #     return topic in self._sub_register
 
-    # gets id registered for receivers of this topic
-    # if no id is registered, creates a new one and registers it
-    def get_sub_register_id(self, topic : str) -> int:
-        if topic in self._sub_register:
-            return self._sub_register[topic]
-        else:
-            new_id = self.gen_id(5)
-            self._sub_register[topic] = new_id
-            return new_id
+    # # gets id registered for receivers of this topic
+    # # if no id is registered, creates a new one and registers it
+    # def get_sub_register_id(self, topic : str) -> int:
+    #     if topic in self._sub_register:
+    #         return self._sub_register[topic]
+    #     else:
+    #         new_id = self.gen_id(5)
+    #         self._sub_register[topic] = new_id
+    #         return new_id
 
     # register an executor-id for a given node
     def register_node(self, node_name, exe_id) -> None:
