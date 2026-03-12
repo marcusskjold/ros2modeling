@@ -389,34 +389,41 @@ def map_data_sending(out: ds.System,
     if callback.request is not None:
         #register sender
         interface_count += 1
-        sender_id = out.gen_id("request") # TODO: avoid duplicates here
-        interface_id_list.append(sender_id)
-        interface_release_times.append(wcet)
-
-        # map topic from client to server
+        # create request-server-response if not mapped already
         request = callback.request
         client = parent_node.get_client(request.client)
-        server_receiver_id = map_req_topic(
-                out=out,
-                client=client,
-                sender_id=sender_id,
-                validations=validations
-                )
+        if not out.has_id(client.name, "request"):
+            sender_id = out.get_registered_id(client.name, "request")
+            interface_id_list.append(sender_id)
+            interface_release_times.append(wcet)
 
-        # Map server-callback and topic back.
-        # Must map (Topic X DataCallback X Topic) templates pr. client-server-
-        # communication
-        service = client.service
-        client_receiver_id = map_server(
-                out=out,
-                service=service,
-                receiver_id=server_receiver_id,
-                validations=validations)
+            # map topic from client to server
+            server_receiver_id = map_req_topic(
+                    out=out,
+                    client=client,
+                    sender_id=sender_id,
+                    validations=validations
+                    )
 
-        # map client's response-callback
-        # only one will exist, as service can only be invoked from one place
-        map_client(out=out, receiver_id=client_receiver_id, validations=validations, request=request)
-    
+            # Map server-callback and topic back.
+            # Must map (Topic X DataCallback X Topic) templates pr. client-server-
+            # communication
+            service = client.service
+            client_receiver_id = map_server(
+                    out=out,
+                    service=service,
+                    receiver_id=server_receiver_id,
+                    validations=validations)
+
+            # map client's response-callback
+            # only one will exist per client, as service can only be invoked from one client
+            map_client(out=out, receiver_id=client_receiver_id, validations=validations, request=request)
+        else:
+            # else just register among client-requests in template
+            sender_id = out.get_registered_id(client.name, "request")
+            interface_id_list.append(sender_id)
+            interface_release_times.append(wcet)
+
     # if any nested calls: recursively map their sending and add it to parameters before return
     if callback.calls is not None: #TODO: check that circularity of calls are validated against!!!!
         nested_cb = parent_node.get_callback(callback.calls)
