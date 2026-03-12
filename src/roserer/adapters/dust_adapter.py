@@ -317,10 +317,13 @@ TIMER = 0
 SERVICE = 1
 SUBSCRIBER = 2
 CLIENT = 3
-# (additional ones for counter)
-SENDER = 4
-RECEIVER = 5
-EXECUTOR = 6
+# (additional ones for counters)
+SUB = "subscription"
+PUBLISHER = "publisher"
+REQUEST = "request"
+SENDER = "sender"
+RECEIVER = "receiver"
+EXECUTOR = "executor"
 
 # convert offset and end to wall-times (including 'end' timepoint)
 def get_interval_times(timer : ros.Timer) -> list[int]:
@@ -361,8 +364,8 @@ def map_data_sending(out: ds.System,
         # register sender
         interface_count += 1
         # create topic-template if publisher not yet mapped
-        if not out.has_id(publisher, "publisher"):      
-            sender_id = out.get_registered_id(publisher, "publisher")
+        if not out.has_id(publisher, PUBLISHER):      
+            sender_id = out.get_registered_id(publisher, PUBLISHER)
             interface_id_list.append(sender_id)
             interface_release_times.append(wcet)
 
@@ -381,7 +384,7 @@ def map_data_sending(out: ds.System,
                     )
         # else just register among publishers in template
         else:
-            sender_id = out.get_registered_id(publisher, "publisher")
+            sender_id = out.get_registered_id(publisher, PUBLISHER)
             interface_id_list.append(sender_id)
             interface_release_times.append(wcet)
 
@@ -392,8 +395,8 @@ def map_data_sending(out: ds.System,
         # create request-server-response if not mapped already
         request = callback.request
         client = parent_node.get_client(request.client)
-        if not out.has_id(client.name, "request"):
-            sender_id = out.get_registered_id(client.name, "request")
+        if not out.has_id(client.name, REQUEST):
+            sender_id = out.get_registered_id(client.name, REQUEST)
             interface_id_list.append(sender_id)
             interface_release_times.append(wcet)
 
@@ -420,7 +423,7 @@ def map_data_sending(out: ds.System,
             map_client(out=out, receiver_id=client_receiver_id, validations=validations, request=request)
         else:
             # else just register among client-requests in template
-            sender_id = out.get_registered_id(client.name, "request")
+            sender_id = out.get_registered_id(client.name, REQUEST)
             interface_id_list.append(sender_id)
             interface_release_times.append(wcet)
 
@@ -482,7 +485,7 @@ def map_req_topic(
         validations : validator.ValidationResult
         ) -> int:
     # id for requesting from client to server-callback
-    receiver_id = out.gen_id("response") # TODO: make avoid duplicates?
+    receiver_id = out.gen_id(RECEIVER) # TODO: make avoid duplicates?
     # add topic from client to server
     out.add_topic(receiver_id=receiver_id,
                   sender_id=sender_id,
@@ -502,7 +505,7 @@ def map_server(
         ) -> int:
     ### UPPAAL-DataCallback in server ###
     # id for sending back to client
-    sender_id = out.gen_id("server") # TODO: avoid redundancies here, maybe?
+    sender_id = out.gen_id(SENDER) # TODO: avoid redundancies here, maybe?
     server_callback = validations.interfaces['services offered'][service][0] 
     server_node : ros.Node = validations.objects.callback[server_callback]
     server_callback_object = server_node.get_callback(server_callback) 
@@ -531,7 +534,7 @@ def map_server(
     # needs additional receiver_id for this 
     # (callback in other end is unique to this relation)
     # id for sending back to client
-    receiver_id = out.gen_id("response")
+    receiver_id = out.gen_id(RECEIVER)
     out.add_topic(receiver_id=receiver_id,
                   sender_id=sender_id,
                   delay=0,
@@ -573,10 +576,10 @@ def map_topic(
         validations: validator.ValidationResult) -> None:
     
     # If subscribers for this topic hasn't been made already:
-    if not out.has_id(topic, "subscription"):
+    if not out.has_id(topic, SUB):
 
         # get receiver_id from register
-        receiver_id = out.get_registered_id(topic,"subscription")
+        receiver_id = out.get_registered_id(topic, SUB)
         # map subscribers:   
         # same callback can be here twice -> make it a set!!
         for callback in set(validations.interfaces['topics subscribed to'][topic]):
@@ -587,7 +590,7 @@ def map_topic(
                     callback=callback,
                     validations=validations)
     else: 
-        receiver_id = out.get_registered_id(topic,"subscription")
+        receiver_id = out.get_registered_id(topic, SUB)
     out.add_topic(receiver_id=receiver_id,
                   sender_id=sender_id,
                   delay=0,
@@ -670,7 +673,7 @@ def map_node(out: ds.System, node: ros.Node, validations: validator.ValidationRe
 # initiates executors (and maintain mapping from node_name to exec_id)
 def map_executor(out: ds.System, executor: ros.Executor) -> None:
     # get id
-    id = out.gen_id("executor")
+    id = out.gen_id(EXECUTOR)
     if executor.ros_distribution in VALID_ROS_DISTRIBUTIONS["V2"]:
         out.add_executor_v2(id)
     else:
