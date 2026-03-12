@@ -1,6 +1,6 @@
 System:
-  system: dust_scenario_1_individual
-  default_distribution: Humble
+  system: dust_scenario_1_EXV1_individual
+  default_distribution: Dashing
   hosts:
   - host: 
     executors:
