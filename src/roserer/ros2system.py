@@ -327,6 +327,20 @@ class Node():
                 return serv
         raise ValueError("Service requested is not contained in this node")
 
+    # gets sum of wcet of nested calls
+    def full_wcet(self, cb: str | Callback) -> int:
+        if isinstance(cb, str):
+            cb = self.get_callback(cb)
+        elif cb not in self.callbacks:
+                raise ValueError("Callback is not contained in this node")
+        cb: Callback
+        wcet = cb.wcet
+        while cb.calls is not None:
+            nested_cb = self.get_callback(cb.calls)
+            cb = nested_cb
+            wcet += cb.wcet
+        return wcet
+
 @dataclass
 class Executor():
     name: str
