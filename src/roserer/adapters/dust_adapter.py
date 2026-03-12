@@ -1,295 +1,254 @@
+from roserer.rosgraph import RosGraphView
+import roserer.rosgraph as rosgraph
+import roserer.types as types
+from roserer.types import Feedback, DISTRIBUTION, DDS_IMPLEMENTATION, NodeType, run_validation
 import roserer.dust.dust_system as ds
 import roserer.ros2system as ros
 import roserer.systemvalidator as validator
 import roserer.qos as quality
 
-############################----VALIDATION----############################
+############################----HELPER----############################
 
 def unspecified_warning(component : str) -> list[str]:
-    return [f"Be aware that this model doesn't take account of {component}. "
-            f"Use another model, if you want {component} to be taken account of"]
+    # TODO: Reword
+    return [f"[Warning]: This model does not consider the effect of {component}. \
+            This should not have an effect on the results of the model."]
 
-def validate_qos(component_name : str, qos : ros.QoS) -> list[str]:
-    """A valid QoS:
-    - has history > 0
-    - all other qos-settings are same as in the default qos-profile in ROS2 (rmw_qos_profile_default in https://github.com/ros2/rmw/blob/rolling/rmw/include/rmw/qos_profiles.h)
+############################----RELATIONAL VALIDATION----############################
+
+def warning_graph_unconsidered_node_types(graph: RosGraphView) -> list[str]:
+
+    LIMITED_GRAPH_NODE_TYPES: set[NodeType] = {
+            NodeType.VARIABLE,
+            NodeType.EXTERNAL_OUTPUT,
+            NodeType.EXTERNAL_INPUT,
+    }
+    warnings = []
+    for nodetype in LIMITED_GRAPH_NODE_TYPES:
+        n = len(graph[nodetype])
+        if n > 0:
+            warnings += unspecified_warning(nodetype.name.lower())
+    return warnings
+
+def warning_system_disconnected_at_executor_level(graph: RosGraphView) -> list[str]:
+    executors = rosgraph.get_all_nodes(rosgraph.contract_graph(graph, [NodeType.EXECUTOR]))
+    if len(executors) > 1:
+        origin = executors[0]
+        connected = rosgraph.weakly_connected_with(origin)
+        for executor in executors:
+            if executor not in connected:
+                return [f"[Warning]: Not all executors are connected, for example no object \
+                        in {executor.name} communicates with any object in {origin.name}"]
+    return []
+
+def error_graph_service_with_multiple_clients(graph: RosGraphView) -> list[str]:
+    """
+    Report each service that is requested by more than one client.
+
+    The Dust model models service/client forhold by instantiating a pair of one-to-one
+    topics.
+    If a service is requested by multiple clients, it must be modeled using multiple
+    topics. In this case, the topics will have separate buffers.
+
+    A violation of this constraint would result in buffer overflow checks becoming
+    invalid.
+    """
+    return [f"[Error]: Service {service.name} is requested by more than one client."
+            for service in graph[NodeType.SERVICE].values()
+            if len(service.incoming) > 1 ]
+
+def error_node_has_multiple_response_callbacks_for_client(node: ros.Node) -> list[str]:
+    """
+    Report each publisher that has more than one response callback assigned through
+    response objects.
+
+    The Dust model models service/client forhold by instantiating a pair of one-to-one
+    topics.
+    If a there would be multiple callbacks that could respond to a service, it would
+    have to be modeled using multiple topics. In that case, the topics will have separate buffers.
+
+    A violation of this constraint would result in buffer overflow checks becoming
+    invalid.
+    """
+    requests: dict[str, set[str]] = {}
+    for cb in node.callbacks:
+        r = cb.request
+        if r is not None:
+            requests.setdefault(r.client,set())
+            requests[r.client].add(r.response)
+    return [f"[Error]: There are multiple response callbacks tied to the same client \
+            {client} in node {node.name}"
+            for client, responseset in requests.items()
+            if len(responseset) > 1]
+
+def error_graph_unsupported_node_types(graph: RosGraphView) -> list[str]:
+    if len(graph[NodeType.ACTION]) > 0:
+        return ["This model doesn't support ROS2 actions. Please remove any actions \
+                from your system in order to use this model."]
+    else:
+        return []
+
+def error_system_wt_and_msg_in_one_interface(system: ros.System) -> list[str]:
+    """
+    A valid subscription:
+    - Only has wall_times if no other callback is sending messages to the triggering
+      interface.
+      This is because exactly 1 template template must be made for each callback.
+      See Dust et al. (2025) - pp. 318, 322.
     """
     errors: list[str] = []
-    default_qos = quality.qos_profile_default()
-    for config in vars(qos):
-        if getattr(qos,config) is not getattr(default_qos,config):
-            errors += [f"Policy {config} in {component_name} isn't the same as in qos_profile_default. Make sure it is"
-                       f" set to {getattr(default_qos,config)}"]
+    graph = rosgraph.get_graph_view_from(system)
+    errors += [f"Subscription {sub.name} to {sub.topic} is triggered by wall_times, \
+            but publishers are also publishing to this topic. This cannot be modeled \
+            correctly by this model"
+               f"Remove the wall_times from this subscription or make sure no other callback is publishing "
+               f"to this topic."
+               for sub in system.get_subscriptions()
+               if sub.wall_times is not None
+               and len(graph[NodeType.SUBSCRIBER][sub.name].incoming) > 0 ]
+    errors += [f"Service {service.name} is triggered by wall_times of client-requests "
+               f"but other callbacks in the system are requesting this service. "
+               f"Remove the wall_times from this service or make sure no other callback is requesting "
+               f"this service."
+               for service in system.get_subscriptions()
+               if service.wall_times is not None
+               and len(graph[NodeType.SERVICE][service.name].incoming) > 0 ]
     return errors
 
-#TODO: This could perhaps return an object that can have validations (and maybe counters) etc. as fields
-def validate_system(system : ros.System,
-                    validations : validator.ValidationResult
-                    )-> tuple[list[str],list[str]]:
+# ==================== Object validators ==========================
+
+def validate_qos(qos: ros.QoS, component_name : str) -> Feedback:
+    """A valid QoS must have the same qos-settings except depth as the default 
+    qos-profile in ROS2 (rmw_qos_profile_default in
+    https://github.com/ros2/rmw/blob/rolling/rmw/include/rmw/qos_profiles.h)
     """
-    System-constraints:
-    - Number of hosts and DDS-implementation is not taken account of in model
-    - Each service can only be called from one source
+    feedback = Feedback()
+    errors = feedback.errors
+    default_qos = quality.qos_profile_default()
+    for config in vars(qos):
+        if getattr(qos,config) is not getattr(default_qos,config) and config != "depth":
+            errors += [f"[Error]: QoS policy {config} in {component_name} is \
+                    unsupported. The model only supports {getattr(default_qos,config)}"]
+    return feedback
+
+def validate_executor(executor : ros.Executor) -> Feedback:
     """
-    errors : list[str]= ["Errors:"]
-    warnings : list[str] = ["Warnings:"]
-    if system.default_distribution not in VALID_ROS_DISTRIBUTIONS["V1"] \
-    and system.default_distribution not in VALID_ROS_DISTRIBUTIONS["V2"]:
-        warnings += [f"You have chosen the ROS2-distribution, {system.default_distribution}, as your"
-                     f"default distribution. Be aware that it is not supported by this model"]
-    if system.dds_implementation != "Generic":
-        warnings += unspecified_warning("DDS-implementation")
-    if len(system.hosts) > 1:
-        warnings += unspecified_warning("distribution of the system between hosts")
-        warnings += [f"This model expects 100 % thread availability for each executor in the host operating system. "
-                     f"If this is not the case, then there might be errors in the system not "
-                     f"covered by this model"]
-    for host in system.hosts:
-        errs, warns = validate_host(host, validations)
-        errors += errs
-        warnings += warns
-    
-    # TODO: consider refactoring
-    requested_services = []
-    # get all potential triggers for requesting service
-    triggers = system.get_subscriptions() + system.get_timers() + system.get_services()
-    for trigger in triggers:
-        # get parent on trigger, dependent on type
-        if isinstance(trigger, ros.Subscription):
-            prnt = validations.objects.subscription[trigger.name]
-        elif isinstance(trigger, ros.Timer):
-            prnt = validations.objects.timer[trigger.name]
-        else:
-            prnt = validations.objects.service[trigger.name]
-        prnt : ros.Node
-        # get cb_object
-        callback_obj = prnt.get_callback(trigger.callback)
-        # do-while loop, going through cb and nested calls
-        while True:
-            # if cb_object
-            if callback_obj.request is not None:
-                # add the requested service to list
-                client = prnt.get_client(callback_obj.request.client)
-                requested_services.append(client.service)
-            if callback_obj.calls is not None:
-                callback_obj = prnt.get_callback(callback_obj.calls)
-            else:
-                break
+    a valid Executor:
+    - Runs on a distribution of ROS2 released before Jazzy Jalizico
+      (see VALID_ROS_DISTRIBUTIONS)
+    - Is an implementation of the SingleThreadedExecutor
+    """
+    VALID_ROS_DISTRIBUTIONS: list[DISTRIBUTION] = [
+            DISTRIBUTION.Iron,
+            DISTRIBUTION.Humble,
+            DISTRIBUTION.Galactic,
+            DISTRIBUTION.Foxy,
+            DISTRIBUTION.Eloquent,
+            DISTRIBUTION.Dashing,
+            DISTRIBUTION.Crystal,
+            DISTRIBUTION.Bouncy,
+            DISTRIBUTION.Ardent,
+        ]
+    feedback = Feedback()
+    errors, warnings = feedback.errors, feedback.warnings
 
-    # if the same service requested more than once
-    if len(requested_services) != len(set(requested_services)):
-        errors += [f"The same service is being requested from multiple sources. "
-                   f"This model only support a service being requested from one place."]
+    VRD: str = ','.join([d.name for d in VALID_ROS_DISTRIBUTIONS])
+    if executor.ros_distribution not in VALID_ROS_DISTRIBUTIONS:
+        errors += [f"[Error]: Executor '{executor.name}' runs on a distribution not \
+                supported by this model. Make sure that the distribution is one of the \
+                following: {VRD}"]
+    if executor.implementation != types.EXECUTOR.SingleThreadedExecutor:
+        errors += [f"[Error]: The implementation, {executor.implementation.name}, of \
+                '{executor.name}' is not supported. This model only supports variants \
+                of the SingleThreadedExecutor implementation"]
+    if len(executor.nodes) > 1:
+        warnings += [f"[Warning]: Executor {executor.name} has {len(executor.nodes)} \
+                nodes. This model assumes that each executor has exactly one node. \
+                The model produced will treat all nodes under this executor as one. \
+                This should not cause wrong results."]
+    return feedback
 
-    return errors, warnings
+def validate_node(node : ros.Node) -> Feedback:
+    feedback = Feedback()
+    feedback.errors += error_node_has_multiple_response_callbacks_for_client(node)
+    return feedback
 
-def validate_host(host : ros.Host,
-                  validations : validator.ValidationResult
-                  )-> tuple[list[str],list[str]]:
+def validate_subscription(subscription: ros.Subscription) -> Feedback:
+    return Feedback()
+
+def validate_service(service : ros.Service) -> Feedback:
+    return Feedback()
+
+def validate_callback(callback: ros.Callback) -> Feedback:
+    return Feedback()
+
+def validate_variable(var: ros.Variable) -> Feedback:
+    feedback = Feedback()
+    errors = feedback.errors
+    if var.condition:
+        errors += [
+                f"[Error]: Variable {var.name}: This model does not support conditions"]
+    return feedback
+
+def validate_timer(timer: ros.Timer) -> Feedback:
+    return Feedback()
+
+def validate_host(host : ros.Host) -> Feedback:
     """
     Host-constraints:
     - Is abstracted away in the Dust-model
     - Assumes 100 % thread-availability for each executor (p. 311)
     """
-    errors: list[str] = []
-    warnings: list[str] = []
+    feedback = Feedback()
+    warnings = feedback.warnings
 
-    if host.default_distribution not in VALID_ROS_DISTRIBUTIONS["V1"] \
-    and host.default_distribution not in VALID_ROS_DISTRIBUTIONS["V2"]:
-        warnings += [f"You have chosen the ROS2-distribution, {host.default_distribution}, as your "
-                     f"default distribution. Be aware that it is not supported by this model"]
     if host.operating_system != "Generic":
          warnings += unspecified_warning("operating system")
     if host.operating_system != "Generic":
          warnings += unspecified_warning("architecture")
-    for executor in host.executors:
-        errs, warns = validate_executor(executor, validations)
-        errors += errs
-        warnings += warns
-    return errors, warnings
+    return feedback
 
+# ============================== Main validation ====================================
 
-def validate_executor(executor : ros.Executor,
-                      validations : validator.ValidationResult
-                      ) -> tuple[list[str],list[str]]:
+def validate_system(system : ros.System) -> Feedback:
     """
-    a valid Executor:
-    - Runs on a distribution of ROS2 released before Jazzy Jalizico 
-      (see VALID_ROS_DISTRIBUTIONS)
-    - Is an implementation of the SingleThreadedExecutor
-    - Doesn't discern between what nodes different callbacks belongs to 
-      TODO: is this ever the case?
+    System-constraints:
+    - Number of hosts and DDS-implementation is not taken account of in model
+    - Each service can only be called from one source
     """
-    errors: list[str] = []
-    warnings: list[str] = []
-    if executor.ros_distribution not in VALID_ROS_DISTRIBUTIONS["V1"] \
-    and executor.ros_distribution not in VALID_ROS_DISTRIBUTIONS["V2"]:
-        errors += [f"Executor '{executor.name}' runs on a distribution not supported by this model. "
-                   f"Make sure that the distribution is one of the following: "
-                     + ', '.join(map(str, VALID_ROS_DISTRIBUTIONS["V1"]))
-                     + " "
-                     + ', '.join(map(str, VALID_ROS_DISTRIBUTIONS["V2"]))
-                     + "."]
-    if executor.implementation != "SingleThreadedExecutor":
-        errors += [f"The implementation, {executor.implementation}, of '{executor.name}' is not supported. "
-                   f"This model only supports variants of the SingleThreadedExecutor implementation"]
-    if len(executor.nodes) > 1: # TODO: is this ever the case.
-        warnings += [f"This models doesn't discern between nodes under the same executor. Use another model "
-                     f"if this distinction is relevant to you."]
-    for node in executor.nodes:
-        errs, warns = validate_node(node, validations)
-        errors += errs
-        warnings += warns
-    return errors, warnings
+    feedback = Feedback()
+    errors, warnings = feedback.errors, feedback.warnings
 
-def validate_node(node : ros.Node,
-                  validations : validator.ValidationResult
-                  )-> tuple[list[str],list[str]]:
-    """
-    a valid Node:
-    - Doesn't contain any actions (TODO: is this the case?)
-    - Doesn't consider read/write-variables
-    - Doesn't consider external i/o
-    """
-    errors: list[str] = []
-    warnings: list[str] = []
-    if node.actions:
-        errors += [f"This model doesn't support ROS2 actions. Please remove any actions from your system in order "
-                   f"to use this model."]
-    if node.variables:
-        warnings += unspecified_warning("read/write variables")
-    for callback in node.callbacks:
-        errs, warns = validate_callback(callback, validations)
-        errors += errs
-        warnings += warns
-    for timer in node.timers:
-        errs, warns = validate_timer(timer, validations)
-        errors += errs
-        warnings += warns
-    if node.external_outputs:
-        warnings += unspecified_warning("external output")
-    if node.external_inputs:
-        warnings += unspecified_warning("external input")
-    for subscription in node.subscriptions:
-        errs, warns = validate_subscription(subscription, validations)
-        errors += errs
-        warnings += warns
-    for service in node.services:
-        errs, warns = validate_service(service, validations)
-        errors += errs
-        warnings += warns
-    return errors, warnings
+    warnings += ["[Warning]: This model expects 100 % thread availability for each \
+            executor in the host operating system. If this is not the case, then there \
+            might be errors in the system not covered by this model"]
+    if system.dds_implementation != DDS_IMPLEMENTATION.Generic:
+        warnings += unspecified_warning("DDS-implementation")
+    if len(system.hosts) > 1:
+        warnings += unspecified_warning("distribution of the system between hosts")
+    # TODO: Make into a check for one to one mapping of executor to hosts.
 
-def validate_timer(timer : ros.Timer,
-                   validations : validator.ValidationResult
-                   )-> tuple[list[str],list[str]]:
-    """
-    A valid Timer:
-    - Has a period larger than the wcet of its callback
-    """
-    # gets sum of wcet of nested calls
-    def full_wcet(cb : ros.Callback, prnt : ros.Node) -> int:
-        wcet = cb.wcet
-        while cb.calls is not None:
-            nested_cb = prnt.get_callback(cb.calls)
-            cb = nested_cb
-            wcet+= cb.wcet
-        return wcet
+    graph = rosgraph.get_graph_view_from(system)
+    warnings += warning_graph_unconsidered_node_types(graph)
+    warnings += warning_system_disconnected_at_executor_level(graph)
 
-    errors: list[str] = []
-    warnings: list[str] = []
-    parent = validations.objects.timer[timer.name]
-    timer_callback = parent.get_callback(timer.callback)
-    wcet = full_wcet(timer_callback, parent)
-    if timer.period < wcet:
-        errors += [f"This model assumes fixed execution-time (equal to wcet). Make sure that {timer.name} has wcet < period,"
-                   f"or otherwise a bufferoverflow will trivially occur."]
-    return errors, warnings
+    errors += error_graph_service_with_multiple_clients(graph)
+    errors += error_graph_unsupported_node_types(graph)
 
-def validate_subscription(subscription : ros.Subscription, 
-                          validations : validator.ValidationResult
-                          )-> tuple[list[str],list[str]]:
-    """
-    A valid subscription:
-    - Only has wall_times if no other callback is sending messages to the triggering 
-      interface. 
-      This is because exactly 1 template template must be made for each callback.
-    """
-    errors: list[str] = []
-    warnings: list[str] = []
-    if subscription.wall_times \
-        and subscription.topic in validations.interfaces["topics published to"] \
-              and len(validations.interfaces["topics published to"][subscription.topic]) > 0:
-        errors += [f"Subscription, {subscription.name}, is triggered by wall_times by messages from "
-                   f"topic, {subscription.topic}, but other callbacks are publishing to this topic. "
-                   f"Remove the wall_times from this subscription or make sure no other callback is publishing "
-                   f"to this topic."]
-    errors += validate_qos(subscription.name, subscription.qos)
-    return errors, warnings
+    feedback += run_validation(system.hosts, validate_host)
+    feedback += run_validation(system.get_executors(), validate_executor)
+    feedback += run_validation(system.get_nodes(), validate_node)
+    feedback += run_validation(system.get_callbacks(), validate_callback)
+    feedback += run_validation(system.get_timers(), validate_timer)
+    feedback += run_validation(system.get_subscriptions(), validate_subscription)
+    feedback += run_validation(system.get_services(), validate_service)
+    feedback += run_validation(system.get_variables(), validate_variable)
+    for profile, parent in system.get_qos_profiles():
+            feedback += validate_qos(profile, parent)
 
-def validate_service(service : ros.Service,
-                     validations : validator.ValidationResult
-                     ) -> tuple[list[str],list[str]]:
-    """
-    A valid service:
-    - Only has wall_times if no other callback is sending messages to the triggering
-      interface. This is because exactly 1 template template must be made for each 
-      callback, due to the input-buffer being modeled here.
-      See Dust et al. (2025) - pp. 318, 322.
-    """
-    errors: list[str] = []
-    warnings: list[str] = []
-    if service.wall_times \
-          and service.name in validations.interfaces["services requested"] \
-              and len(validations.interfaces["services requested"][service.name]) > 0:
-        errors += [f"Service, {service.name}, is triggered by wall_times of client-requests "
-                   f"but other callbacks in the system are requesting this service. "
-                   f"Remove the wall_times from this service or make sure no other callback is requesting "
-                   f"this service."]
-    errors += validate_qos(service.name, service.qos)
-    return errors, warnings
-
-def validate_callback(callback : ros.Callback,
-                      validations : validator.ValidationResult
-                      )-> tuple[list[str],list[str]]:
-    """
-    A valid Callback:
-    - does not consider read-variables and write-variables
-    """
-    errors: list[str] = []
-    warnings: list[str] = []
-    if callback.read_variables or callback.write_variables:
-        warnings += unspecified_warning("read/write variables")
-    return errors, warnings
+    return feedback
 
 ################ TRANSLATION ################
-
-VALID_ROS_DISTRIBUTIONS = {
-    "V2" : 
-    [
-        "Iron", # TODO: is this the case?
-        "Iron Irwini", 
-        "Humble",
-        "Humble Hawksbill"
-        "Galactic",
-        "Galactic Geochelone",
-        "Foxy",
-        "Foxy Fitzroy",
-        "Eloquent",
-        "Eloquent Elusor",
-    ],
-    "V1" :
-    [
-        "Dashing",
-        "Crystal",
-        "Bouncy",
-        "Ardent",
-        "Dashing Diademata",
-        "Crystal Clemmys",
-        "Bouncy Bolson",
-        "Ardent Apalone",
-    ]
-}
 
 # cb_type encodings for the UPPAAL-model
 TIMER = 0
@@ -316,10 +275,10 @@ def get_interval_times(timer : ros.Timer) -> list[int]:
 
 def map_data_sending(out: ds.System,
                      parent_node : ros.Node,
-                     callback : ros.Callback, 
+                     callback : ros.Callback,
                      validations: validator.ValidationResult,
-                     interface_count : int = None, 
-                     interface_id_list : list[int] = None, 
+                     interface_count : int = None,
+                     interface_id_list : list[int] = None,
                      interface_release_times : list[int] = None,
                      wcet : int = None)-> tuple[int, list[int], list[int], int]:
     # counter for numbers of interfaces posted to
@@ -421,7 +380,7 @@ def map_data_sending(out: ds.System,
         interface_count = call_interface_count
         interface_id_list = call_interface_id_list
         interface_release_times = call_interface_release_times
-        wcet = call_wcet 
+        wcet = call_wcet
     return interface_count, interface_id_list, interface_release_times, wcet
 
 def map_subscriber_cb(
@@ -471,7 +430,7 @@ def map_req_topic(
                   max_jitter=0,
                   buffersize=client.qos.depth
                   )
-    
+
     return receiver_id
 
 # maps server-callback and "topic" from client to server
@@ -486,7 +445,7 @@ def map_server(
     sender_id = out.gen_id(SENDER) # TODO: avoid redundancies here, maybe?
     server_callback = validations.interfaces['services offered'][service][0] 
     server_node : ros.Node = validations.objects.callback[server_callback]
-    server_callback_object = server_node.get_callback(server_callback) 
+    server_callback_object = server_node.get_callback(server_callback)
     server = server_node.get_service(service)
 
     # get publishing-info (response to client included)
@@ -507,9 +466,9 @@ def map_server(
                           publisher_release_time=interface_release_times,
                           publisher_id=interface_id_list,
                           executorID=out.get_exe_register_id(server_node.name))
-    
+
     ### UPPAAL-Topic back from server to client ###
-    # needs additional receiver_id for this 
+    # needs additional receiver_id for this
     # (callback in other end is unique to this relation)
     # id for sending back to client
     receiver_id = out.gen_id(RECEIVER)
@@ -517,7 +476,7 @@ def map_server(
                   sender_id=sender_id,
                   delay=0,
                   max_jitter=0,
-                  buffersize=server.qos.depth) 
+                  buffersize=server.qos.depth)
                   #TODO: add docs that they are same to github-repo
     return receiver_id
 
@@ -535,7 +494,7 @@ def map_client(
                                                         callback=client_callback,validations=validations)
     # add callback for client (upon receiving back from server)
     cb_id = out.get_cb_id(validations.objects.node[parent_node.name].name, client_obj.name)
-    out.add_data_callback(id=cb_id, 
+    out.add_data_callback(id=cb_id,
                           exec_time=wcet,
                           topicID=receiver_id,
                           type=CLIENT,
@@ -543,7 +502,7 @@ def map_client(
                           amount_of_publishers=interface_count,
                           publisher_release_time=interface_release_times,
                           publisher_id= interface_id_list,
-                          executorID=out.get_exe_register_id(parent_node.name)) 
+                          executorID=out.get_exe_register_id(parent_node.name))
                           #TODO: check how qos (requst vs. offered) is resolved
 
 def map_topic(
@@ -552,7 +511,7 @@ def map_topic(
         topic : str,
         sender_id : int,
         validations: validator.ValidationResult) -> None:
-    
+
     # If subscribers for this topic hasn't been made already:
     if not out.has_id(topic, SUB):
 
@@ -609,7 +568,7 @@ def map_node(out: ds.System, node: ros.Node, validations: validator.ValidationRe
                                       publisher_id=interface_id_list,
                                       executorID=out.get_exe_register_id(node.name)
                                       )
-    # case 2) service with wall_times 
+    # case 2) service with wall_times
     for service in node.services:
         if service.wall_times:
             service_callback = node.get_callback(service.callback)
@@ -627,7 +586,7 @@ def map_node(out: ds.System, node: ros.Node, validations: validator.ValidationRe
                                       publisher_id=interface_id_list,
                                       executorID=out.get_exe_register_id(node.name)
                                       )
-    # case 3) subscriber with wall_times 
+    # case 3) subscriber with wall_times
     for subscription in node.subscriptions:
         if subscription.wall_times:
             subscription_callback = node.get_callback(subscription.callback)
@@ -638,7 +597,7 @@ def map_node(out: ds.System, node: ros.Node, validations: validator.ValidationRe
                                       exec_time=wcet,
                                       length=len(subscription.wall_times),
                                       type=SUBSCRIBER,
-                                      releases=subscription.wall_times, 
+                                      releases=subscription.wall_times,
                                       buffersize=subscription.qos.depth, #TODO: make sure that this is 100 % the case?
                                       amount_of_publishers=interface_count,
                                       publisher_release_time=interface_release_times,
@@ -648,6 +607,23 @@ def map_node(out: ds.System, node: ros.Node, validations: validator.ValidationRe
 
 # initiates executors (and maintain mapping from node_name to exec_id)
 def map_executor(out: ds.System, executor: ros.Executor) -> None:
+    VALID_ROS_DISTRIBUTIONS: dict[str,list[DISTRIBUTION]] = {
+        "V2" :
+        [
+            DISTRIBUTION.Iron,
+            DISTRIBUTION.Humble,
+            DISTRIBUTION.Galactic,
+            DISTRIBUTION.Foxy,
+            DISTRIBUTION.Eloquent,
+        ],
+        "V1" :
+        [
+            DISTRIBUTION.Dashing,
+            DISTRIBUTION.Crystal,
+            DISTRIBUTION.Bouncy,
+            DISTRIBUTION.Ardent,
+        ]
+        }
     # get id
     id = out.gen_id(EXECUTOR)
     if executor.ros_distribution in VALID_ROS_DISTRIBUTIONS["V2"]:
@@ -685,37 +661,27 @@ def map_system(
         for executor in host.executors:
             map_executor(out=out, executor=executor)
     # then map all callbacks contained in each node
-    for host in system.hosts: 
+    for host in system.hosts:
         for executor in host.executors:
             for node in executor.nodes:
-                map_node(out=out,node=node,validations=validations) 
+                map_node(out=out,node=node,validations=validations)
                 # TODO: maybe other name
     return out
 
 # ===================== TRANSFORMATION ===========================
 
 # TODO: this could maybe become common interface for our adapters?
-def transform_system(
-        system: ros.System,
-        validationresult: validator.ValidationResult | None = None
-        ) -> tuple[list[str], list[str], ds.System | None]:
+def transform_system(system: ros.System) -> tuple[list[str] | ds.System, list[str]]:
 
-    if validationresult is None:
-        validationresult = validator.validate_system(system)
-        validationresult: validator.ValidationResult
-        if validationresult.errors != []:
-            return ([
-                "System is not well formed, cannot start transformation. "
-                "Validation feedback:"] + validationresult.errors,
-                [],
-                None)
+    valerr, valwarn = validator.validate_system(system)
+    if valerr != []:
+        return (["System is not well formed, cannot start transformation. \
+                 Validation feedback:"] + valerr, valwarn)
 
-    errors, warnings = validate_system(
-        system, validationresult)
+    errors, warnings = validate_system(system)
+    warnings = valwarn + warnings
 
-    if errors != ["Errors:"]:
-        return errors, warnings, None
-    if warnings == ["Warnings:"]:
-        warnings = []
+    if errors != []:
+        return errors, warnings
 
-    return [], warnings, map_system(system, validationresult)
+    return map_system(system), warnings
