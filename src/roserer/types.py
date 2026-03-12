@@ -7,13 +7,48 @@
 
 
 # The rmw_unique_network_flow_endpoints_requirement enum is not relevant here.
+from dataclasses import dataclass
 import re
-from typing import TypeVar
+from typing import TypeVar, Callable, Iterable
 from enum import Enum, auto
 import math
 from typing import Union
+T = TypeVar('T')
+E = TypeVar('E', bound=Enum)
 
-Feedback = tuple[list[str], list[str]]
+@dataclass
+class Feedback():
+    errors: list[str]
+    warnings: list[str]
+
+    def __init__(
+            self,
+            errors: list[str] | None = None,
+            warnings: list[str] | None = None
+            ) -> None:
+        if errors is None:
+            errors = []
+        if warnings is None:
+            warnings = []
+        self.errors = errors
+        self.warnings = warnings
+
+    def __add__(self, other: 'Feedback') -> 'Feedback':
+        return Feedback(self.errors + other.errors, self.warnings + other.warnings)
+
+    def __iadd__(self, other: 'Feedback') -> 'Feedback':
+        self.errors += other.errors
+        self.warnings += other.warnings
+        return self
+
+def run_validation(
+        objects: Iterable[T],
+        func: Callable[[T], Feedback],
+        ) -> Feedback:
+    f = Feedback()
+    for o in objects:
+        f += func(o)
+    return f
 
 ### This class is taken and modified from the kilted version of rclpy/duration.py
 # Unnecessary dependencies have been removed, such that this is usable outside a full
@@ -106,9 +141,6 @@ class Duration:
             return self.nanoseconds >= other.nanoseconds
         return NotImplemented
 
-
-
-
 # Duration = tuple[int, int]
 
 S_TO_NS = 1_000_000_000
@@ -133,7 +165,6 @@ def parse_bool(arg: bool | str) -> bool:
     else:
         raise ValueError(f"{arg} is not convertible to bool")
 
-
 def parse_duration(arg: Duration | str) -> Duration:
     if isinstance(arg, Duration):
         return arg
@@ -148,7 +179,6 @@ def parse_duration(arg: Duration | str) -> Duration:
     else:
         raise TypeError(f"{arg} is neither a string nor a Duration")
 
-
 def parse_int(arg: int | str) -> int:
     if isinstance(arg, int):
         return arg
@@ -157,8 +187,6 @@ def parse_int(arg: int | str) -> int:
     else:
         raise TypeError(f"{arg} is not convertible to int")
 
-
-E = TypeVar('E', bound=Enum)
 def parse_enum(enumtype: type[E], arg: E | str | int) -> E:
     if not isinstance(arg, str) and isinstance(arg, enumtype):
         return arg

@@ -202,24 +202,30 @@ def warning_buffer_size(system: ros.System) -> list[str]:
     feedback = []
     for qos, parent in system.get_qos_profiles():
         if qos.depth != 20:
-            feedback += [f"Warning: '{parent}' has buffersize {str(qos.depth)}"]
+            feedback += [f"[Warning]: '{parent}' has buffersize {str(qos.depth)}"]
     if feedback != []:
         feedback += ["    Note that the Backeman model assumes buffers are large \
                           enough to avoid overflow.", 
                      "    In the concrete Uppaal model, a buffersize of 20 is used."]
     return feedback
 
-def warning_timer_end_time(timer: ros.Timer) -> list[str]:
+def validate_timer(timer: ros.Timer) -> Feedback:
+    feedback = Feedback()
     if timer.interval:
-        return [f"[Warning]: Timer {timer.name} has end time, this model assumes that \
-                timers continue indefinitely"]
-    else:
-        return []
+        feedback.errors += [f"[Warning]: Timer {timer.name} has end time, this model \
+                assumes that timers continue indefinitely"]
+    return feedback
 
+def validate_subscription(sub: ros.Subscription) -> Feedback:
+    feedback = Feedback()
+    if sub.wall_times is not None:
+        feedback.errors += [f"[Error]: Subscription {sub.name} has wall times set. \
+                This model does not support wall times"]
+    return feedback
 
 def validate_variable(var: ros.Variable) -> Feedback:
-    feedback = ([], [])
-    errors, warnings = feedback
+    feedback = Feedback()
+    errors, warnings = feedback.errors, feedback.warnings
     if var.condition:
         errors += [
                 f"[Error] Variable {var.name}: This model does not support conditions"]
@@ -228,24 +234,25 @@ def validate_variable(var: ros.Variable) -> Feedback:
                 reset after read, but this should not affect results"]
     return feedback
 
-def validate_callback(cb: ros.Callback) -> list[str]:
-    errors = []
+def validate_callback(cb: ros.Callback) -> Feedback:
+    feedback = Feedback()
+    errors = feedback.errors
     reads = len(cb.read_variables)
     writes = len(cb.write_variables)
 
     if is_main_task(cb):
         if writes != 0:
-            errors += [f"Main task '{cb.name}' writes to internal variables"]
+            errors += [f"[Error]: Main task '{cb.name}' writes to internal variables"]
     else:
         if reads != 0:
-            errors += [f"Subtask '{cb.name}' reads variables"]
+            errors += [f"[Error]: Subtask '{cb.name}' reads variables"]
         if writes > 1:
-            errors += [f"Subtask '{cb.name}' writes to more than one variable"]
+            errors += [f"[Error]: Subtask '{cb.name}' writes to more than one variable"]
 
     if cb.calls is not None:
-        errors += [f"cb '{cb.name}' calls other callbacks"]
+        errors += [f"[Error]: cb '{cb.name}' calls other callbacks"]
 
-    return errors
+    return feedback
 
 def validate_node(node: ros.Node) -> Feedback:
     """
@@ -256,21 +263,21 @@ def validate_node(node: ros.Node) -> Feedback:
     See section 3 in Backeman & Seceleanu 2025
     """
     # TODO: DataGenerator can be probabilistic
-    feedback = ([], [])
-    errors, warnings = feedback
+    feedback = Feedback()
+    errors, warnings = feedback.errors, feedback.warnings
     if node.name != node.name.upper():
-        warnings += [f"Name of node '{node.name}' is not upper case, model assumes \
-                       upper case names. Name is forced to upper case"]
+        warnings += [f"[Error]: Name of node '{node.name}' is not upper case, model \
+                assumes upper case names. Name is forced to upper case"]
     if len(node.publishers) > 1:
-        errors += [f"Node '{node.name}' publishes to more than one topic"]
+        errors += [f"[Error]: Node '{node.name}' publishes to more than one topic"]
     if len(node.publishers) < 1:
-        errors += [f"Node '{node.name}' does not have a publisher"]
+        errors += [f"[Error]: Node '{node.name}' does not have a publisher"]
 
     main_tasks = sum(is_main_task(cb) for cb in node.callbacks)
     if main_tasks > 1:
-        errors += [f"Node '{node.name}' has more than one main task"]
+        errors += [f"[Error]: Node '{node.name}' has more than one main task"]
     elif main_tasks == 0:
-        errors += [f"Node '{node.name}' does not have a main task"]
+        errors += [f"[Error]: Node '{node.name}' does not have a main task"]
 
     if not (is_valid_data_generator(node) 
             or is_valid_timer(node)
@@ -282,10 +289,9 @@ def validate_node(node: ros.Node) -> Feedback:
                    f"    Subscriptions: {len(node.subscriptions)}",
                    f"    Callbacks:     {len(node.callbacks)}",
                    f"    Variables:     {len(node.variables)}"]
-
     return feedback
 
-def validate_executor(executor: ros.Executor) -> list[str]:
+def validate_executor(executor: ros.Executor) -> Feedback:
     VALID_ROS_DISTRIBUTIONS = set([
         DISTRIBUTION.Iron,
         DISTRIBUTION.Humble,
@@ -295,36 +301,32 @@ def validate_executor(executor: ros.Executor) -> list[str]:
         ])
     VALID_EXECUTORS = set([EXECUTOR.SingleThreadedExecutor])
     impl = executor.implementation
-    errors = []
+    feedback = Feedback()
+    errors = feedback.errors
     if impl not in VALID_EXECUTORS:
-        errors += [f"Host uses an unsupported executor {impl}"]
+        errors += [f"[Error]: Host uses an unsupported executor {impl}"]
     ros = executor.ros_distribution
     if ros not in VALID_ROS_DISTRIBUTIONS:
-        errors += [f"Host uses an unsupported ros distribution {ros}"]
-    return errors
+        errors += [f"[Error]: Host uses an unsupported ros distribution {ros}"]
+    return feedback
 
 def validate_system(system: ros.System, chain: list[GraphNode]) -> Feedback:
 
-    errors, warnings = feedback = ([],[])
+    feedback = Feedback()
+    errors, warnings = feedback.errors, feedback.warnings
     executor = system.hosts[0].executors[0]
 
-    graph = get_graph_view_from(system)
-    error_graph_limited_node_types(graph)
-    error_graph_multiple_topic_publishers(graph)
-    error_graph_multiple_variable_writers(graph)
-    validate_chain(chain, graph)
-
-    errors += validate_executor(executor)
+    graph = rosgraph.get_graph_view_from(system)
+    errors += error_graph_limited_node_types(graph)
+    errors += error_graph_multiple_topic_publishers(graph)
+    errors += error_graph_multiple_variable_writers(graph)
+    errors += validate_chain(chain, graph)
     warnings += warning_buffer_size(system)
+    feedback += validate_executor(executor)
 
-    for node in executor.nodes:
-        errs, warns = validate_node(node)
-        errors += errs
-        warnings += warns
-    for cb in system.get_callbacks():
-        errors += validate_callback(cb)
-    for timer in system.get_timers():
-        warnings += warning_timer_end_time(timer)
+    feedback += run_validation(executor.nodes, validate_node)
+    feedback += run_validation(system.get_callbacks(), validate_callback)
+    feedback += run_validation(system.get_timers(), validate_timer)
 
     return feedback
 
@@ -461,16 +463,16 @@ def map_system(system: ros.System, chain: list[GraphNode]) -> bk.System:
 # ===================== TRANSFORMATION ===========================
 
 def transform_system(system: ros.System, chain: list[GraphNode]
-                     ) -> tuple[list[str] | bk.System, list[str]]:
+                     ) -> tuple[Feedback, bk.System | None]:
 
-    valerr, valwarn = validator.validate_system(system)
-    if valerr != []:
-        return (["System is not well formed, cannot start transformation. \
-                Validation feedback:"] + valerr, valwarn)
+    feedback = validator.validate_system(system)
+    if feedback.errors != []:
+        return feedback + Feedback(["[Error]: System is not well formed, cannot start \
+                transformation. Validation feedback:"]), None
     
-    errors, warnings = validate_system(system, chain)
+    feedback += validate_system(system, chain)
 
-    if errors != []:
-        return errors, warnings
+    if feedback.errors != []:
+        return feedback, None
     else:
-        return map_system(system, chain), warnings
+        return feedback, map_system(system, chain)

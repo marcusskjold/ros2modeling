@@ -44,6 +44,8 @@ Validation has four stages:
 
 """
 
+# =================== HELPER ==============================
+
 # ===================== GRAPH / RELATIONSHIPS ===================================
 
 # ==================== WARNINGS ===================================
@@ -221,68 +223,82 @@ def error_system_different_subscription_times(system : ros.System) -> list[str]:
         topic_subs.setdefault(subscription.topic,[]).append(subscription.wall_times)
     for topic in topic_subs:
         if not all(wt == topic_subs[topic][0] for wt in topic_subs[topic]):
-            feedback += [
-                    f"Different wall-times are being used for subscriptions to {topic}."
-                    " Make sure that you are using the same times for consistency"]
+            feedback += [f"[Error]: Different wall-times are being used for \
+                    subscriptions to {topic}. Make sure that you are using the same \
+                    times for consistency"]
     return feedback
 
 # ==================== OBJECT VALIDATORS ===================================
 
-def validate_qos(qos: qos.QoS, parent: str) -> list[str]:
+def warning_system_timer_period_too_small(system: ros.System) -> list[str]:
+    warnings: list[str] = []
+    for node in system.get_nodes():
+        for timer in node.timers:
+            wcet = node.full_wcet(timer.callback)
+        if timer.period < wcet:
+            warnings += [f"[Warning]: The timer {timer.name} has a period of \
+                    {timer.period}. However, the combined wcets of the callback \
+                    released by this timer is {wcet} (including nested calls). \
+                    If a model assumes fixed execution-time (equal to wcet), then a \
+                    buffer overflow will trivially occur."]
+    return warnings
+
+def validate_qos(qos: qos.QoS, parent: str) -> Feedback:
     """
     Notice that deadline and lifespan are not used in any models currently
     """
-    feedback = []
+    errors = []
     if qos.depth < 0:
-        feedback += [f"{parent} has invalid qos depth policy"]
+        errors += [f"[Error]: {parent} has invalid qos depth policy"]
     # TODO create proper comparison functions for durations
     # Not a current priority, because they are unused
     if qos.deadline < Duration(0, 0):
-        feedback += [f"{parent} has invalid qos deadline policy"]
+        errors += [f"[Error]: {parent} has invalid qos deadline policy"]
     if qos.lifespan < Duration(0, 0):
-        feedback += [f"{parent} has invalid qos lifespan policy"]
+        errors += [f"[Error]: {parent} has invalid qos lifespan policy"]
     if qos.liveliness_lease_duration < Duration(0, 0):
-        feedback += [
-            f"{parent} has invalid qos liveliness_lease_duration policy"]
-    return feedback
+        errors += [ f"[Error]: {parent} has invalid qos liveliness_lease_duration \
+                policy"]
+    return Feedback(errors, [])
 
-def validate_wall_times(owner : str, wall_times : list[int]) -> list[str]:
+def validate_wall_times(owner : str, wall_times : list[int]) -> Feedback:
     """
     Walltimes are well formed if:
     - It is a weakly increasing sequence of timepoints
       (e.g. two messages could arrive simultaneously)
     """
-    feedback = []
+    errors = []
     if not all(wall_times[i] <= wall_times[i+1] for i in range(len(wall_times) - 1)):
-        feedback += [f"Wall-times of {owner} are not weakly increasing."]
+        errors += [f"[Error]: Wall-times of {owner} are not weakly increasing."]
     if not all(time >= 0 for time in wall_times):
-        feedback += [f"Wall-times of {owner} include negative time"]
-    return feedback
+        errors += [f"[Error]: Wall-times of {owner} include negative time"]
+    return Feedback(errors, [])
 
-def validate_client(client: ros.Client) -> list[str]:
-    return []
+def validate_client(client: ros.Client) -> Feedback:
+    return Feedback()
 
-def validate_publisher(publisher: ros.Publisher) -> list[str]:
-    return []
+def validate_publisher(publisher: ros.Publisher) -> Feedback:
+    return Feedback()
 
-def validate_variable(var: ros.Variable) -> list[str]:
-    return []
+def validate_variable(var: ros.Variable) -> Feedback:
+    return Feedback()
 
-def validate_callback(callback: ros.Callback,) -> list[str]:
+def validate_callback(callback: ros.Callback,) -> Feedback:
     if callback.wcet < 0:
-        return [f"Callback '{callback.name}' has a negative wcet"]
+        return Feedback([f"[Error]: Callback '{callback.name}' has a negative wcet"], 
+                        [])
     # Remember to validate requests if necessary
     # Not currently necessary
-    return []
+    return Feedback()
 
-def validate_external_input(input: ros.ExternalInput) -> list[str]:
+def validate_external_input(input: ros.ExternalInput) -> Feedback:
     # TODO: External input should be external to the node object.
-    return []
+    return Feedback()
 
-def validate_external_output(output: ros.ExternalOutput) -> list[str]:
-    return []
+def validate_external_output(output: ros.ExternalOutput) -> Feedback:
+    return Feedback()
 
-def validate_subscription(subscription: ros.Subscription) -> list[str]:
+def validate_subscription(subscription: ros.Subscription) -> Feedback:
     """
     A subscription is well formed if:
     - It has well-formed wall-times (if any)
@@ -291,9 +307,9 @@ def validate_subscription(subscription: ros.Subscription) -> list[str]:
     """
     if subscription.wall_times:
         return validate_wall_times(subscription.name, subscription.wall_times)
-    return []
+    return Feedback()
 
-def validate_timer(timer: ros.Timer) -> list[str]:
+def validate_timer(timer: ros.Timer) -> Feedback:
     """
     A timer is well formed if:
     - It has a valid period
@@ -301,44 +317,44 @@ def validate_timer(timer: ros.Timer) -> list[str]:
     - It's end-time is None or positive 
     - It's end-time is None or doesn't precede the first callback-release of the timer
     """
-    feedback = []
+    feedback = Feedback()
+    errors = feedback.errors
     if timer.period < 0:
-        feedback += [f"Timer '{timer.name}' must not have a negative period"]
+        errors += [f"Timer '{timer.name}' must not have a negative period"]
     if timer.end: # TODO: probably add modulo/residue here -> maybe split up
         if timer.end < 0:
-            feedback += [f"Timer '{timer.name}' must end at a positive point in time."]
+            errors += [f"Timer '{timer.name}' must end at a positive point in time."]
         first_release = (timer.offset % timer.period) if timer.offset < 0 else timer.period + timer.offset
         if timer.end < first_release:
-            feedback += [f"Timer '{timer.name}' ends before it releases anything."]
+            errors += [f"Timer '{timer.name}' ends before it releases anything."]
     return feedback
 
-def validate_service(service: ros.Service) -> list[str]:
+def validate_service(service: ros.Service) -> Feedback:
     """
     A service is well formed if:
     - It has well-formed wall-times (if any)
     """
-    feedback = []
+    feedback = Feedback()
     if service.wall_times:
-        feedback+= validate_wall_times(service.name, service.wall_times)
+        feedback += validate_wall_times(service.name, service.wall_times)
     return feedback
 
-def validate_action(action: ros.Action) -> list[str]:
+def validate_action(action: ros.Action) -> Feedback:
     #TODO: Implement actions
-    return []
+    return Feedback()
 
-def validate_node(node: ros.Node) -> list[str]:
+def validate_node(node: ros.Node) -> Feedback:
     """
     A node is well formed if:
     - It has at least one trigger 
       [timer, subscription, service, external input, action]
     - It has at least one callback
     """
-    feedback = []
-
+    feedback = Feedback()
+    errors = feedback.errors
     # internal
     if len(node.callbacks) < 1:
-        feedback += [f"Node '{node.name}' must have at least one callback"]
-
+        errors += [f"[Error]: Node '{node.name}' must have at least one callback"]
     total_triggers = (0
             + len(node.external_inputs)
             + len(node.subscriptions)
@@ -347,55 +363,50 @@ def validate_node(node: ros.Node) -> list[str]:
             + len(node.actions)
             )
     if total_triggers < 1:
-        feedback += [f"Node '{node.name}' must have at least one trigger"]
+        errors += [f"[Error]: Node '{node.name}' must have at least one trigger"]
     return feedback
 
-def validate_executor(executor: ros.Executor) -> list[str]: 
-    return []
+def validate_executor(executor: ros.Executor) -> Feedback:
+    return Feedback()
 
-def validate_host(host: ros.Host) -> list[str]:
-    return []
+def validate_host(host: ros.Host) -> Feedback:
+    return Feedback()
 
-T = TypeVar('T')
-def validate_objects(objects: list[T], func: Callable[[T],list[str]]) -> list[str]:
-    return [s for o in objects for s in func(o)]
-
-def validate_system(system: ros.System) -> tuple[list[str],list[str]]:
-    errors: list[str] = []
-    warnings: list[str] = []
+def validate_system(system: ros.System) -> Feedback:
+    feedback = Feedback()
     try:
-        graph: RosGraphView = get_graph_view_from(system)
+        graph: RosGraphView = rosgraph.get_graph_view_from(system)
     except ValueError as ve:
-        return [f"[Err1]: System is not a valid data graph.\n{ve}"], []
-    if len(graph[NODE]) < 1:
-        return ["[Error]: System has no nodes"], []
+        return Feedback([f"[Error]: System is not a valid data graph.\n{ve}"], [])
+    if len(graph[NodeType.NODE]) < 1:
+        return Feedback(["[Error]: System has no nodes"], [])
 
     # Validate objects
-    errors += validate_objects(system.hosts, validate_host)
-    errors += validate_objects(system.get_executors(), validate_executor)
-    errors += validate_objects(system.get_nodes(), validate_node)
-    errors += validate_objects(system.get_callbacks(), validate_callback)
-    errors += validate_objects(system.get_subscriptions(), validate_subscription)
-    errors += validate_objects(system.get_publishers(), validate_publisher)
-    errors += validate_objects(system.get_clients(), validate_client)
-    errors += validate_objects(system.get_services(), validate_service)
-    errors += validate_objects(system.get_external_inputs(), validate_external_input)
-    errors += validate_objects(system.get_external_outputs(), validate_external_output)
-    errors += validate_objects(system.get_timers(), validate_timer)
-    errors += validate_objects(system.get_variables(), validate_variable)
-    errors += validate_objects(system.get_executors(), validate_executor)
+    feedback += run_validation(system.hosts, validate_host)
+    feedback += run_validation(system.get_executors(), validate_executor)
+    feedback += run_validation(system.get_nodes(), validate_node)
+    feedback += run_validation(system.get_callbacks(), validate_callback)
+    feedback += run_validation(system.get_subscriptions(), validate_subscription)
+    feedback += run_validation(system.get_publishers(), validate_publisher)
+    feedback += run_validation(system.get_clients(), validate_client)
+    feedback += run_validation(system.get_services(), validate_service)
+    feedback += run_validation(system.get_external_inputs(), validate_external_input)
+    feedback += run_validation(system.get_external_outputs(), validate_external_output)
+    feedback += run_validation(system.get_timers(), validate_timer)
+    feedback += run_validation(system.get_variables(), validate_variable)
+    feedback += run_validation(system.get_executors(), validate_executor)
     for profile, parent in system.get_qos_profiles():
-            errors += validate_qos(profile, parent)
+            feedback += validate_qos(profile, parent)
 
     # Validate relationships
-    errors += error_system_different_subscription_times(system)
-    errors += error_graph_contains_cycles(graph)
-    errors += error_graph_inter_node_shared_memory(graph)
-    errors += error_graph_invalid_container_type(graph)
-    errors += error_graph_invalid_source(graph)
+    feedback.errors += error_system_different_subscription_times(system)
+    feedback.errors += error_graph_contains_cycles(graph)
+    feedback.errors += error_graph_inter_node_shared_memory(graph)
+    feedback.errors += error_graph_invalid_container_type(graph)
+    feedback.errors += error_graph_invalid_source(graph)
 
-    warnings += warning_graph_disconnected_at_host_level(graph)
-    warnings += warning_graph_empty_container(graph)
-    warnings += warning_graph_unbalanced_interfaces(graph)
+    feedback.warnings += warning_graph_disconnected_at_host_level(graph)
+    feedback.warnings += warning_graph_empty_container(graph)
+    feedback.warnings += warning_graph_unbalanced_interfaces(graph)
 
-    return (errors, warnings)
+    return feedback
