@@ -1,8 +1,9 @@
-from roserer.rosgraph import get_graph_view_from, CALLBACK, RosGraphView, TOPIC, GraphNode, TIMER, find_equivalent_chain_in, SUBSCRIBER, VARIABLE
+from roserer.rosgraph import RosGraphView, GraphNode
 import roserer.backeman.system as bk
 import roserer.ros2system as ros
 import roserer.systemvalidator as validator
-from roserer.types import DISTRIBUTION, EXECUTOR, NodeType, Feedback
+import roserer.rosgraph as rosgraph
+from roserer.types import DISTRIBUTION, EXECUTOR, NodeType, Feedback, run_validation
 """
 TODO: Constraint: Reject offsets smaller than -period
 TODO: Write test cases
@@ -137,45 +138,45 @@ def error_graph_limited_node_types(graph: RosGraphView) -> list[str]:
         n = len(graph[nodetype])
         limit = LIMITED_GRAPH_NODE_TYPES[nodetype]
         if not n <= limit:
-            errors += [f"[ERROR]: System has {n} {nodetype.name.lower()}s, but target \
+            errors += [f"[Error]: System has {n} {nodetype.name.lower()}s, but target \
                     metamodel supports at most {limit}"]
     return errors
 
 def error_graph_multiple_topic_publishers(graph: RosGraphView) -> list[str]:
     return [f"[Error]: Topic '{topic.name}' has more than one publishing node:\n    \
             Publishers: {topic.incoming}"
-            for topic in graph[TOPIC].values() if len(topic.incoming) != 1]
+            for topic in graph[NodeType.TOPIC].values() if len(topic.incoming) != 1]
 
 def error_graph_multiple_variable_writers(graph: RosGraphView) -> list[str]:
     return [f"[Error]: Topic '{variable.name}' has more than one writer:\n    \
             Writers: {variable.incoming}"
-            for variable in graph[VARIABLE].values() if len(variable.incoming) != 1]
+            for variable in graph[NodeType.VARIABLE].values() if len(variable.incoming) != 1]
 
 def error_graph_multiple_callback_triggers(graph: RosGraphView) -> list[str]:
     return [f"[Error]: Topic '{cb.name}' has more than one trigger"
-            for cb in graph[CALLBACK].values() 
-            if 1 != sum(trigger.nodetype in [SUBSCRIBER, TIMER] 
+            for cb in graph[NodeType.CALLBACK].values() 
+            if 1 != sum(trigger.nodetype in [NodeType.SUBSCRIBER, NodeType.TIMER] 
                         for trigger in cb.incoming)]
 
 def warning_topic_case_insensitive(graph: RosGraphView) -> list[str]:
     return [f"[Warning]: Topic '{topic.name} is not upper case, model assumes upper \
             case names. Name is forced to upper case during transformation"
-            for topic in graph[TOPIC].values() if topic.name != topic.name.upper()]
+            for topic in graph[NodeType.TOPIC].values() if topic.name != topic.name.upper()]
 
 def validate_chain(chain: list[GraphNode], graph: RosGraphView) -> list[str]:
     errors = []
-    if chain[0].nodetype != TIMER:
+    if chain[0].nodetype != NodeType.TIMER:
         errors += ["[Error] Invalid chain: Monitored chain starts with a non-timer \
                 object"]
     endt = chain[-1].nodetype
-    if not (endt == CALLBACK or endt == TOPIC):
+    if not (endt == NodeType.CALLBACK or endt == NodeType.TOPIC):
         errors += [f"[Error] Invalid chain: Monitored chain ends with an {endt.name}"]
     for node, next_node in zip(chain, chain[1:]):
         if next_node not in node.outgoing:
             errors += [f"[Error] Invalid chain: {node.name} is not linked to \
                     {next_node.name}"]
     try:
-        chain = find_equivalent_chain_in(graph, chain)
+        chain = rosgraph.find_equivalent_chain_in(graph, chain)
     except ValueError as ve:
         errors += [f"[Error] Invalid chain: {ve}"]
     return errors
@@ -370,7 +371,7 @@ def add_datagenerator(bksystem: bk.System, node: ros.Node, priority: int) -> Non
 
 def data_source_for_cb_in_chain(cb: GraphNode, chain: list[GraphNode]) -> str:
     prev = chain[chain.index(cb)-1]
-    if prev.nodetype == VARIABLE:
+    if prev.nodetype == NodeType.VARIABLE:
         writer = prev.incoming[0]
         data_source = cb.name.upper() + "x" + writer.name.upper() + "_data"
     assert data_source
@@ -394,7 +395,7 @@ def add_timer(bksystem: bk.System, node: ros.Node, priority: int, chain: list[Gr
 
     main_task_in_chain: GraphNode
     for cb in chain:
-        if cb.nodetype == CALLBACK and cb.name == main_task.name:
+        if cb.nodetype == NodeType.CALLBACK and cb.name == main_task.name:
             main_task_in_chain = cb
 
     if (main_task_in_chain):
@@ -421,7 +422,7 @@ def add_subscriber(bksystem: bk.System, node: ros.Node, chain: list[GraphNode]) 
 
     main_task_in_chain: GraphNode
     for cb in chain:
-        if cb.nodetype == CALLBACK and cb.name == main_task.name:
+        if cb.nodetype == NodeType.CALLBACK and cb.name == main_task.name:
             main_task_in_chain = cb
     
     if (sub_tasks != [] and main_task_in_chain):
@@ -437,10 +438,10 @@ def add_subscriber(bksystem: bk.System, node: ros.Node, chain: list[GraphNode]) 
 def map_system(system: ros.System, chain: list[GraphNode]) -> bk.System:
     out = bk.System(system.name.upper())
     out.deterministic_hosts(True) # TODO: Support nondeterminism
-    graph = get_graph_view_from(system)
-    chain = find_equivalent_chain_in(graph, chain)
+    graph = rosgraph.get_graph_view_from(system)
+    chain = rosgraph.find_equivalent_chain_in(graph, chain)
     nodes = system.get_nodes()
-    max_priority = len(graph[CALLBACK])
+    max_priority = len(graph[NodeType.CALLBACK])
     for node in nodes:
         if is_valid_data_generator(node):
             add_datagenerator(out, node, max_priority)

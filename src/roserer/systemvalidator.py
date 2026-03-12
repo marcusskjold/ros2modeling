@@ -1,5 +1,6 @@
-from typing import Callable, TypeVar
-from roserer.rosgraph import RosGraphView, get_graph_view_from, filter_type, get_sinks, TOPIC, get_sources, SERVICE, TIMER, EXTERNAL_INPUT, ALL_TYPES, NodeType, SYSTEM, HOST, NODE, EXECUTOR, get_all_nodes, ACTION, contract_graph, GraphNode, check_for_cycles_in
+import roserer.rosgraph as rosgraph
+from roserer.types import Feedback, run_validation, NodeType
+from roserer.rosgraph import RosGraphView
 import roserer.ros2system as ros
 import roserer.qos as qos
 from roserer.qos import Duration
@@ -63,24 +64,16 @@ def warning_graph_unbalanced_interfaces(graph: RosGraphView) -> list[str]:
 
     # TODO: Can we convert "wall times" into external input? Currently interfaces
             triggered only by wall times are considered unbalanced.
-
-    Arguments:
-    graph (RosGraphView):
-        A full graph representation of a ros2system.System object with no contractions.
-
-    Returns:
-        A list of errors represented as strings. If no errors are found, returns the empty
-        list.
     """
-    sinks = get_sinks(graph)
-    sources = get_sources(graph)
+    sinks = rosgraph.get_sinks(graph)
+    sources = rosgraph.get_sources(graph)
     out = []
-    out += [f"Warning: topic {node.name} is published to, but not subscribed to"
-            for node in filter_type(sinks, [TOPIC])]
-    out += [f"Warning: topic {node.name} is subscribed to, but not published to"
-            for node in filter_type(sources, [TOPIC])]
-    out += [f"Warning: service {node.name} is offered, but not requested"
-            for node in filter_type(sources, [SERVICE])]
+    out += [f"[Warning]: topic {node.name} is published to, but not subscribed to"
+            for node in rosgraph.filter_type(sinks, [NodeType.TOPIC])]
+    out += [f"[Warning]: topic {node.name} is subscribed to, but not published to"
+            for node in rosgraph.filter_type(sources, [NodeType.TOPIC])]
+    out += [f"[Warning]: service {node.name} is offered, but not requested"
+            for node in rosgraph.filter_type(sources, [NodeType.SERVICE])]
     # A service cannot be a sink, as it must point to a callback
     # TODO: Check for actions, when they are included.
     # TODO: Handle wall_times by creating external input nodes 
@@ -94,18 +87,13 @@ def warning_graph_empty_container(graph: RosGraphView) -> list[str]:
     these types that has no children may indicate a modeling error (e.g. it does not
     make sense to include a host with no executors in your model.) or redundant
     information.
-
-    Arguments:
-    graph (RosGraphView):
-        A full graph representation of a ros2system.System object with no contractions.
-
-    Returns:
-        A list of errors represented as strings. If no errors are found, returns the empty
-        list.
     """
-    valid_containers: set[NodeType] = set([SYSTEM, HOST, EXECUTOR, NODE])
-    nodes = get_all_nodes(graph)
-    return [f"Warning: Container {node.nodetype.name} {node.name} does not contain \
+    valid_containers: set[NodeType] = set([NodeType.SYSTEM,
+                                           NodeType.HOST,
+                                           NodeType.EXECUTOR,
+                                           NodeType.NODE])
+    nodes = rosgraph.get_all_nodes(graph)
+    return [f"[Warning]: Container {node.nodetype.name} {node.name} does not contain \
             other objects."
             for node in nodes
             if node.nodetype in valid_containers
@@ -120,28 +108,14 @@ def warning_graph_disconnected_at_host_level(graph: RosGraphView) -> list[str]:
     should have no bearing on the part on another.
     A system that is disconnected at the host level may indicate a modeling mistake,
     but should not cause problems for model checking.
-
-    Arguments:
-    graph (RosGraphView):
-        A full graph representation of a ros2system.System object with no contractions.
-
-    Returns:
-        A list of errors represented as strings. If no errors are found, returns the empty
-        list.
     """
-    hosts = get_all_nodes(contract_graph(graph, [HOST]))
+    hosts = rosgraph.get_all_nodes(rosgraph.contract_graph(graph, [NodeType.HOST]))
     if len(hosts) > 1:
         origin = hosts[0]
-        visited = set()
-        def visit(host: GraphNode):
-            visited.add(host)
-            for neigh in host.outgoing and host.incoming:
-                if neigh not in visited:
-                    visit(neigh)
-        visit(origin)
+        connected = rosgraph.weakly_connected_with(origin)
         for host in hosts:
-            if host not in visited:
-                return [f"Warning: Not all hosts are connected, for example no object \
+            if host not in connected:
+                return [f"[Warning]: Not all hosts are connected, for example no object \
                         in {host.name} communicates with any object in {origin.name}"]
     return []
 
@@ -158,22 +132,17 @@ def error_graph_invalid_source(graph: RosGraphView) -> list[str]:
     types is a source node - meaning it has no incoming edges - it must be either
     an unused and therefor redundant part of the system, or it represents a mistake
     in design or modelling of the actual system.
-    
-    Arguments:
-    graph (RosGraphView):
-        A full graph representation of a ros2system.System object with no contractions.
-
-    Returns:
-        A list of errors represented as strings. If no errors are found, returns the empty
-        list.
     """
     # TODO: Revisit after wall times discussion
-    valid_sources: set[NodeType] = set([TIMER, TOPIC, EXTERNAL_INPUT, SERVICE])
-    invalid_sources = ALL_TYPES - valid_sources
-    sources = get_sources(graph)
-    return [f"Error: {node.nodetype.name} {node.name} is a source of data, only \
+    valid_sources: set[NodeType] = set([NodeType.TIMER,
+                                        NodeType.TOPIC,
+                                        NodeType.EXTERNAL_INPUT,
+                                        NodeType.SERVICE])
+    invalid_sources = {t for t in NodeType} - valid_sources
+    sources = rosgraph.get_sources(graph)
+    return [f"[Error]: {node.nodetype.name} {node.name} is a source of data, only \
             {[source.name for source in valid_sources]} are valid"
-            for node in filter_type(sources, invalid_sources)]
+            for node in rosgraph.filter_type(sources, invalid_sources)]
 
 def error_graph_invalid_container_type(graph: RosGraphView) -> list[str]:
     """
@@ -191,18 +160,13 @@ def error_graph_invalid_container_type(graph: RosGraphView) -> list[str]:
     classes. Further the graph generation function never assigns an invalid parent.
     For this reason, similar validations are not made to ensure the correct type of
     parents and children relations.
-
-    Arguments:
-    graph (RosGraphView):
-        A full graph representation of a ros2system.System object with no contractions.
-
-    Returns:
-        A list of errors represented as strings. If no errors are found, returns the empty
-        list.
     """
-    valid_containers: set[NodeType] = set([SYSTEM, HOST, EXECUTOR, NODE])
-    nodes = get_all_nodes(graph)
-    return [f"Error: {node.nodetype.name} {node.name} contains other objects, only \
+    valid_containers: set[NodeType] = set([NodeType.SYSTEM,
+                                           NodeType.HOST,
+                                           NodeType.EXECUTOR,
+                                           NodeType.NODE])
+    nodes = rosgraph.get_all_nodes(graph)
+    return [f"[Error]: {node.nodetype.name} {node.name} contains other objects, only \
             {[source.name for source in valid_containers]} are valid containers.\n \
             Children of {node.name}: {node.children}"
             for node in nodes
@@ -221,20 +185,13 @@ def error_graph_inter_node_shared_memory(graph: RosGraphView) -> list[str]:
 
     A violation of this constraint is either an error in modeling, or means that the
     modelled system has shared inter-node memory.
-
-    Arguments:
-    graph (RosGraphView):
-        A full graph representation of a ros2system.System object with no contractions.
-
-    Returns:
-        A list of errors represented as strings. If no errors are found, returns the empty
-        list.
     """
     # TODO: Properly support topics
-    interfaces = set([SERVICE, ACTION, TOPIC])
-    return [f"{child.nodetype} '{child.name}' shares data with {target.nodetype} \
-            '{target.name}', even though they belong to different nodes."
-            for node in graph[NODE].values()
+    interfaces = set([NodeType.SERVICE, NodeType.ACTION, NodeType.TOPIC])
+    return [f"[Error]: {child.nodetype} '{child.name}' shares data with \
+            {target.nodetype} '{target.name}', even though they belong to different \
+            nodes."
+            for node in graph[NodeType.NODE].values()
             for child in node.children
             for target in child.outgoing
             if target.nodetype not in interfaces and target.parent != child.parent]
@@ -248,17 +205,10 @@ def error_graph_contains_cycles(graph:RosGraphView) -> list[str]:
 
     A violation of this constraint signifies either a modeling error or a system that
     is not suited for analysis by this package.
-
-    Arguments:
-    graph (RosGraphView):
-        A full graph representation of a ros2system.System object with no contractions.
-
-    Returns:
-        A list of errors represented as strings. If no errors are found, returns the empty
-        list.
     """
-    if check_for_cycles_in(graph):
-        return ["Graph of system contains cycles. Only acyclic systems may be analyzed"]
+    if rosgraph.check_for_cycles_in(graph):
+        return ["[Error]: Graph of system contains cycles. Only acyclic systems may \
+                be analyzed"]
     else:
         return []
 
