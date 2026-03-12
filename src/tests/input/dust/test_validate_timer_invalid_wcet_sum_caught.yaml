@@ -1,0 +1,23 @@
+System:
+  system: test_validate_timer_invalid_wcet_sum_caught
+  default_distribution: Humble
+  hosts:
+  - host:
+    executors:
+    - executor: exe_1
+      nodes:
+      - node: node_1     
+        callbacks:
+        - callback: cb_1
+          wcet: 3
+          calls: cb_2
+        - callback: cb_2
+          wcet: 4
+          calls: cb_3
+        - callback: cb_3
+          wcet: 1
+        timers:
+        - timer: timer_1
+          period: 7
+          offset: -7
+          callback: cb_1

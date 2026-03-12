@@ -1,0 +1,44 @@
+System:
+  system: test_transform_system_no_duplicate_clients
+  default_distribution: Humble
+  hosts:
+  - host:
+    executors:
+    - executor: exe_1
+      nodes:
+      - node: node_1     
+        callbacks:
+        - callback: cb_1
+          wcet: 3
+          request:
+            client: client_1
+            response: response_cb
+        - callback: cb_2
+          wcet: 4
+          request:
+            client: client_1
+            response: response_cb
+        - callback: response_cb
+          wcet: 1
+        timers:
+        - timer: timer_1
+          period: 5
+          offset: -5
+          callback: cb_1
+        - timer: timer_2
+          period: 10
+          offset: -10
+          callback: cb_2
+        clients:
+        - client: client_1
+          service: service_1
+        
+    - executor: exe_2
+      nodes:
+      - node: node_2
+        callbacks:
+        - callback: cb_3
+          wcet: 5
+        services:
+        - service: service_1
+          callback: cb_3

@@ -1,5 +1,5 @@
 System:
-  system: test_transform_system_detects_duplicate_service_calls
+  system: test_transform_system_detects_one_client_different_responses
   default_distribution: Humble
   hosts:
   - host:
@@ -12,14 +12,16 @@ System:
           wcet: 3
           request:
             client: client_1
-            response: response_cb
+            response: response_cb_1
         - callback: cb_2
           wcet: 4
           request:
             client: client_1
-            response: response_cb
-        - callback: response_cb
+            response: response_cb_2
+        - callback: response_cb_1
           wcet: 1
+        - callback: response_cb_2
+          wcet: 2
         timers:
         - timer: timer_1
           period: 5
@@ -32,6 +34,7 @@ System:
         clients:
         - client: client_1
           service: service_1
+
         
     - executor: exe_2
       nodes:
