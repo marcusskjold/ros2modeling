@@ -302,38 +302,26 @@ class Node():
         self.variables.append(var)
         return var
 
-    def get_publisher(
-            self,
-            publisher_name: str
-            ) -> Publisher:
+    def get_publisher(self, publisher_name: str) -> Publisher:
         for pub in self.publishers:
             if publisher_name == pub.name:
                 return pub
         raise ValueError("Publisher requested is not contained in this node")
 
-    def get_client(
-            self,
-            client_name: str
-            ) -> Client:
+    def get_client(self, client_name: str) -> Client:
         for cli in self.clients:
             if client_name == cli.name:
                 return cli
         raise ValueError("Client requested is not contained in this node")
     
     # finds callback-object from the timer-name
-    def get_callback(
-            self,
-            cb_name: str
-            ) -> Callback:
+    def get_callback(self, cb_name: str) -> Callback:
         for callback in self.callbacks:
             if callback.name == cb_name:
                 return callback
         raise ValueError("Callback requested is not contained in this node")
     
-    def get_service(
-            self,
-            service_name: str
-            ) -> Service:
+    def get_service(self, service_name: str) -> Service:
         for serv in self.services:
             if serv.name == service_name:
                 return serv
