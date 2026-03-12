@@ -1,0 +1,26 @@
+System:
+  system: test_validate_system_disconnected_nodes_accepted
+  default_distribution: Humble
+  hosts:
+  - host:
+    executors:
+    - executor: exe_1
+      nodes:
+      - node: node_1     
+        callbacks:
+        - callback: cb_1
+          wcet: 3
+        timers:
+        - timer: timer_1
+          period: 5
+          offset: -5
+          callback: cb_1
+
+      - node: node_2
+        callbacks:
+        - callback: cb_2
+          wcet: 5
+        timers:
+        - timer: timer_2
+          period: 10
+          callback: cb_2

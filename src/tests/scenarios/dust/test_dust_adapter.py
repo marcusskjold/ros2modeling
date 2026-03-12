@@ -19,14 +19,29 @@ def test_transform_system_no_duplicate_subscribers() -> None:
     assert len(dust_sys.topics) == 2
     assert len(dust_sys.callbacks) == 3
 
-def test_transform_system_detects_duplicate_service_calls() -> None:
+def test_transform_system_detects_two_clients_same_service() -> None:
     """
-    Tests service invoked from more sources isn't accepted by validator
+    Tests service invoked from different clients isn't accepted by validator
     """ 
-    test_sys = yparser.parse_yaml("src/tests/input/dust/test_transform_system_detects_duplicate_service_calls.yaml")
+    test_sys = yparser.parse_yaml("src/tests/input/dust/test_transform_system_detects_two_clients_same_service.yaml")
     errors, warnings, dust_sys = da.transform_system(test_sys)
     assert "The same service is being requested from multiple sources. This model only support a service being requested from one place." in errors
 
+def test_transform_system_detects_one_client_different_responses() -> None:
+    """
+    Tests that two requests with same client but different response-callbacks
+    are not accepted by the dust-validator
+    """
+    test_sys = yparser.parse_yaml("src/tests/input/dust/test_transform_system_detects_one_client_different_responses.yaml")
+    errors, warnings, dust_sys = da.transform_system(test_sys)
+    assert errors != [] #TODO: specify message when merged with new validations
+
+
+def test_transform_system_no_duplicate_clients() -> None: ##TODO: implement
+    """
+    Tests that node calling same client from more callbacks doesn't result in duplicate templates
+    """
+    test_sys = yparser.parse_yaml("src/tests/input/dust/test_transform_system_no_duplicate_clients.yaml")
 
 def test_transform_system_service_client_correct_mapping() -> None:
     """
@@ -56,6 +71,7 @@ def test_transform_system_nested_calls_collapsed() -> None:
     """
     Tests that a callback with nested calls is collapsed into a single callback
     with wcet = the sum of the callbacks and correct arrays for sending.
+    Also checks that a separate topic is made for each publisher to same topic
     """
     test_sys = yparser.parse_yaml("src/tests/input/dust/test_transform_system_nested_calls_collapsed.yaml")
     errors, warnings, dust_sys = da.transform_system(test_sys)
@@ -102,7 +118,33 @@ def test_validate_timer_invalid_wcet_sum_caught() -> None:
     """
     test_sys = yparser.parse_yaml("src/tests/input/dust/test_validate_timer_invalid_wcet_sum_caught.yaml")
     errors, warnings, dust_sys = da.transform_system(test_sys)
+    assert errors != []
 
+def test_validate_timer_edge_wcet_sum_accepted() -> None:
+    """
+    Tests that a net sum wcet of a callback equal to period of timer is accepted
+    """
+    test_sys = yparser.parse_yaml("src/tests/input/dust/test_validate_timer_edge_wcet_sum_accepted.yaml")
+    errors, warnings, dust_sys = da.transform_system(test_sys)
+    assert errors == []
+
+def test_validate_system_disconnected_executors_detected() -> None:
+    """
+    Tests that a system with some executors not being connected prompts a warning.
+    Uses system with 4 executors only connected in pairs
+    """
+    test_sys = yparser.parse_yaml("src/tests/input/dust/test_validate_system_disconnected_executors_detected.yaml")
+    errors, warnings, dust_sys = da.transform_system(test_sys)
+    assert warnings != []
+
+def test_validate_system_disconnected_nodes_accepted() -> None:
+    """
+    Tests that system with two disconnected nodes under same executor is accepted
+    """
+    test_sys = yparser.parse_yaml("src/tests/input/dust/test_validate_system_disconnected_nodes_accepted.yaml")
+    errors, warnings, dust_sys = da.transform_system(test_sys)
+    assert len(warnings) == 2 # TODO: check for specific message not in there, when new validations loaded
+    assert errors == []
 
 
 def test_transform_system_callback_order_maintained() -> None:
