@@ -205,23 +205,13 @@ class System():
         self._callback_ids : dict[str,dict[str,int]] = {}
         # register for all id's related to topics (given for each publisher, subscriber, request and response)
         #{type: {name : id}...}
+        # doesn't have to discern between nodes, as pub/sub etc. names are unique
         self._topic_id_register : dict[str,dict[str,int]] = { 
-            "publisher" : {}, # doesn't have to discern between nodes, as pub/sub etc. names are unique
+            "publisher" : {},
             "subscription": {},
             "request"   : {},
             "response"  : {}
         }
-
-    # # gets next id for a callback with type 'typ'
-    # def gen_id(self, typ : int) -> int:
-    #     match typ:
-    #         case 4: # SENDER
-    #             return next(self._sender_id_counter)
-    #         case 5: # RECEIVER
-    #             return next(self._receiver_id_counter)
-    #         case 6: # EXECUTOR
-    #             return next(self._ex_id_counter)
-
 
     # combined version:
     def has_id(self, component: str, type : str) -> bool:
