@@ -13,7 +13,6 @@ LIVELINESS_LEASE_DURATION_BEST_AVAILABLE = DURATION_BEST_AVAILABLE
 # rmw/types.h:728
 DEPTH_SYSTEM_DEFAULT = 0
 
-
 # rmw/types.h:370 | rclpy/qos.py:334
 class QOSReliabilityPolicy(Enum):
     SYSTEM_DEFAULT = 0
@@ -22,14 +21,12 @@ class QOSReliabilityPolicy(Enum):
     UNKNOWN = 3
     BEST_AVAILABLE = 4
 
-
 # rmw/types.h:404 | rclpy/qos.py:317
 class QOSHistoryPolicy(Enum):
     SYSTEM_DEFAULT = 0
     KEEP_LAST = 1
     KEEP_ALL = 2
     UNKNOWN = 3
-
 
 # rmw/types.h:421 | rclpy/qos.py:352
 class QOSDurabilityPolicy(Enum):
@@ -38,7 +35,6 @@ class QOSDurabilityPolicy(Enum):
     VOLATILE = 2
     UNKNOWN = 3
     BEST_AVAILABLE = 4
-
 
 # rmw/types.h:472 | rclpy/qos.py:370
 class QOSLivelinessPolicy(Enum):
@@ -60,7 +56,6 @@ class QualityOfService():
     liveliness: QOSLivelinessPolicy
     liveliness_lease_duration: Duration
     avoid_ros_namespace_conventions: bool
-
 
     def __init__(
         self,
@@ -84,13 +79,10 @@ class QualityOfService():
         self.liveliness_lease_duration = parse_duration(liveliness_lease_duration)
         self.avoid_ros_namespace_conventions = parse_bool(avoid_ros_namespace_conventions)
 
-
 QoS = QualityOfService
 
 # This section is referenced from
 # https://github.com/ros2/rmw/blob/kilted/rmw/include/rmw/qos_profiles.h
-
-
 def qos_profile_sensor_data() -> QualityOfService:
     return QualityOfService(
         history=QOSHistoryPolicy.KEEP_LAST,
