@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Iterable, Any, TypeVar, Protocol
+from typing import Iterable
 from dataclasses import dataclass
 import roserer.ros2system as ros
 from roserer.types import NodeType
@@ -24,13 +24,6 @@ CLIENT = NodeType.CLIENT
 SERVICE = NodeType.SERVICE
 ACTION = NodeType.ACTION
 TOPIC = NodeType.TOPIC
-
-ALL_TYPES: set[NodeType] = set([
-        SYSTEM, HOST, EXECUTOR, NODE,
-        CALLBACK, EXTERNAL_INPUT, EXTERNAL_OUTPUT, TIMER,
-        VARIABLE, PUBLISHER, SUBSCRIBER, CLIENT,
-        SERVICE, ACTION, TOPIC
-        ])
 
 @dataclass
 class GraphNode:
