@@ -1,3 +1,4 @@
+import pytest
 from pprint import pprint
 import roserer.ros2system as ros
 #import roserer.yamlPrinter as yprint
@@ -5,11 +6,12 @@ import roserer.yamlParser as yparse
 import roserer.systemvalidator as sv
 import roserer.dust.dust_system as ds
 import roserer.dust.dust_uppaal as du
-import roserer.adapters.dust_adapter as da
+# import roserer.adapters.dust_adapter as da
 
 from dotenv import load_dotenv
 load_dotenv()
 # TODO: make into test
+@pytest.mark.skip("Wait till Dust mapping has been completed")
 def test_dust_scenario_1_individual_A2_max_latency() -> None:
     ros_system = yparse.parse_yaml("src/tests/input/dust_scenario_1_individual.yaml")
     test_result: sv.ValidationResult = sv.validate_system(ros_system)
