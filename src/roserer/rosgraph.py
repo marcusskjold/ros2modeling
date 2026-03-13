@@ -138,12 +138,13 @@ def get_graph_view_from(system: ros.System) -> RosGraphView:
     """
     g: RosGraphView = {}
     _system = GraphNode(system.name, SYSTEM)
-    g[SYSTEM] = {system.name: _system}
     edgeq: list[EdgeSpec] = []
+    requests: list[ros.Request] = []
 
     for t in NodeType:
         g[t] = {}
 
+    g[SYSTEM] = {system.name: _system}
     for host in system.hosts:
         _host = add_to_graph(g, GraphNode(host.name, HOST, _system))
         for ex in host.executors:
