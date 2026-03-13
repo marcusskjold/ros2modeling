@@ -11,8 +11,8 @@ from dotenv import load_dotenv
 # Except: We assume that fusion should read from the filters, not the sensors.
 #         Therefor we assume that it is a mistake in the original function.
 
-def new_default_backeman_system() -> tuple[ros.System, ros.Executor]:
-    s = ros.System("backeman-st")
+def new_default_backeman_system(name: str) -> tuple[ros.System, ros.Executor]:
+    s = ros.System(name)
     s.default_qos.depth = 20
 
     h = s.add_host()
@@ -25,7 +25,7 @@ def new_default_backeman_system() -> tuple[ros.System, ros.Executor]:
 
 def backeman_st_scenario() -> ros.System:
     load_dotenv()
-    s, e = new_default_backeman_system()
+    s, e = new_default_backeman_system("backeman_st")
 
     add_datagenerator(e, "SENSOR1", 10, 420, 0)
     add_datagenerator(e, "SENSOR2", 20, 420, 0)
@@ -38,7 +38,7 @@ def backeman_st_scenario() -> ros.System:
 
 def backeman_ss_scenario() -> ros.System:
     load_dotenv()
-    s, e = new_default_backeman_system()
+    s, e = new_default_backeman_system("backeman_ss")
 
     add_datagenerator(e, "SENSOR1", 10, 360, 0)
     add_datagenerator(e, "SENSOR2", 20, 360, 0)
