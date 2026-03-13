@@ -188,14 +188,15 @@ def get_graph_view_from(system: ros.System) -> RosGraphView:
                     edgeq.append((CALLBACK, _cb, VARIABLE, cb.write_variables))
                     edgeq.append((VARIABLE, cb.read_variables, CALLBACK, _cb))
                     if cb.request is not None:
-                        client = cb.request.client
-                        edgeq.append((CALLBACK, _cb, CLIENT, client))
                         # Important - callbacks requires that clients are registered
-                        service = g[CLIENT][client].outgoing[0]
-                        edgeq.append((SERVICE, service, CALLBACK, cb.request.response))
-                    edgeq.append((CALLBACK, _cb, VARIABLE, cb.write_variables))
+                        requests.append(cb.request)
         for e in edgeq:
             add_edges(g, e)
+        for r in requests:
+            client = r.client
+            edgeq.append((CALLBACK, _cb, CLIENT, client))
+            service = g[CLIENT][client].outgoing[0]
+            edgeq.append((SERVICE, service, CALLBACK, r.response))
     return g
 
 def get_all_nodes(graph: RosGraphView) -> list[GraphNode]:
