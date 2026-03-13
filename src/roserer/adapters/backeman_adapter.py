@@ -55,7 +55,7 @@ TODO: bk systems allow for nondeterministic hosts.
 # ======================= HELPER ======================
 
 def is_main_task(callback: ros.Callback) -> bool:
-    return callback.publishers == 1
+    return len(callback.publishers) == 1
 
 def is_valid_data_generator(node: ros.Node) -> bool:
     """
