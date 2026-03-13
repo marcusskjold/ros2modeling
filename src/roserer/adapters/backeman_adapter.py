@@ -165,6 +165,7 @@ def warning_topic_case_insensitive(graph: RosGraphView) -> list[str]:
             for topic in graph[NodeType.TOPIC].values() if topic.name != topic.name.upper()]
 
 def validate_chain(chain: list[GraphNode], graph: RosGraphView) -> list[str]:
+    log = logging.getLogger(__name__)
     errors = []
     startt = chain[0].nodetype
     if not (startt == NodeType.CALLBACK or startt == NodeType.TIMER):
@@ -468,15 +469,19 @@ def map_system(system: ros.System, chain: list[GraphNode]) -> bk.System:
 def transform_system(system: ros.System, chain: list[GraphNode]
                      ) -> tuple[Feedback, bk.System | None]:
 
+    logger = logging.getLogger(__name__)
+    logger.info("Validating ROS constraints")
     feedback = validator.validate_system(system)
 
     if feedback.errors != []:
         return feedback + Feedback(["[E123]: System is not well formed, cannot start"
                                     " transformation. Validation feedback:"]), None
     
+    logger.info("Validating Backeman constraints")
     feedback += validate_system(system, chain)
+    logger.info("Validating complete")
 
     if feedback.errors != []:
         return feedback, None
-    else:
-        return feedback, map_system(system, chain)
+    logger.info("Mapping system into Backeman model")
+    return feedback, map_system(system, chain)

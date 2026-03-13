@@ -375,8 +375,12 @@ def validate_host(host: ros.Host) -> Feedback:
 
 def validate_system(system: ros.System) -> Feedback:
     feedback = Feedback()
+    logger = logging.getLogger(__name__)
+    logger.info("Start validation")
     try:
+        logger.info("Build graph")
         graph: RosGraphView = rosgraph.get_graph_view_from(system)
+        logger.info("Graph built")
     except ValueError as ve:
         return Feedback([f"[E015]: System is not a valid data graph.\n{ve}"], [])
     if len(graph[NodeType.NODE]) < 1:
