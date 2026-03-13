@@ -1,3 +1,6 @@
+import logging
+from roserer.types import OPERATING_SYSTEM, DISTRIBUTION, EXECUTOR, DDS_IMPLEMENTATION
+import roserer.rosgraph as rosgraph
 import roserer.experiments.backeman as be
 import roserer.experiments.experimenter as exp
 import roserer.scenarios.backeman as bs
@@ -10,12 +13,13 @@ from dotenv import load_dotenv
 def gen_backeman_ss_manual() -> ros.System:
     load_dotenv()
 
-    system = ros.System("test", dds_implementation="Generic")
+    system = ros.System("backeman_ss", dds_implementation=DDS_IMPLEMENTATION.Generic)
     system.default_qos.depth = 20
 
-    host = system.add_host(operating_system="Generic")
+    host = system.add_host(operating_system=OPERATING_SYSTEM.Generic)
     executor = host.add_executor(
-            implementation="SingleThreadedExecutor", ros_distribution="Eloquent")
+            implementation=EXECUTOR.SingleThreadedExecutor,
+            ros_distribution=DISTRIBUTION.Eloquent)
 
     s1 = executor.add_node(name="SENSOR1")
     s2 = executor.add_node(name="SENSOR2")
@@ -60,8 +64,14 @@ def gen_backeman_ss_manual() -> ros.System:
     return system
 
 def test_backeman_scenarios_are_equivalent() -> None:
+    log = logging.getLogger(__name__)
+
     pattern = bs.backeman_ss_scenario()
     manual = gen_backeman_ss_manual()
+    log.info(f"{[(cb.name, cb.wcet) for cb in pattern.get_callbacks()]}")
+    log.info(f"{[(cb.name, cb.wcet) for cb in manual.get_callbacks()]}")
+    log.info(f"{[n.name for n in rosgraph.get_all_nodes(rosgraph.get_graph_view_from(pattern))]}")
+    log.info(f"{[n.name for n in rosgraph.get_all_nodes(rosgraph.get_graph_view_from(manual))]}")
 
     assert pattern == manual
 
