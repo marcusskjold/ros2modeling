@@ -1,6 +1,6 @@
 System:
-  system: dust_scenario_1_EXV1_individual
-  default_distribution: Dashing
+  system: dust_scenario_1_EXV2_holistic
+  default_distribution: Humble
   hosts: 
   - host: 
     executors:
@@ -129,5 +129,3 @@ System:
         - subscription: sub_L
           callback: dummy_cb
           topic: topic_L
-
-        
