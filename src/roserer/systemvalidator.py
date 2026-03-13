@@ -1,3 +1,4 @@
+import logging
 import roserer.rosgraph as rosgraph
 from roserer.types import Feedback, run_validation, NodeType
 from roserer.rosgraph import RosGraphView
@@ -70,11 +71,11 @@ def warning_graph_unbalanced_interfaces(graph: RosGraphView) -> list[str]:
     sinks = rosgraph.get_sinks(graph)
     sources = rosgraph.get_sources(graph)
     out = []
-    out += [f"[Warning]: topic {node.name} is published to, but not subscribed to"
+    out += [f"[W001]: topic {node.name} is published to, but not subscribed to"
             for node in rosgraph.filter_type(sinks, [NodeType.TOPIC])]
-    out += [f"[Warning]: topic {node.name} is subscribed to, but not published to"
+    out += [f"[W002]: topic {node.name} is subscribed to, but not published to"
             for node in rosgraph.filter_type(sources, [NodeType.TOPIC])]
-    out += [f"[Warning]: service {node.name} is offered, but not requested"
+    out += [f"[W003]: service {node.name} is offered, but not requested"
             for node in rosgraph.filter_type(sources, [NodeType.SERVICE])]
     # A service cannot be a sink, as it must point to a callback
     # TODO: Check for actions, when they are included.
@@ -95,8 +96,8 @@ def warning_graph_empty_container(graph: RosGraphView) -> list[str]:
                                            NodeType.EXECUTOR,
                                            NodeType.NODE])
     nodes = rosgraph.get_all_nodes(graph)
-    return [f"[Warning]: Container {node.nodetype.name} {node.name} does not contain \
-            other objects."
+    return [f"[W004]: Container {node.nodetype.name} {node.name} does not contain"
+            " other objects."
             for node in nodes
             if node.nodetype in valid_containers
             and node.children == []]
@@ -117,8 +118,8 @@ def warning_graph_disconnected_at_host_level(graph: RosGraphView) -> list[str]:
         connected = rosgraph.weakly_connected_with(origin)
         for host in hosts:
             if host not in connected:
-                return [f"[Warning]: Not all hosts are connected, for example no object \
-                        in {host.name} communicates with any object in {origin.name}"]
+                return ["[W005]: Not all hosts are connected, for example no object"
+                        f" in {host.name} communicates with any object in {origin.name}"]
     return []
 
 # ==================== ERRORS ===================================
@@ -142,8 +143,8 @@ def error_graph_invalid_source(graph: RosGraphView) -> list[str]:
                                         NodeType.SERVICE])
     invalid_sources = {t for t in NodeType} - valid_sources
     sources = rosgraph.get_sources(graph)
-    return [f"[Error]: {node.nodetype.name} {node.name} is a source of data, only \
-            {[source.name for source in valid_sources]} are valid"
+    return [f"[E001]: {node.nodetype.name} {node.name} is a source of data, only"
+            f" {[source.name for source in valid_sources]} are valid"
             for node in rosgraph.filter_type(sources, invalid_sources)]
 
 def error_graph_invalid_container_type(graph: RosGraphView) -> list[str]:
@@ -168,9 +169,9 @@ def error_graph_invalid_container_type(graph: RosGraphView) -> list[str]:
                                            NodeType.EXECUTOR,
                                            NodeType.NODE])
     nodes = rosgraph.get_all_nodes(graph)
-    return [f"[Error]: {node.nodetype.name} {node.name} contains other objects, only \
-            {[source.name for source in valid_containers]} are valid containers.\n \
-            Children of {node.name}: {node.children}"
+    return [f"[E002]: {node.nodetype.name} {node.name} contains other objects, only"
+            f" {[source.name for source in valid_containers]} are valid containers.\n"
+            f"    Children of {node.name}: {node.children}"
             for node in nodes
             if node.nodetype not in valid_containers
             and node.children != []]
@@ -190,9 +191,9 @@ def error_graph_inter_node_shared_memory(graph: RosGraphView) -> list[str]:
     """
     # TODO: Properly support topics
     interfaces = set([NodeType.SERVICE, NodeType.ACTION, NodeType.TOPIC])
-    return [f"[Error]: {child.nodetype} '{child.name}' shares data with \
-            {target.nodetype} '{target.name}', even though they belong to different \
-            nodes."
+    return [f"[E003]: {child.nodetype} '{child.name}' shares data with"
+            f" {target.nodetype} '{target.name}', even though they belong to different"
+            " nodes."
             for node in graph[NodeType.NODE].values()
             for child in node.children
             for target in child.outgoing
@@ -209,8 +210,8 @@ def error_graph_contains_cycles(graph:RosGraphView) -> list[str]:
     is not suited for analysis by this package.
     """
     if rosgraph.check_for_cycles_in(graph):
-        return ["[Error]: Graph of system contains cycles. Only acyclic systems may \
-                be analyzed"]
+        return ["[E004]: Graph of system contains cycles. Only acyclic systems may "
+                "be analyzed"]
     else:
         return []
 
@@ -223,9 +224,9 @@ def error_system_different_subscription_times(system : ros.System) -> list[str]:
         topic_subs.setdefault(subscription.topic,[]).append(subscription.wall_times)
     for topic in topic_subs:
         if not all(wt == topic_subs[topic][0] for wt in topic_subs[topic]):
-            feedback += [f"[Error]: Different wall-times are being used for \
-                    subscriptions to {topic}. Make sure that you are using the same \
-                    times for consistency"]
+            feedback += [f"[E005]: Different wall-times are being used for"
+                         f" subscriptions to {topic}. Make sure that you are using the"
+                         " same times for consistency"]
     return feedback
 
 # ==================== OBJECT VALIDATORS ===================================
@@ -236,11 +237,11 @@ def warning_system_timer_period_too_small(system: ros.System) -> list[str]:
         for timer in node.timers:
             wcet = node.full_wcet(timer.callback)
         if timer.period < wcet:
-            warnings += [f"[Warning]: The timer {timer.name} has a period of \
-                    {timer.period}. However, the combined wcets of the callback \
-                    released by this timer is {wcet} (including nested calls). \
-                    If a model assumes fixed execution-time (equal to wcet), then a \
-                    buffer overflow will trivially occur."]
+            warnings += [f"[W006]: The timer {timer.name} has a period of"
+                         f" {timer.period}. However, the combined wcets of the callback"
+                         f" released by this timer is {wcet} (including nested calls)."
+                         f" If a model assumes fixed execution-time (equal to wcet),"
+                         " then a buffer overflow will trivially occur."]
     return warnings
 
 def validate_qos(qos: qos.QoS, parent: str) -> Feedback:
@@ -249,16 +250,16 @@ def validate_qos(qos: qos.QoS, parent: str) -> Feedback:
     """
     errors = []
     if qos.depth < 0:
-        errors += [f"[Error]: {parent} has invalid qos depth policy"]
+        errors += [f"[E006]: {parent} has invalid qos depth policy"]
     # TODO create proper comparison functions for durations
     # Not a current priority, because they are unused
     if qos.deadline < Duration(0, 0):
-        errors += [f"[Error]: {parent} has invalid qos deadline policy"]
+        errors += [f"[E007]: {parent} has invalid qos deadline policy"]
     if qos.lifespan < Duration(0, 0):
-        errors += [f"[Error]: {parent} has invalid qos lifespan policy"]
+        errors += [f"[E008]: {parent} has invalid qos lifespan policy"]
     if qos.liveliness_lease_duration < Duration(0, 0):
-        errors += [ f"[Error]: {parent} has invalid qos liveliness_lease_duration \
-                policy"]
+        errors += [ f"[E009]: {parent} has invalid qos liveliness_lease_duration"
+                   " policy"]
     return Feedback(errors, [])
 
 def validate_wall_times(owner : str, wall_times : list[int]) -> Feedback:
@@ -269,9 +270,9 @@ def validate_wall_times(owner : str, wall_times : list[int]) -> Feedback:
     """
     errors = []
     if not all(wall_times[i] <= wall_times[i+1] for i in range(len(wall_times) - 1)):
-        errors += [f"[Error]: Wall-times of {owner} are not weakly increasing."]
+        errors += [f"[E010]: Wall-times of {owner} are not weakly increasing."]
     if not all(time >= 0 for time in wall_times):
-        errors += [f"[Error]: Wall-times of {owner} include negative time"]
+        errors += [f"[E011]: Wall-times of {owner} include negative time"]
     return Feedback(errors, [])
 
 def validate_client(client: ros.Client) -> Feedback:
@@ -285,7 +286,7 @@ def validate_variable(var: ros.Variable) -> Feedback:
 
 def validate_callback(callback: ros.Callback,) -> Feedback:
     if callback.wcet < 0:
-        return Feedback([f"[Error]: Callback '{callback.name}' has a negative wcet"], 
+        return Feedback([f"[E012]: Callback '{callback.name}' has a negative wcet"], 
                         [])
     # Remember to validate requests if necessary
     # Not currently necessary
@@ -354,7 +355,7 @@ def validate_node(node: ros.Node) -> Feedback:
     errors = feedback.errors
     # internal
     if len(node.callbacks) < 1:
-        errors += [f"[Error]: Node '{node.name}' must have at least one callback"]
+        errors += [f"[E013]: Node '{node.name}' must have at least one callback"]
     total_triggers = (0
             + len(node.external_inputs)
             + len(node.subscriptions)
@@ -363,7 +364,7 @@ def validate_node(node: ros.Node) -> Feedback:
             + len(node.actions)
             )
     if total_triggers < 1:
-        errors += [f"[Error]: Node '{node.name}' must have at least one trigger"]
+        errors += [f"[E014]: Node '{node.name}' must have at least one trigger"]
     return feedback
 
 def validate_executor(executor: ros.Executor) -> Feedback:
@@ -377,9 +378,9 @@ def validate_system(system: ros.System) -> Feedback:
     try:
         graph: RosGraphView = rosgraph.get_graph_view_from(system)
     except ValueError as ve:
-        return Feedback([f"[Error]: System is not a valid data graph.\n{ve}"], [])
+        return Feedback([f"[E015]: System is not a valid data graph.\n{ve}"], [])
     if len(graph[NodeType.NODE]) < 1:
-        return Feedback(["[Error]: System has no nodes"], [])
+        return Feedback(["[E016]: System has no nodes"], [])
 
     # Validate objects
     feedback += run_validation(system.hosts, validate_host)

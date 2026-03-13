@@ -1,3 +1,4 @@
+import logging
 from roserer.rosgraph import RosGraphView, GraphNode
 import roserer.backeman.system as bk
 import roserer.ros2system as ros
@@ -138,47 +139,50 @@ def error_graph_limited_node_types(graph: RosGraphView) -> list[str]:
         n = len(graph[nodetype])
         limit = LIMITED_GRAPH_NODE_TYPES[nodetype]
         if not n <= limit:
-            errors += [f"[Error]: System has {n} {nodetype.name.lower()}s, but target \
-                    metamodel supports at most {limit}"]
+            errors += [f"[E101]: System has {n} {nodetype.name.lower()}s, but target"
+                       " metamodel supports at most {limit}"]
     return errors
 
 def error_graph_multiple_topic_publishers(graph: RosGraphView) -> list[str]:
-    return [f"[Error]: Topic '{topic.name}' has more than one publishing node:\n    \
-            Publishers: {topic.incoming}"
+    return [f"[E102]: Topic '{topic.name}' has more than one publishing node:\n"
+            f"    Publishers: {[pub.name for pub in topic.incoming]}"
             for topic in graph[NodeType.TOPIC].values() if len(topic.incoming) != 1]
 
 def error_graph_multiple_variable_writers(graph: RosGraphView) -> list[str]:
-    return [f"[Error]: Topic '{variable.name}' has more than one writer:\n    \
-            Writers: {variable.incoming}"
+    return [f"[E103]: Variable '{variable.name}' has more than one writer:\n"
+            f"    Writers: {[cb.name for cb in variable.incoming]}"
             for variable in graph[NodeType.VARIABLE].values() if len(variable.incoming) != 1]
 
 def error_graph_multiple_callback_triggers(graph: RosGraphView) -> list[str]:
-    return [f"[Error]: Topic '{cb.name}' has more than one trigger"
+    return [f"[E104]: Topic '{cb.name}' has more than one trigger"
             for cb in graph[NodeType.CALLBACK].values() 
             if 1 != sum(trigger.nodetype in [NodeType.SUBSCRIBER, NodeType.TIMER] 
                         for trigger in cb.incoming)]
 
 def warning_topic_case_insensitive(graph: RosGraphView) -> list[str]:
-    return [f"[Warning]: Topic '{topic.name} is not upper case, model assumes upper \
-            case names. Name is forced to upper case during transformation"
+    return [f"[W101]: Topic '{topic.name} is not upper case, model assumes upper"
+            "case names. Name is forced to upper case during transformation"
             for topic in graph[NodeType.TOPIC].values() if topic.name != topic.name.upper()]
 
 def validate_chain(chain: list[GraphNode], graph: RosGraphView) -> list[str]:
     errors = []
-    if chain[0].nodetype != NodeType.TIMER:
-        errors += ["[Error] Invalid chain: Monitored chain starts with a non-timer \
-                object"]
+    startt = chain[0].nodetype
+    if not (startt == NodeType.CALLBACK or startt == NodeType.TIMER):
+        errors += ["[E105] Invalid chain: Monitored chain starts with a non-timer"
+                   " object"]
     endt = chain[-1].nodetype
     if not (endt == NodeType.CALLBACK or endt == NodeType.TOPIC):
-        errors += [f"[Error] Invalid chain: Monitored chain ends with an {endt.name}"]
+        errors += [f"[E106] Invalid chain: Monitored chain ends with an {endt.name}"]
     for node, next_node in zip(chain, chain[1:]):
         if next_node not in node.outgoing:
-            errors += [f"[Error] Invalid chain: {node.name} is not linked to \
-                    {next_node.name}"]
+            errors += [f"[107] Invalid chain: {node.name} is not linked to"
+                       " {next_node.name}"]
+    log.info("Finding equivalent chain")
     try:
         chain = rosgraph.find_equivalent_chain_in(graph, chain)
     except ValueError as ve:
-        errors += [f"[Error] Invalid chain: {ve}"]
+        log.info("Error while finding equivalent chain")
+        errors += [f"[E108] Invalid chain: {ve}"]
     return errors
 
 
@@ -202,25 +206,25 @@ def warning_buffer_size(system: ros.System) -> list[str]:
     feedback = []
     for qos, parent in system.get_qos_profiles():
         if qos.depth != 20:
-            feedback += [f"[Warning]: '{parent}' has buffersize {str(qos.depth)}"]
+            feedback += [f"[W102]: '{parent}' has buffersize {str(qos.depth)}"]
     if feedback != []:
-        feedback += ["    Note that the Backeman model assumes buffers are large \
-                          enough to avoid overflow.", 
+        feedback += ["    Note that the Backeman model assumes buffers are large" 
+                     "enough to avoid overflow.", 
                      "    In the concrete Uppaal model, a buffersize of 20 is used."]
     return feedback
 
 def validate_timer(timer: ros.Timer) -> Feedback:
     feedback = Feedback()
     if timer.end:
-        feedback.errors += [f"[Warning]: Timer {timer.name} has end time, this model \
-                assumes that timers continue indefinitely"]
+        feedback.errors += [f"[W103]: Timer {timer.name} has end time, this model"
+                            " assumes that timers continue indefinitely"]
     return feedback
 
 def validate_subscription(sub: ros.Subscription) -> Feedback:
     feedback = Feedback()
     if sub.wall_times is not None:
-        feedback.errors += [f"[Error]: Subscription {sub.name} has wall times set. \
-                This model does not support wall times"]
+        feedback.errors += [f"[E109]: Subscription {sub.name} has wall times set."
+                            " This model does not support wall times"]
     return feedback
 
 def validate_variable(var: ros.Variable) -> Feedback:
@@ -228,10 +232,10 @@ def validate_variable(var: ros.Variable) -> Feedback:
     errors, warnings = feedback.errors, feedback.warnings
     if var.condition:
         errors += [
-                f"[Error] Variable {var.name}: This model does not support conditions"]
+                f"[E110] Variable {var.name}: This model does not support conditions"]
     if var.reset_after_read:
-        warnings += [f"[Warning] Variable {var.name}: This model does not support \
-                reset after read, but this should not affect results"]
+        warnings += [f"[W104] Variable {var.name}: This model does not support"
+                     " reset after read, but this should not affect results"]
     return feedback
 
 def validate_callback(cb: ros.Callback) -> Feedback:
@@ -242,15 +246,15 @@ def validate_callback(cb: ros.Callback) -> Feedback:
 
     if is_main_task(cb):
         if writes != 0:
-            errors += [f"[Error]: Main task '{cb.name}' writes to internal variables"]
+            errors += [f"[E111]: Main task '{cb.name}' writes to internal variables"]
     else:
         if reads != 0:
-            errors += [f"[Error]: Subtask '{cb.name}' reads variables"]
+            errors += [f"[E112]: Subtask '{cb.name}' reads variables"]
         if writes > 1:
-            errors += [f"[Error]: Subtask '{cb.name}' writes to more than one variable"]
+            errors += [f"[E113]: Subtask '{cb.name}' writes to more than one variable"]
 
     if cb.calls is not None:
-        errors += [f"[Error]: cb '{cb.name}' calls other callbacks"]
+        errors += [f"[E114]: cb '{cb.name}' calls other callbacks"]
 
     return feedback
 
@@ -266,23 +270,23 @@ def validate_node(node: ros.Node) -> Feedback:
     feedback = Feedback()
     errors, warnings = feedback.errors, feedback.warnings
     if node.name != node.name.upper():
-        warnings += [f"[Error]: Name of node '{node.name}' is not upper case, model \
-                assumes upper case names. Name is forced to upper case"]
+        warnings += [f"[E115]: Name of node '{node.name}' is not upper case, model"
+                     " assumes upper case names. Name is forced to upper case"]
     if len(node.publishers) > 1:
-        errors += [f"[Error]: Node '{node.name}' publishes to more than one topic"]
+        errors += [f"[E116]: Node '{node.name}' publishes to more than one topic"]
     if len(node.publishers) < 1:
-        errors += [f"[Error]: Node '{node.name}' does not have a publisher"]
+        errors += [f"[E117]: Node '{node.name}' does not have a publisher"]
 
     main_tasks = sum(is_main_task(cb) for cb in node.callbacks)
     if main_tasks > 1:
-        errors += [f"[Error]: Node '{node.name}' has more than one main task"]
+        errors += [f"[E118]: Node '{node.name}' has more than one main task"]
     elif main_tasks == 0:
-        errors += [f"[Error]: Node '{node.name}' does not have a main task"]
+        errors += [f"[E119]: Node '{node.name}' does not have a main task"]
 
     if not (is_valid_data_generator(node) 
             or is_valid_timer(node)
             or is_valid_subscriber(node)):
-        errors += [f"[Error] Node '{node.name}': is neither a data generator, "
+        errors += [f"[E120] Node '{node.name}': is neither a data generator, "
                    "timer or subscriber"]
         errors += ["    Full contents of node:",
                    f"    Timers:        {len(node.timers)}",
@@ -304,10 +308,10 @@ def validate_executor(executor: ros.Executor) -> Feedback:
     feedback = Feedback()
     errors = feedback.errors
     if impl not in VALID_EXECUTORS:
-        errors += [f"[Error]: Host uses an unsupported executor {impl}"]
+        errors += [f"[E121]: Host uses an unsupported executor {impl.name}"]
     ros = executor.ros_distribution
     if ros not in VALID_ROS_DISTRIBUTIONS:
-        errors += [f"[Error]: Host uses an unsupported ros distribution {ros}"]
+        errors += [f"[E122]: Host uses an unsupported ros distribution {ros}"]
     return feedback
 
 def validate_system(system: ros.System, chain: list[GraphNode]) -> Feedback:
@@ -465,9 +469,10 @@ def transform_system(system: ros.System, chain: list[GraphNode]
                      ) -> tuple[Feedback, bk.System | None]:
 
     feedback = validator.validate_system(system)
+
     if feedback.errors != []:
-        return feedback + Feedback(["[Error]: System is not well formed, cannot start \
-                transformation. Validation feedback:"]), None
+        return feedback + Feedback(["[E123]: System is not well formed, cannot start"
+                                    " transformation. Validation feedback:"]), None
     
     feedback += validate_system(system, chain)
 
