@@ -605,7 +605,7 @@ def map_node(out: ds.System, node: ros.Node, validations: validator.ValidationRe
         interface_count, interface_id_list, interface_release_times, wcet = map_data_sending(out=out, parent_node=node,
                                                         callback=timer_cb,validations=validations)
         cb_id = out.get_cb_id(validations.objects.node[node.name].name, timer.name)
-        if timer.end:
+        if timer.end is not None: # ( end=0 okay)
             # convert interval to list of release-times
             wt = get_interval_times(timer)
             out.add_sporadic_callback(id=cb_id,
