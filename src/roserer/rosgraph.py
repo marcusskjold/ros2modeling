@@ -1,4 +1,5 @@
 from __future__ import annotations
+import logging
 from typing import Iterable
 from dataclasses import dataclass
 import roserer.ros2system as ros
@@ -48,10 +49,11 @@ class GraphNode:
     def __str__(self) -> str:
         return f"Type: {self.nodetype}, Name: {self.name}"
 
-    def equivalent(self, other: GraphNode) -> bool:
+    def equivalent(self, other) -> bool:
+        if other is None or not isinstance(other, GraphNode):
+            return False
         if (self.name == other.name
-            and self.nodetype == other.nodetype
-            and self.parent == other.parent):
+            and self.nodetype == other.nodetype):
             return True
         else:
             return False
