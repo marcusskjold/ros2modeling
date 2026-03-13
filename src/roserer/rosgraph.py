@@ -269,34 +269,34 @@ def get_sources(graph: RosGraphView) -> list[GraphNode]:
 def filter_type(list: list[GraphNode], types: Iterable[NodeType]) -> list[GraphNode]:
     return [node for node in list if node.nodetype in types]
 
-def weakly_connected_with(node: GraphNode) -> set[GraphNode]:
-        visited = set()
+def weakly_connected_with(node: GraphNode) -> list[GraphNode]:
+        visited = []
         def visit(node: GraphNode):
-            visited.add(node)
+            visited.append(node)
             for neigh in node.outgoing and node.incoming:
                 if neigh not in visited:
                     visit(neigh)
         visit(node)
         return visited
 
-def check_for_cycles_from(node: GraphNode, settled: set[GraphNode], visited: set[GraphNode]) -> bool:
+def check_for_cycles_from(node: GraphNode, settled: list[GraphNode], visited: list[GraphNode]) -> bool:
         if node in settled:
             return False
         if node in visited:
             return True
-        visited.add(node)
+        visited.append(node)
         dependents = node.outgoing
         for dep in dependents:
             if check_for_cycles_from(dep, settled, visited):
                 return True
-        settled.add(node)
+        settled.append(node)
         return False
 
 def check_for_cycles_in(graph: RosGraphView) -> bool:
     logger = logging.getLogger(__name__)
 
-    settled: set[GraphNode] = set()
-    visited: set[GraphNode] = set()
+    settled: list[GraphNode] = []
+    visited: list[GraphNode] = []
 
     for node in get_all_nodes(graph):
         logger.debug(f"Checking for cycles from {node}")
