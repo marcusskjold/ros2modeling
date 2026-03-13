@@ -1,6 +1,7 @@
+from roserer.types import NodeType
+from roserer.rosgraph import get_graph_view_from, GraphNode
 import pygraphviz as pgv
 from roserer.systemvalidator import validate_system
-from roserer.systemvalidator import ValidationResult as Result
 from pygraphviz import AGraph
 import roserer.systemvalidator as sv
 import roserer.ros2system as ros
@@ -12,15 +13,16 @@ SPEN = "0.4"
 VECLR = "steelblue"
 
 Graph = dict[str, list[str]]
-def transform_cb_graph(graph: Graph) -> AGraph:
+def transform_cb_graph(graph: list[GraphNode]) -> AGraph:
     A = pgv.AGraph(directed=True, strict=True, rankdir="TB")
-    for node, links in graph.items():
-        for link in links:
-            A.add_edge(node, link)
+    for cb in graph:
+        A.add_node(cb.name)
+        for link in cb.outgoing:
+            A.add_edge(cb.name, link)
     return A
 
 
-def transform_and_save_cb_graph(graph: Graph, file: str) -> AGraph:
+def transform_and_save_cb_graph(graph: list[GraphNode], file: str) -> AGraph:
     A = transform_cb_graph(graph)
     A.layout("dot")
     A.draw(file)
@@ -45,14 +47,14 @@ def add_cb(graph: AGraph, cb: ros.Callback):
                 )
     if cb.read_variables != []:
         subg = graph.add_subgraph(
-                [var.name for var in cb.read_variables] + [cb.name],
+                [var for var in cb.read_variables] + [cb.name],
                 rank="source",
                 style="invis",
                 )
     for var in cb.read_variables:
         subg
         graph.add_edge(
-                var.name,
+                var,
                 cb.name,
                 arrowsize=ARWSZ,
                 color=VECLR,
@@ -65,7 +67,7 @@ def add_cb(graph: AGraph, cb: ros.Callback):
     for var in cb.write_variables:
         graph.add_edge(
                 cb.name,
-                var.name,
+                var,
                 arrowsize=ARWSZ,
                 color="tomato4",
                 style="dashed",
@@ -206,7 +208,10 @@ def add_topic(A: AGraph, name: str):
             )
 
 def transform_system(sys: ros.System) -> AGraph:
-    result = validate_system(sys)
+    feedback = validate_system(sys)
+    if feedback.errors != []:
+        raise ValueError(f"Invalid system. Feedback: {feedback.errors}")
+    graph = get_graph_view_from(sys)
     A = pgv.AGraph(
             name=sys.name,
             directed=True,
@@ -220,9 +225,7 @@ def transform_system(sys: ros.System) -> AGraph:
             ranksep="0.2"
             )
 
-    for topic in result.interfaces["topics subscribed to"]:
-        add_topic(A, topic)
-    for topic in result.interfaces["topics published to"]:
+    for topic in graph[NodeType.TOPIC]:
         add_topic(A, topic)
 
     #     for sub in subs:
