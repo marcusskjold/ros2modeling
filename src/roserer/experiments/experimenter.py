@@ -27,8 +27,8 @@ def perform_reaction_time_experiment(
         return -1
     graph = rosgraph.get_graph_view_from(s)
     logger.info(f"Callback chains: {len(rosgraph.get_all_chains(graph))}")
-    logger.info(f"Sinks: {rosgraph.get_sinks(graph)}")
-    logger.info(f"Sources: , {rosgraph.get_sources(graph)}")
+    logger.info(f"Sinks: {[n.name for n in rosgraph.get_sinks(graph)]}")
+    logger.info(f"Sources: {[n.name for n in rosgraph.get_sources(graph)]}")
     logger.info("Drawing callback graph")
     cbgraph = rosgraph.filter_type(rosgraph.get_all_nodes(graph), [NodeType.CALLBACK])
     gp.transform_and_save_cb_graph(cbgraph, f"results/{title}-cb-graph.svg")
