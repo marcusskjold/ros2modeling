@@ -379,21 +379,28 @@ def add_datagenerator(bksystem: bk.System, node: ros.Node, priority: int) -> Non
 def get_data_source_for_cb_in_chain(chain: list[GraphNode], cb: GraphNode) -> str:
     prev = chain[chain.index(cb)-1]
     if prev.nodetype == NodeType.VARIABLE:
-        writer = prev.incoming[0]
-        return cb.name.upper() + "x" + writer.name.upper() + "_data"
+        writecb = prev.incoming[0]
+        assert writecb.nodetype == NodeType.CALLBACK
+        writesub = writecb.incoming[0]
+        assert writesub.nodetype == NodeType.SUBSCRIBER
+        writetopic = writesub.incoming[0]
+        assert writetopic.nodetype == NodeType.TOPIC
+        assert cb.parent is not None
+        return cb.parent.name.upper() + "x" + writetopic.name.upper() + "_data"
     elif prev.nodetype == NodeType.SUBSCRIBER:
         return "pd"
     else:
-        raise Exception(f"[Exception]: Something is wrong, the graph node previous in the \
-                chain to callback {cb.name} was neither a variable or subscriber.")
+        raise Exception(
+                f"The graph node previous in the chain to callback {cb.name} was"
+                " neither a variable or subscriber. Validation must be incorrect.")
 
 def add_timer(bksystem: bk.System, node: ros.Node, priority: int, chain: list[GraphNode]
               ) -> None:
     main_task, sub_tasks = get_main_and_sub_tasks(node)
     name: str = node.name.upper()
     wcet: int = main_task.wcet
-    subscribers: list[str] = [t.name for t in sub_tasks]
-    wcets: list[int] = [t.wcet for t in sub_tasks]
+    subscribers: list[str] = [s.topic for s in node.subscriptions]
+    wcets: list[int] = [node.get_callback(s.callback).wcet for s in node.subscriptions]
     period = node.timers[0].period
     delay = node.timers[0].offset
 
@@ -404,7 +411,7 @@ def add_timer(bksystem: bk.System, node: ros.Node, priority: int, chain: list[Gr
         #       Then any timer or subscriber downstream of the timer that are part of the
         #       monitored chain will not read from a variable that contains data
         #       originating from this timer.
-        data_source = name + "x" + node.subscriptions[0].callback.upper() + "_data"
+        data_source = name + "x" + subscribers[0] + "_data"
     else:
         data_source = get_data_source_for_cb_in_chain(chain, main_task_in_chain)
         assert data_source != "pd"
@@ -416,16 +423,22 @@ def add_timer(bksystem: bk.System, node: ros.Node, priority: int, chain: list[Gr
 def add_subscriber(bksystem: bk.System, node: ros.Node, chain: list[GraphNode]) -> None:
     
     main_task, sub_tasks = get_main_and_sub_tasks(node)
+
     name: str = node.name.upper()
     wcet: int = main_task.wcet
     data_source: str = "pd"
     topic: str
-    subscribers: list[str] = [t.name for t in sub_tasks]
-    wcets: list[int] = [t.wcet for t in sub_tasks]
+    subscribers: list[str] = []
+    wcets: list[int] = []
 
     for sub in node.subscriptions:
         if sub.callback == main_task.name:
             topic = sub.topic.upper()
+        else:
+            for cb in sub_tasks:
+                if sub.callback == cb.name:
+                    subscribers.append(sub.topic)
+                    wcets.append(cb.wcet)
     assert topic
 
     main_task_in_chain = rosgraph.find_in_chain(chain, NodeType.CALLBACK, main_task.name)
