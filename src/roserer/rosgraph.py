@@ -239,7 +239,7 @@ def contract(node: GraphNode) -> None:
     for source in node.incoming:
         source.outgoing.remove(node)
     for target in node.outgoing:
-        source.incoming.remove(node)
+        target.incoming.remove(node)
         for source in node.incoming:
             if source != target and source not in target.incoming:
                 target.incoming.append(source)
