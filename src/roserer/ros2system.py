@@ -302,11 +302,11 @@ class Node():
         self.variables.append(var)
         return var
 
-    def get_publisher(self, publisher_name: str) -> Publisher:
+    def get_publisher(self, name: str) -> Publisher:
         for pub in self.publishers:
-            if publisher_name == pub.name:
+            if name == pub.name:
                 return pub
-        raise ValueError("Publisher requested is not contained in this node")
+        raise ValueError(f"Publisher {name} requested is not contained in the node {self.name}")
 
     def get_client(self, client_name: str) -> Client:
         for cli in self.clients:
