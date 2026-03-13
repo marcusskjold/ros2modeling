@@ -1,3 +1,4 @@
+from roserer.types import NodeType
 import roserer.ros2system as ros
 import roserer.systemvalidator as sv
 import roserer.adapters.backeman_adapter as ba
@@ -14,6 +15,7 @@ def backeman_rt_experiment(
     graph = rosgraph.get_graph_view_from(s)
     monitor_cb: str = ""
     actuator_cb: str = ""
+    logger.info("Starting experiment")
     for n in s.get_nodes():
         if n.name == monitor:
             for cb in n.callbacks:
@@ -25,8 +27,10 @@ def backeman_rt_experiment(
                 if ba.is_main_task(cb):
                     actuator_cb = cb.name
             assert actuator_cb != ""
-    chain = rosgraph.get_paths_from(monitor_cb , actuator_cb)[0]
-    logger.info(f"Chain to monitor: {chain}")
+    logger.info(f"Finding paths from {monitor_cb} to {actuator_cb}")
+    chain = rosgraph.get_paths_from(graph[NodeType.CALLBACK][monitor_cb],
+                                    graph[NodeType.CALLBACK][actuator_cb])[0]
+    logger.info(f"Chain to monitor: {[n.name for n in chain]}")
     logger.info("Transforming system")
     feedback, bksystem = ba.transform_system(s, chain)
     for ln in feedback.errors:
