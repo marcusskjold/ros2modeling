@@ -128,7 +128,7 @@ class PeriodicCallback(UppaalTemplate):
         self.executorID = executorID
 
     def name(self) -> str:
-        return self.type + str(self.id)
+        return self.type + str(self.id) + '_EX_' + str(self.executorID)
 
 
 class SporadicCallback(UppaalTemplate):
@@ -156,7 +156,7 @@ class SporadicCallback(UppaalTemplate):
         self.executorID = executorID
     
     def name(self):
-        return self.type + str(self.id)
+        return self.type + str(self.id) + '_EX_' + str(self.executorID)
 
 class DataCallback(UppaalTemplate):
     def __init__(
@@ -182,7 +182,7 @@ class DataCallback(UppaalTemplate):
         self.executorID = executorID
     
     def name(self):
-        return self.type + str(self.id)
+        return self.type + str(self.id) + '_EX_' + str(self.executorID)
 
 
 ## Class representing a ROS system
