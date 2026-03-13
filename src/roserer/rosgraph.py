@@ -86,7 +86,8 @@ def string_resolve(graph: RosGraphView, e: str, t: NodeType) -> GraphNode:
             x = GraphNode(e, TOPIC)
             graph[TOPIC][e] = x
         else:
-            raise ValueError(f"Element {e} of type {t} does not exist.")
+            raise ValueError(f"Element {e} of type {t} does not exist. Graph nodes \
+                    registered: {[n.name for n in get_all_nodes(graph)]}")
     return x
 
 def resolve_element(graph: RosGraphView, e: Elem, t: NodeType) -> list[GraphNode]:
@@ -111,11 +112,14 @@ def resolve_element(graph: RosGraphView, e: Elem, t: NodeType) -> list[GraphNode
         return [string_resolve(graph, s, t) for s in e]
 
 def add_edges(graph: RosGraphView, edge: EdgeSpec):
+    log = logging.getLogger(__name__)
     froms = resolve_element(graph, edge[1], edge[0])
     tos = resolve_element(graph, edge[3], edge[2])
     for f in froms:
         for t in tos:
+            log.debug(f"Add {t.name} to {f.name}.outgoing")
             f.outgoing.append(t)
+            log.debug(f"Add {f.name} to {t.name}.incoming")
             t.incoming.append(f)
 
 def get_graph_view_from(system: ros.System) -> RosGraphView:
@@ -285,11 +289,13 @@ def check_for_cycles_from(node: GraphNode, settled: set[GraphNode], visited: set
         return False
 
 def check_for_cycles_in(graph: RosGraphView) -> bool:
+    logger = logging.getLogger(__name__)
 
     settled: set[GraphNode] = set()
     visited: set[GraphNode] = set()
 
     for node in get_all_nodes(graph):
+        logger.debug(f"Checking for cycles from {node}")
         if check_for_cycles_from(node, settled, visited):
             return True
 
@@ -298,20 +304,29 @@ def check_for_cycles_in(graph: RosGraphView) -> bool:
 def get_paths_from(source: GraphNode, target: GraphNode) -> list[list[GraphNode]]:
     queue: list[tuple[GraphNode, list[GraphNode]]] = [(source, [source])]
     paths: list[list[GraphNode]] = []
+    logger = logging.getLogger(__name__)
 
     if check_for_cycles_from(source, set(), set()):
         raise Exception(f"There is a cycle in the graph from {source} callback, "
                         "cannot find chains")
 
+    logger.debug(f"No cycles found.")
     while len(queue) > 0:
         current, path = queue.pop()
+        logger.debug(f"Path: {[p.name for p in path]}")
+        logger.debug(f"Exploring {current.name}")
         if current == target:
+            logger.debug(f"{current.name} is target")
             paths.append(path)
-            continue
+            logger.debug(f"Path added to results")
         nexts = current.outgoing
+        logger.debug(f"Outgoing edges from {current.name}: {[n.name for n in nexts]}")
+
         for n in nexts:
+            logger.debug(f"Adding {n.name} to queue.")
             queue.append((n, path + [n]))
 
+    logger.debug(f"Got all paths")
     return paths
 
 def get_all_chains(graph: RosGraphView) -> list[list[GraphNode]]:
@@ -333,11 +348,13 @@ def find_in_chain(chain: list[GraphNode], nodetype: NodeType, name: str
 
 def find_equivalent_chain_in(graph: RosGraphView, chain: list[GraphNode]
                              ) -> list[GraphNode]:
+    log = logging.getLogger(__name__)
     out: list[GraphNode] = []
     for node in chain:
         other = graph[node.nodetype].get(node.name)
         if other is None or not node.equivalent(other):
             raise ValueError(f"Graph and chain does not refer to equivalent systems. \
                     There is no equivalent to {node.name} in graph")
+        log.debug(f"Appending {other.name} to chain")
         out.append(other)
     return out
