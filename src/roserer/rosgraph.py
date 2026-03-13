@@ -246,15 +246,17 @@ def contract(node: GraphNode) -> None:
                 source.outgoing.append(target)
 
 def contract_graph(graph: RosGraphView, allowed_types: Iterable[NodeType]) -> RosGraphView:
-    cgraph = clone(graph)
-    tovisit = get_all_nodes(cgraph)
+    tovisit: list[GraphNode] = get_all_nodes(clone(graph))
+    newlist: list[GraphNode] = []
 
     while len(tovisit) > 0:
         node = tovisit.pop()
         if node.nodetype not in allowed_types:
             contract(node)
+        else:
+            newlist.append(node)
     
-    return cgraph
+    return index_graph_list(newlist)
 
 def get_sinks(graph: RosGraphView) -> list[GraphNode]:
     return [node for node in get_all_nodes(graph) 
