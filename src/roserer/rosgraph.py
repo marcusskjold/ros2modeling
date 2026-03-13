@@ -180,7 +180,7 @@ def get_graph_view_from(system: ros.System) -> RosGraphView:
                     _inp = add_to_graph(g, GraphNode(inp.name, EXTERNAL_INPUT, _node))
                     edgeq.append((EXTERNAL_INPUT, _inp, CALLBACK, inp.callback))
                 for cb in node.callbacks:
-                    _cb = GraphNode(cb.name, CALLBACK, _node)
+                    _cb = add_to_graph(g, GraphNode(cb.name, CALLBACK, _node))
                     edgeq.append((CALLBACK, _cb, PUBLISHER, cb.publishers))
                     if cb.calls is not None:
                         edgeq.append((CALLBACK, _cb, CALLBACK, cb.calls))
