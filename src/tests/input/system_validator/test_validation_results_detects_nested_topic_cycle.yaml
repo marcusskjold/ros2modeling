@@ -16,7 +16,7 @@ System:
         - callback: nested_cb
           wcet : 5
           publishers:
-          - publisher: pub_1
+          - pub_1
 
         # - callback : nested_nested_cb
         #   wcet: 5
@@ -46,7 +46,7 @@ System:
         - callback: sub_cb
           wcet: 5
           publishers:
-          - publisher: pub_2
+          - pub_2
         subscriptions: 
         - subscription: sub_1
           topic: topic_1
