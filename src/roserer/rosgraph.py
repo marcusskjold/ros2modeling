@@ -321,6 +321,14 @@ def get_all_chains(graph: RosGraphView) -> list[list[GraphNode]]:
             chains += get_paths_from(source, sink)
     return chains
 
+def find_in_chain(chain: list[GraphNode], nodetype: NodeType, name: str
+                  ) -> GraphNode | None:
+    for node in chain:
+        if node.nodetype == nodetype and node.name == name:
+            return node
+    return None
+
+
 def find_equivalent_chain_in(graph: RosGraphView, chain: list[GraphNode]
                              ) -> list[GraphNode]:
     out: list[GraphNode] = []

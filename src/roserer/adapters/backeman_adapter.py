@@ -371,13 +371,16 @@ def add_datagenerator(bksystem: bk.System, node: ros.Node, priority: int) -> Non
 # is monitored, see Backeman & Seceleanu (2025), section 4.2
 # See also backeman/demo:validation_ss(), prio_inversion() & case_study()
 
-def data_source_for_cb_in_chain(cb: GraphNode, chain: list[GraphNode]) -> str:
+def get_data_source_for_cb_in_chain(chain: list[GraphNode], cb: GraphNode) -> str:
     prev = chain[chain.index(cb)-1]
     if prev.nodetype == NodeType.VARIABLE:
         writer = prev.incoming[0]
-        data_source = cb.name.upper() + "x" + writer.name.upper() + "_data"
-    assert data_source
-    return data_source
+        return cb.name.upper() + "x" + writer.name.upper() + "_data"
+    elif prev.nodetype == NodeType.SUBSCRIBER:
+        return "pd"
+    else:
+        raise Exception(f"[Exception]: Something is wrong, the graph node previous in the \
+                chain to callback {cb.name} was neither a variable or subscriber.")
 
 def add_timer(bksystem: bk.System, node: ros.Node, priority: int, chain: list[GraphNode]
               ) -> None:
@@ -388,20 +391,18 @@ def add_timer(bksystem: bk.System, node: ros.Node, priority: int, chain: list[Gr
     wcets: list[int] = [t.wcet for t in sub_tasks]
     period = node.timers[0].period
     delay = node.timers[0].offset
-    # NOTE: This is an arbitrary assignment.
-    #       Supposing the timer is not part of the monitored chain:
-    #       Then any timer or subscriber downstream of the timer that are part of the
-    #       monitored chain will not read from a variable that contains data
-    #       originating from this timer.
-    data_source = name + "x" + node.subscriptions[0].callback.upper() + "_data"
 
-    main_task_in_chain: GraphNode
-    for cb in chain:
-        if cb.nodetype == NodeType.CALLBACK and cb.name == main_task.name:
-            main_task_in_chain = cb
-
-    if (main_task_in_chain):
-        data_source = data_source_for_cb_in_chain(main_task_in_chain, chain)
+    main_task_in_chain = rosgraph.find_in_chain(chain, NodeType.CALLBACK, main_task.name)
+    if main_task_in_chain is None:
+        # NOTE: This is an arbitrary assignment.
+        #       Supposing the timer is not part of the monitored chain:
+        #       Then any timer or subscriber downstream of the timer that are part of the
+        #       monitored chain will not read from a variable that contains data
+        #       originating from this timer.
+        data_source = name + "x" + node.subscriptions[0].callback.upper() + "_data"
+    else:
+        data_source = get_data_source_for_cb_in_chain(chain, main_task_in_chain)
+        assert data_source != "pd"
 
     bksystem.add_timer(name=name, period=period, wcet=wcet, delay=delay, 
                        subscribers=subscribers, wcets=wcets, data_source=data_source,
@@ -422,13 +423,11 @@ def add_subscriber(bksystem: bk.System, node: ros.Node, chain: list[GraphNode]) 
             topic = sub.topic.upper()
     assert topic
 
-    main_task_in_chain: GraphNode
-    for cb in chain:
-        if cb.nodetype == NodeType.CALLBACK and cb.name == main_task.name:
-            main_task_in_chain = cb
-    
-    if (sub_tasks != [] and main_task_in_chain):
-        data_source = data_source_for_cb_in_chain(main_task_in_chain, chain)
+    main_task_in_chain = rosgraph.find_in_chain(chain, NodeType.CALLBACK, main_task.name)
+    if sub_tasks != [] or main_task_in_chain is None:
+        data_source = "pd"
+    else:
+        data_source = get_data_source_for_cb_in_chain(chain, main_task_in_chain)
 
     bksystem.add_subscriber(name=name,
                        topic=topic,
