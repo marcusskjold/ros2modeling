@@ -137,11 +137,11 @@ def error_graph_invalid_source(graph: RosGraphView) -> list[str]:
     in design or modelling of the actual system.
     """
     # TODO: Revisit after wall times discussion
-    valid_sources: set[NodeType] = set([NodeType.TIMER,
-                                        NodeType.TOPIC,
-                                        NodeType.EXTERNAL_INPUT,
-                                        NodeType.SERVICE])
-    invalid_sources = {t for t in NodeType} - valid_sources
+    valid_sources: list[NodeType] = [NodeType.TIMER,
+                                     NodeType.TOPIC,
+                                     NodeType.EXTERNAL_INPUT,
+                                     NodeType.SERVICE]
+    invalid_sources = {t for t in NodeType} - set(valid_sources)
     sources = rosgraph.get_sources(graph)
     return [f"[E001]: {node.nodetype.name} {node.name} is a source of data, only"
             f" {[source.name for source in valid_sources]} are valid"

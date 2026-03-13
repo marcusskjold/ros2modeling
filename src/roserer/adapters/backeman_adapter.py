@@ -297,14 +297,14 @@ def validate_node(node: ros.Node) -> Feedback:
     return feedback
 
 def validate_executor(executor: ros.Executor) -> Feedback:
-    VALID_ROS_DISTRIBUTIONS = set([
+    VALID_ROS_DISTRIBUTIONS: set[DISTRIBUTION] = set([
         DISTRIBUTION.Iron,
         DISTRIBUTION.Humble,
         DISTRIBUTION.Galactic,
         DISTRIBUTION.Foxy,
         DISTRIBUTION.Eloquent,
         ])
-    VALID_EXECUTORS = set([EXECUTOR.SingleThreadedExecutor])
+    VALID_EXECUTORS: set[EXECUTOR] = set([EXECUTOR.SingleThreadedExecutor])
     impl = executor.implementation
     feedback = Feedback()
     errors = feedback.errors
