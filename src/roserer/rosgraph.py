@@ -310,8 +310,8 @@ def get_paths_from(source: GraphNode, target: GraphNode) -> list[list[GraphNode]
     paths: list[list[GraphNode]] = []
     logger = logging.getLogger(__name__)
 
-    if check_for_cycles_from(source, set(), set()):
-        raise Exception(f"There is a cycle in the graph from {source} callback, "
+    if check_for_cycles_from(source, [], []):
+        raise Exception(f"There is a cycle in the graph from {source.name} callback, "
                         "cannot find chains")
 
     logger.debug(f"No cycles found.")
@@ -323,6 +323,7 @@ def get_paths_from(source: GraphNode, target: GraphNode) -> list[list[GraphNode]
             logger.debug(f"{current.name} is target")
             paths.append(path)
             logger.debug(f"Path added to results")
+            continue
         nexts = current.outgoing
         logger.debug(f"Outgoing edges from {current.name}: {[n.name for n in nexts]}")
 
