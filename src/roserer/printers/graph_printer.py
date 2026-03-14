@@ -1,5 +1,5 @@
 from roserer.types import NodeType
-from roserer.rosgraph import get_graph_view_from, GraphNode
+from roserer.rosgraph import RosGraphView, GraphNode
 import pygraphviz as pgv
 from roserer.systemvalidator import validate_system
 from pygraphviz import AGraph
@@ -211,7 +211,7 @@ def transform_system(sys: ros.System) -> AGraph:
     feedback = validate_system(sys)
     if feedback.errors != []:
         raise ValueError(f"Invalid system. Feedback: {feedback.errors}")
-    graph = get_graph_view_from(sys)
+    graph = RosGraphView(sys)
     A = pgv.AGraph(
             name=sys.name,
             directed=True,

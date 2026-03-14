@@ -180,7 +180,7 @@ def validate_chain(chain: list[GraphNode], graph: RosGraphView) -> list[str]:
                        " {next_node.name}"]
     log.info("Finding equivalent chain")
     try:
-        chain = rosgraph.find_equivalent_chain_in(graph, chain)
+        chain = graph.find_equivalent_chain(chain)
     except ValueError as ve:
         log.info("Error while finding equivalent chain")
         errors += [f"[E108] Invalid chain: {ve}"]
@@ -321,7 +321,7 @@ def validate_system(system: ros.System, chain: list[GraphNode]) -> Feedback:
     errors, warnings = feedback.errors, feedback.warnings
     executor = system.hosts[0].executors[0]
 
-    graph = rosgraph.get_graph_view_from(system)
+    graph = RosGraphView(system)
     errors += error_graph_limited_node_types(graph)
     errors += error_graph_multiple_topic_publishers(graph)
     errors += error_graph_multiple_variable_writers(graph)
@@ -457,8 +457,8 @@ def add_subscriber(bksystem: bk.System, node: ros.Node, chain: list[GraphNode]) 
 def map_system(system: ros.System, chain: list[GraphNode]) -> bk.System:
     out = bk.System(system.name.upper())
     out.deterministic_hosts(True) # TODO: Support nondeterminism
-    graph = rosgraph.get_graph_view_from(system)
-    chain = rosgraph.find_equivalent_chain_in(graph, chain)
+    graph = RosGraphView(system)
+    chain = graph.find_equivalent_chain(chain)
     nodes = system.get_nodes()
     max_priority = len(graph[NodeType.CALLBACK])
     for node in nodes:

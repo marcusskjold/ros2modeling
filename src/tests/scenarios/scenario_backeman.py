@@ -1,6 +1,4 @@
-import logging
 from roserer.types import OPERATING_SYSTEM, DISTRIBUTION, EXECUTOR, DDS_IMPLEMENTATION
-import roserer.rosgraph as rosgraph
 import roserer.experiments.backeman as be
 import roserer.experiments.experimenter as exp
 import roserer.scenarios.backeman as bs
@@ -64,14 +62,9 @@ def gen_backeman_ss_manual() -> ros.System:
     return system
 
 def test_backeman_scenarios_are_equivalent() -> None:
-    log = logging.getLogger(__name__)
 
     pattern = bs.backeman_ss_scenario()
     manual = gen_backeman_ss_manual()
-    log.info(f"{[(cb.name, cb.wcet) for cb in pattern.get_callbacks()]}")
-    log.info(f"{[(cb.name, cb.wcet) for cb in manual.get_callbacks()]}")
-    log.info(f"{[n.name for n in rosgraph.get_all_nodes(rosgraph.get_graph_view_from(pattern))]}")
-    log.info(f"{[n.name for n in rosgraph.get_all_nodes(rosgraph.get_graph_view_from(manual))]}")
 
     assert pattern == manual
 

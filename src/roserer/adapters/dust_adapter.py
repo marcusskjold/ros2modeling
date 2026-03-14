@@ -1,5 +1,4 @@
 from roserer.rosgraph import RosGraphView
-import roserer.rosgraph as rosgraph
 import roserer.types as types
 from roserer.types import Feedback, DISTRIBUTION, DDS_IMPLEMENTATION, NodeType, run_validation
 import roserer.dust.dust_system as ds
@@ -31,10 +30,10 @@ def warning_graph_unconsidered_node_types(graph: RosGraphView) -> list[str]:
     return warnings
 
 def warning_system_disconnected_at_executor_level(graph: RosGraphView) -> list[str]:
-    executors = rosgraph.get_all_nodes(rosgraph.contract_graph(graph, [NodeType.EXECUTOR]))
+    executors = graph.get_contracted_view([NodeType.EXECUTOR]).get_all_nodes()
     if len(executors) > 1:
         origin = executors[0]
-        connected = rosgraph.weakly_connected_with(origin)
+        connected = origin.weakly_connected_with()
         for executor in executors:
             if executor not in connected:
                 return [f"[Warning]: Not all executors are connected, for example no object \
@@ -97,7 +96,7 @@ def error_system_wt_and_msg_in_one_interface(system: ros.System) -> list[str]:
       See Dust et al. (2025) - pp. 318, 322.
     """
     errors: list[str] = []
-    graph = rosgraph.get_graph_view_from(system)
+    graph = RosGraphView(system)
     errors += [f"Subscription {sub.name} to {sub.topic} is triggered by wall_times, \
             but publishers are also publishing to this topic. This cannot be modeled \
             correctly by this model"
@@ -228,7 +227,7 @@ def validate_system(system : ros.System) -> Feedback:
         warnings += unspecified_warning("distribution of the system between hosts")
     # TODO: Make into a check for one to one mapping of executor to hosts.
 
-    graph = rosgraph.get_graph_view_from(system)
+    graph = RosGraphView(system)
     warnings += warning_graph_unconsidered_node_types(graph)
     warnings += warning_system_disconnected_at_executor_level(graph)
 

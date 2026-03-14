@@ -22,7 +22,7 @@ Validation has four stages:
    This provides guarantees that all objects have valid fields, and that all functions
    are called with correct parameters.
 2. The validator starts by constructing a graph representation of the system.
-   This provides guarantees described in roserer.rosgraph:get_graph_view_from()
+   This provides guarantees described in roserer.rosgraph:RosGraphView.get_graph_view_from()
    Notable:
    - Each node has a single parent
    - Each string reference is valid
@@ -68,8 +68,8 @@ def warning_graph_unbalanced_interfaces(graph: RosGraphView) -> list[str]:
     # TODO: Can we convert "wall times" into external input? Currently interfaces
             triggered only by wall times are considered unbalanced.
     """
-    sinks = rosgraph.get_sinks(graph)
-    sources = rosgraph.get_sources(graph)
+    sinks = graph.get_sinks()
+    sources = graph.get_sources()
     out = []
     out += [f"[W001]: topic {node.name} is published to, but not subscribed to"
             for node in rosgraph.filter_type(sinks, [NodeType.TOPIC])]
@@ -95,7 +95,7 @@ def warning_graph_empty_container(graph: RosGraphView) -> list[str]:
                                            NodeType.HOST,
                                            NodeType.EXECUTOR,
                                            NodeType.NODE])
-    nodes = rosgraph.get_all_nodes(graph)
+    nodes = graph.get_all_nodes()
     return [f"[W004]: Container {node.nodetype.name} {node.name} does not contain"
             " other objects."
             for node in nodes
@@ -112,10 +112,10 @@ def warning_graph_disconnected_at_host_level(graph: RosGraphView) -> list[str]:
     A system that is disconnected at the host level may indicate a modeling mistake,
     but should not cause problems for model checking.
     """
-    hosts = rosgraph.get_all_nodes(rosgraph.contract_graph(graph, [NodeType.HOST]))
+    hosts = graph.get_contracted_view([NodeType.HOST]).get_all_nodes()
     if len(hosts) > 1:
         origin = hosts[0]
-        connected = rosgraph.weakly_connected_with(origin)
+        connected = origin.weakly_connected_with()
         for host in hosts:
             if host not in connected:
                 return ["[W005]: Not all hosts are connected, for example no object"
@@ -142,7 +142,7 @@ def error_graph_invalid_source(graph: RosGraphView) -> list[str]:
                                      NodeType.EXTERNAL_INPUT,
                                      NodeType.SERVICE]
     invalid_sources = {t for t in NodeType} - set(valid_sources)
-    sources = rosgraph.get_sources(graph)
+    sources = graph.get_sources()
     return [f"[E001]: {node.nodetype.name} {node.name} is a source of data, only"
             f" {[source.name for source in valid_sources]} are valid"
             for node in rosgraph.filter_type(sources, invalid_sources)]
@@ -168,7 +168,7 @@ def error_graph_invalid_container_type(graph: RosGraphView) -> list[str]:
                                            NodeType.HOST,
                                            NodeType.EXECUTOR,
                                            NodeType.NODE])
-    nodes = rosgraph.get_all_nodes(graph)
+    nodes = graph.get_all_nodes()
     return [f"[E002]: {node.nodetype.name} {node.name} contains other objects, only"
             f" {[source.name for source in valid_containers]} are valid containers.\n"
             f"    Children of {node.name}: {node.children}"
@@ -209,7 +209,7 @@ def error_graph_contains_cycles(graph:RosGraphView) -> list[str]:
     A violation of this constraint signifies either a modeling error or a system that
     is not suited for analysis by this package.
     """
-    if rosgraph.check_for_cycles_in(graph):
+    if graph.check_for_cycles():
         return ["[E004]: Graph of system contains cycles. Only acyclic systems may "
                 "be analyzed"]
     else:
@@ -379,7 +379,7 @@ def validate_system(system: ros.System) -> Feedback:
     logger.info("Start validation")
     try:
         logger.info("Build graph")
-        graph: RosGraphView = rosgraph.get_graph_view_from(system)
+        graph = RosGraphView(system)
         logger.info("Graph built")
     except ValueError as ve:
         return Feedback([f"[E015]: System is not a valid data graph.\n{ve}"], [])

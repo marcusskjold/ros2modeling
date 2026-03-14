@@ -1,5 +1,6 @@
 from roserer.types import NodeType
 import roserer.rosgraph as rosgraph
+from roserer.rosgraph import RosGraphView
 from typing import Callable
 import roserer.ros2system as ros
 import roserer.systemvalidator as sv
@@ -25,12 +26,12 @@ def perform_reaction_time_experiment(
         for ln in feedback.errors:
             logger.error(ln)
         return -1
-    graph = rosgraph.get_graph_view_from(s)
-    logger.info(f"Callback chains: {len(rosgraph.get_all_chains(graph))}")
-    logger.info(f"Sinks: {[n.name for n in rosgraph.get_sinks(graph)]}")
-    logger.info(f"Sources: {[n.name for n in rosgraph.get_sources(graph)]}")
+    graph = RosGraphView(s)
+    logger.info(f"Callback chains: {len(graph.get_all_chains())}")
+    logger.info(f"Sinks: {[n.name for n in graph.get_sinks()]}")
+    logger.info(f"Sources: {[n.name for n in graph.get_sources()]}")
     logger.info("Drawing callback graph")
-    cbgraph = rosgraph.filter_type(rosgraph.get_all_nodes(graph), [NodeType.CALLBACK])
+    cbgraph = rosgraph.filter_type(graph.get_all_nodes(), [NodeType.CALLBACK])
     gp.transform_and_save_cb_graph(cbgraph, f"results/{title}-cb-graph.svg")
     logger.info("Callback graph saved in local results folder")
     return rt_experiment(s)

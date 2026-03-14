@@ -1,8 +1,7 @@
 from roserer.types import NodeType
 import roserer.ros2system as ros
-import roserer.systemvalidator as sv
 import roserer.adapters.backeman_adapter as ba
-import roserer.rosgraph as rosgraph
+from roserer.rosgraph import RosGraphView
 import logging
 
 
@@ -12,7 +11,7 @@ def backeman_rt_experiment(
         actuator: str,
         ) -> int:
     logger = logging.getLogger(__name__)
-    graph = rosgraph.get_graph_view_from(s)
+    graph = RosGraphView(s)
     monitor_cb: str = ""
     actuator_cb: str = ""
     logger.info("Starting experiment")
@@ -28,8 +27,8 @@ def backeman_rt_experiment(
                     actuator_cb = cb.name
             assert actuator_cb != ""
     logger.info(f"Finding paths from {monitor_cb} to {actuator_cb}")
-    chain = rosgraph.get_paths_from(graph[NodeType.CALLBACK][monitor_cb],
-                                    graph[NodeType.CALLBACK][actuator_cb])[0]
+    chain = graph[NodeType.CALLBACK][monitor_cb].get_paths_to(
+            graph[NodeType.CALLBACK][actuator_cb])[0]
     logger.info(f"Chain to monitor: {[n.name for n in chain]}")
     logger.info("Transforming system")
     feedback, bksystem = ba.transform_system(s, chain)
