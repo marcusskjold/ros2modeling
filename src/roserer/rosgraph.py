@@ -374,10 +374,10 @@ class RosGraphView(dict[NodeType, dict[str, GraphNode]]):
             for e in edgeq:
                 g.add_edges(e)
 
-def filter_type(list: list[GraphNode], types: Iterable[NodeType]) -> list[GraphNode]:
+def filter_list_by_type(list: list[GraphNode], types: Iterable[NodeType]) -> list[GraphNode]:
     return [node for node in list if node.nodetype in types]
 
-def find_in_chain(list: list[GraphNode], nodetype: NodeType, name: str
+def find_in_list(list: list[GraphNode], nodetype: NodeType, name: str
                   ) -> GraphNode | None:
     for node in list:
         if node.nodetype == nodetype and node.name == name:

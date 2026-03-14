@@ -72,11 +72,11 @@ def warning_graph_unbalanced_interfaces(graph: RosGraphView) -> list[str]:
     sources = graph.get_sources()
     out = []
     out += [f"[W001]: topic {node.name} is published to, but not subscribed to"
-            for node in rosgraph.filter_type(sinks, [NodeType.TOPIC])]
+            for node in rosgraph.filter_list_by_type(sinks, [NodeType.TOPIC])]
     out += [f"[W002]: topic {node.name} is subscribed to, but not published to"
-            for node in rosgraph.filter_type(sources, [NodeType.TOPIC])]
+            for node in rosgraph.filter_list_by_type(sources, [NodeType.TOPIC])]
     out += [f"[W003]: service {node.name} is offered, but not requested"
-            for node in rosgraph.filter_type(sources, [NodeType.SERVICE])]
+            for node in rosgraph.filter_list_by_type(sources, [NodeType.SERVICE])]
     # A service cannot be a sink, as it must point to a callback
     # TODO: Check for actions, when they are included.
     # TODO: Handle wall_times by creating external input nodes 
@@ -145,7 +145,7 @@ def error_graph_invalid_source(graph: RosGraphView) -> list[str]:
     sources = graph.get_sources()
     return [f"[E001]: {node.nodetype.name} {node.name} is a source of data, only"
             f" {[source.name for source in valid_sources]} are valid"
-            for node in rosgraph.filter_type(sources, invalid_sources)]
+            for node in rosgraph.filter_list_by_type(sources, invalid_sources)]
 
 def error_graph_invalid_container_type(graph: RosGraphView) -> list[str]:
     """

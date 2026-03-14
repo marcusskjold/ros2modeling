@@ -31,7 +31,7 @@ def perform_reaction_time_experiment(
     logger.info(f"Sinks: {[n.name for n in graph.get_sinks()]}")
     logger.info(f"Sources: {[n.name for n in graph.get_sources()]}")
     logger.info("Drawing callback graph")
-    cbgraph = rosgraph.filter_type(graph.get_all_nodes(), [NodeType.CALLBACK])
+    cbgraph = rosgraph.filter_list_by_type(graph.get_all_nodes(), [NodeType.CALLBACK])
     gp.transform_and_save_cb_graph(cbgraph, f"results/{title}-cb-graph.svg")
     logger.info("Callback graph saved in local results folder")
     return rt_experiment(s)

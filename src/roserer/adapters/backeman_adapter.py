@@ -404,7 +404,7 @@ def add_timer(bksystem: bk.System, node: ros.Node, priority: int, chain: list[Gr
     period = node.timers[0].period
     delay = node.timers[0].offset
 
-    main_task_in_chain = rosgraph.find_in_chain(chain, NodeType.CALLBACK, main_task.name)
+    main_task_in_chain = rosgraph.find_in_list(chain, NodeType.CALLBACK, main_task.name)
     if main_task_in_chain is None:
         # NOTE: This is an arbitrary assignment.
         #       Supposing the timer is not part of the monitored chain:
@@ -441,7 +441,7 @@ def add_subscriber(bksystem: bk.System, node: ros.Node, chain: list[GraphNode]) 
                     wcets.append(cb.wcet)
     assert topic
 
-    main_task_in_chain = rosgraph.find_in_chain(chain, NodeType.CALLBACK, main_task.name)
+    main_task_in_chain = rosgraph.find_in_list(chain, NodeType.CALLBACK, main_task.name)
     if sub_tasks != [] or main_task_in_chain is None:
         data_source = "pd"
     else:
