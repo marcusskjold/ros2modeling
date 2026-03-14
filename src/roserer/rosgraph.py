@@ -96,30 +96,17 @@ class GraphNode:
     def get_paths_to(self, target: GraphNode) -> list[list[GraphNode]]:
         queue: list[tuple[GraphNode, list[GraphNode]]] = [(self, [self])]
         paths: list[list[GraphNode]] = []
-        logger = logging.getLogger(__name__)
-
-        if self.check_for_cycles([], []):
+        if self.check_for_cycles():
             raise Exception(f"There is a cycle in the graph from {self.name} callback, "
                             "cannot find chains")
-
-        logger.debug("No cycles found.")
         while len(queue) > 0:
             current, path = queue.pop()
-            logger.debug(f"Path: {[p.name for p in path]}")
-            logger.debug(f"Exploring {current.name}")
             if current == target:
-                logger.debug(f"{current.name} is target")
                 paths.append(path)
-                logger.debug("Path added to results")
                 continue
             nexts = current.outgoing
-            logger.debug(f"Outgoing edges from {current.name}: {[n.name for n in nexts]}")
-
             for n in nexts:
-                logger.debug(f"Adding {n.name} to queue.")
                 queue.append((n, path + [n]))
-
-        logger.debug("Got all paths")
         return paths
 
     def contract(self) -> None:
@@ -141,13 +128,12 @@ class GraphNode:
 # First we have the type of the origin of the edge, then the origin object / name
 # Then the type of the destination, and the destination name or object.
 # A list can be provided if multiple edges from an origin should be added
-Elem = GraphNode | str | list[str]
-EdgeSpec = tuple[NodeType, Elem, NodeType, Elem]
 
 # For external use
 @dataclass
 class RosGraphView(dict[NodeType, dict[str, GraphNode]]):
-    # graph: dict[NodeType, dict[str, GraphNode]]
+    Elem = GraphNode | str | list[str]
+    EdgeSpec = tuple[NodeType, Elem, NodeType, Elem]
 
     def __init__(self, from_object: ros.System | list[GraphNode] | None = None) -> None:
         self.graph = {}
@@ -206,7 +192,7 @@ class RosGraphView(dict[NodeType, dict[str, GraphNode]]):
         else:
             return [self.string_resolve(s, t) for s in e]
 
-    def add_edges(self, edge: EdgeSpec):
+    def add_edges(self, edge: RosGraphView.EdgeSpec):
         froms = self.resolve_element(edge[1], edge[0])
         tos = self.resolve_element(edge[3], edge[2])
         for f in froms:
@@ -315,7 +301,7 @@ class RosGraphView(dict[NodeType, dict[str, GraphNode]]):
         g = self
 
         _system = GraphNode(system.name, SYSTEM)
-        edgeq: list[EdgeSpec] = []
+        edgeq: list[RosGraphView.EdgeSpec] = []
         requests: list[ros.Request] = []
 
         g[SYSTEM] = {system.name: _system}
