@@ -72,18 +72,26 @@ class GraphNode:
         self.outgoing.append(other)
         other.incoming.append(self)
 
-    def check_for_cycles(self, settled: list[GraphNode], visited: list[GraphNode]) -> bool:
-            if self in settled:
-                return False
-            if self in visited:
-                return True
-            visited.append(self)
-            dependents = self.outgoing
-            for dep in dependents:
-                if dep.check_for_cycles(settled, visited):
-                    return True
-            settled.append(self)
+    def check_for_cycles(
+            self,
+            settled: list[GraphNode] | None = None,
+            visited: list[GraphNode] | None = None
+            ) -> bool:
+        if settled is None:
+            settled = []
+        if visited is None:
+            visited = []
+        if self in settled:
             return False
+        if self in visited:
+            return True
+        visited.append(self)
+        dependents = self.outgoing
+        for dep in dependents:
+            if dep.check_for_cycles(settled, visited):
+                return True
+        settled.append(self)
+        return False
 
     def get_paths_to(self, target: GraphNode) -> list[list[GraphNode]]:
         queue: list[tuple[GraphNode, list[GraphNode]]] = [(self, [self])]
