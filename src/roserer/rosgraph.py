@@ -62,7 +62,7 @@ class GraphNode:
             visited = []
             def visit(node: GraphNode):
                 visited.append(node)
-                for neigh in node.outgoing and node.incoming:
+                for neigh in node.outgoing + node.incoming:
                     if neigh not in visited:
                         visit(neigh)
             visit(self)
