@@ -302,7 +302,7 @@ class RosGraphView(dict[NodeType, dict[str, GraphNode]]):
 
         _system = GraphNode(system.name, SYSTEM)
         edgeq: list[RosGraphView.EdgeSpec] = []
-        requests: list[ros.Request] = []
+        requests: list[tuple[ros.Request, GraphNode]] = []
 
         g[SYSTEM] = {system.name: _system}
         for host in system.hosts:
@@ -344,23 +344,24 @@ class RosGraphView(dict[NodeType, dict[str, GraphNode]]):
                         edgeq.append((CALLBACK, _cb, PUBLISHER, cb.publishers))
                         if cb.calls is not None:
                             edgeq.append((CALLBACK, _cb, CALLBACK, cb.calls))
-                        edgeq.append((CALLBACK, _cb, EXTERNAL_OUTPUT, cb.external_outputs))
+                        edgeq.append(
+                                 (CALLBACK, _cb, EXTERNAL_OUTPUT, cb.external_outputs))
                         edgeq.append((CALLBACK, _cb, VARIABLE, cb.write_variables))
                         edgeq.append((VARIABLE, cb.read_variables, CALLBACK, _cb))
                         if cb.request is not None:
                             # Important - callbacks requires that clients are registered
-                            requests.append(cb.request)
+                            requests.append((cb.request, _cb))
             for e in edgeq:
                 g.add_edges(e)
-            for r in requests:
+            for r, cb in requests:
                 client = r.client
-                edgeq.append((CALLBACK, _cb, CLIENT, client))
+                g.add_edges((CALLBACK, cb, CLIENT, client))
                 service = g[CLIENT][client].outgoing[0]
-                edgeq.append((SERVICE, service, CALLBACK, r.response))
-            for e in edgeq:
-                g.add_edges(e)
+                # TODO: Find out if this is a proper way of modeling response.
+                g.add_edges((SERVICE, service, CALLBACK, r.response))
 
-def filter_list_by_type(list: list[GraphNode], types: Iterable[NodeType]) -> list[GraphNode]:
+def filter_list_by_type(list: list[GraphNode], types: Iterable[NodeType]
+                        ) -> list[GraphNode]:
     return [node for node in list if node.nodetype in types]
 
 def find_in_list(list: list[GraphNode], nodetype: NodeType, name: str
