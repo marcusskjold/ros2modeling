@@ -38,5 +38,4 @@ def test_validation_results_detects_nested_service_cycle() -> None:
     """
     test_sys = yparser.parse_yaml("src/tests/input/system_validator/test_validation_results_detects_nested_service_cycle.yaml")
     feedback = sv.validate_system(test_sys)
-    assert feedback.errors == ["[E001]: CLIENT client_1 is a source of data, only ['TIMER', 'TOPIC', 'EXTERNAL_INPUT', 'SERVICE'] are valid"]
-
+    assert feedback.errors == ["[E004]: Graph of system contains cycles. Only acyclic systems may be analyzed"]
