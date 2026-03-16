@@ -39,6 +39,7 @@ line-length = 88
 [dependency-groups]
 dev = [
     "pytest>=9.0.2",
+    "pytest-cov>=7.0.0",
     "ruff>=0.14.13",
     "ty>=0.0.12",
 ]
