@@ -197,7 +197,9 @@ def error_graph_inter_node_shared_memory(graph: RosGraphView) -> list[str]:
             for node in graph[NodeType.NODE].values()
             for child in node.children
             for target in child.outgoing
-            if target.nodetype not in interfaces and target.parent != child.parent]
+            if child.nodetype not in interfaces
+            and target.nodetype not in interfaces 
+            and target.parent != child.parent]
 
 def error_graph_contains_cycles(graph:RosGraphView) -> list[str]:
     """
