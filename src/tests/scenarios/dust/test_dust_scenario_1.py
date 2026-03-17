@@ -11,44 +11,6 @@ import roserer.dust.dust_uppaal as du
 from dotenv import load_dotenv
 load_dotenv()
 
-def test_dust_scenario_1_individual_EXV2_A1_max_latency() -> None:
-    """
-    Uses version 2 of the Executor. 
-    Assumes all callbacks with release-time 0 is released
-    before executor starts polling (assumption A1). 
-    Uses individual approach.
-    """
-    ros_system = yparse.parse_yaml("src/tests/input/dust_scenario_1_EXV2_individual.yaml")
-    test_result: sv.ValidationResult = sv.validate_system(ros_system)
-    if test_result.errors != []:
-        for ln in test_result.errors:
-            print(ln)
-            raise Exception("Something went wrong when validating the system!")
-    else:
-        errors, warnings, dust_system = da.transform_system(system=ros_system, validationresult=test_result)
-        if errors != []:
-            print(errors)
-            raise Exception("Something went wrong transforming the system!")
-        for ln in warnings:
-            print(ln)
-        if dust_system is not None:
-            #print(dust_system.gen_declaration())
-            #print(dust_system)
-            #print(dust_system.gen_system())
-            latency_results = dust_system.max_latency()
-            assert latency_results == {
-                'TIMER0_EX_0' : 28,
-                'TIMER1_EX_0' : 33,
-                'TIMER2_EX_0' : 17,
-                'TIMER3_EX_0' : 22,
-                'SERVICE0_EX_0' : 65,
-                'SERVICE1_EX_0' : 70,
-                'SERVICE2_EX_0' : 75,
-                'SUBSCRIBER0_EX_0' : 65,
-                'SUBSCRIBER1_EX_0' : 55,
-                'SUBSCRIBER2_EX_0' : 60
-            }
-
 def test_dust_scenario_1_individual_EXV1_A1_max_latency() -> None:
     """
     Uses version 1 of the Executor. 
@@ -70,21 +32,25 @@ def test_dust_scenario_1_individual_EXV1_A1_max_latency() -> None:
         for ln in warnings:
             print(ln)
         if dust_system is not None:
-            latency_results = dust_system.max_latency()
+            # TODO: check if stop_time could be used?
+            # check that buffer-overflow happens
+            overflows = dust_system.buffer_overflow()
+            assert False not in overflows.values()
+            #check max-latencies
+            latency_results = dust_system.max_latency(checks=['T0', 'T1', 'T2', 'T3', 'H', 'M', 'L', 'SH', 'SM', 'SL'])
             assert latency_results == {
-                'TIMER0_EX_0' : 8,
-                'TIMER1_EX_0' : 13,
-                'TIMER2_EX_0' : 7,
-                'TIMER3_EX_0' : 12,
-                'SERVICE0_EX_0' : 65,
-                'SERVICE1_EX_0' : 70,
-                'SERVICE2_EX_0' : 75,
-                'SUBSCRIBER0_EX_0' : 65,
-                'SUBSCRIBER1_EX_0' : 55,
-                'SUBSCRIBER2_EX_0' : 60
+                'T0' : 8,
+                'T1' : 13,
+                'T2' : 7,
+                'T3' : 12,
+                'H' : 65,
+                'M' : 55,
+                'L' : 60,
+                'SH' : 65,
+                'SM' : 70,
+                'SL' : 75
             }
 
-#TODO: test
 def test_dust_scenario_1_holistic_EXV1_A1_max_latency() -> None:
     """
     Uses version 1 of the Executor. 
@@ -106,20 +72,68 @@ def test_dust_scenario_1_holistic_EXV1_A1_max_latency() -> None:
         for ln in warnings:
             print(ln)
         if dust_system is not None:
+            # TODO: check if stop_time could be used?
+            # check that buffer-overflow happens
+            # overflows = dust_system.buffer_overflow()
+            # assert False not in overflows.values()
+            # check max-latencies
             expected_result = {
-                'TIMER0_EX_1'      : 8,
-                'TIMER1_EX_1'      : 13,
-                'TIMER2_EX_1'      : 7,
-                'TIMER3_EX_1'      : 12,
-                'SUBSCRIBER0_EX_1' : 65,
-                'SUBSCRIBER1_EX_1' : 55,
-                'SUBSCRIBER2_EX_1' : 60,
-                'SERVICE0_EX_1'    : 65,
-                'SERVICE1_EX_1'    : 70,
-                'SERVICE2_EX_1'    : 75
+                'T0': 8,
+                'T1': 13,
+                'T2': 7,
+                'T3': 12,
+                'H' : 65,
+                'M' : 55,
+                'L' : 60,
+                'SH': 65,
+                'SM': 70,
+                'SL': 75
             }
-            latency_results = dust_system.max_latency()
+            latency_results = dust_system.max_latency(checks=['T0', 'T1', 'T2', 'T3', 'H', 'M', 'L', 'SH', 'SM', 'SL'])
             assert expected_result.items() <= latency_results.items()
+
+def test_dust_scenario_1_individual_EXV2_A1_max_latency() -> None:
+    """
+    Uses version 2 of the Executor. 
+    Assumes all callbacks with release-time 0 is released
+    before executor starts polling (assumption A1). 
+    Uses individual approach.
+    """
+    ros_system = yparse.parse_yaml("src/tests/input/dust_scenario_1_EXV2_individual.yaml")
+    test_result: sv.ValidationResult = sv.validate_system(ros_system)
+    if test_result.errors != []:
+        for ln in test_result.errors:
+            print(ln)
+            raise Exception("Something went wrong when validating the system!")
+    else:
+        errors, warnings, dust_system = da.transform_system(system=ros_system, validationresult=test_result)
+        if errors != []:
+            print(errors)
+            raise Exception("Something went wrong transforming the system!")
+        for ln in warnings:
+            print(ln)
+        if dust_system is not None:
+            # TODO: check if stop_time could be used?
+            # check that buffer-overflow happens
+            overflows = dust_system.buffer_overflow()
+            assert False not in overflows.values()
+            # check max-latencies
+            #print(dust_system.gen_declaration())
+            #print(dust_system)
+            #print(dust_system.gen_system())
+            latency_results = dust_system.max_latency(checks=['T0', 'T1', 'T2', 'T3', 'H', 'M', 'L', 'SH', 'SM', 'SL'])
+            assert latency_results == {
+                'T0' : 28,
+                'T1' : 33,
+                'T2' : 17,
+                'T3' : 22,
+                'SH' : 65,
+                'SM' : 70,
+                'SL' : 75,
+                'H' : 65,
+                'M' : 55,
+                'L' : 60
+            }
 
 def test_dust_scenario_1_holistic_EXV2_A1_max_latency() -> None:
     """
@@ -142,18 +156,23 @@ def test_dust_scenario_1_holistic_EXV2_A1_max_latency() -> None:
         for ln in warnings:
             print(ln)
         if dust_system is not None:
+            # TODO: check if stop_time could be used?
+            # check that buffer-overflow happens
+            # overflows = dust_system.buffer_overflow()
+            # assert False not in overflows.values()
+            # check max-latencies
             expected_result = {
-                'TIMER0_EX_1' : 28,
-                'TIMER1_EX_1' : 33,
-                'TIMER2_EX_1' : 17,
-                'TIMER3_EX_1' : 22,
-                'SERVICE0_EX_1' : 65,
-                'SERVICE1_EX_1' : 70,
-                'SERVICE2_EX_1' : 75,
-                'SUBSCRIBER0_EX_1' : 65,
-                'SUBSCRIBER1_EX_1' : 55,
-                'SUBSCRIBER2_EX_1' : 60
+                'T0' : 28,
+                'T1' : 33,
+                'T2' : 17,
+                'T3' : 22,
+                'H' : 65,
+                'M' : 55,
+                'L' : 60,
+                'SH' : 65,
+                'SM' : 70,
+                'SL' : 75
             }
-            latency_results = dust_system.max_latency()
+            latency_results = dust_system.max_latency(checks=['T0', 'T1', 'T2', 'T3', 'H', 'M', 'L', 'SH', 'SM', 'SL'])
             print(latency_results)
             assert expected_result.items() <= latency_results.items()

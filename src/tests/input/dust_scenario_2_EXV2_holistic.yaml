@@ -18,7 +18,7 @@ System:
             callback: seq_1_cb
             period: 32
             end: 32
-          - timer: sequence_ 2
+          - timer: sequence_2
             callback: seq_2_cb
             period: 45
             end: 45
@@ -35,11 +35,11 @@ System:
             topic: topic_L
           clients:
           - client: client_SH
-            service: service_SH
+            service: SH
           - client: client_SM
-            service: service_SM
+            service: SM
           - client: client_SL
-            service: service_SL
+            service: SL
           callbacks:
           - callback: response_SH
             wcet: 0
@@ -98,23 +98,23 @@ System:
           - callback: dummy_cb
             wcet: 5
           timers:
-          - timer: timer_T0
+          - timer: T0
             period: 13
             callback: dummy_cb
           services:
-          - service: service_SH
+          - service: SH
             callback: dummy_cb
-          - service: service_SM
+          - service: SM
             callback: dummy_cb
-          - service: service_SL
+          - service: SL
             callback: dummy_cb
           subscriptions:
-          - subscription: sub_H
+          - subscription: H
             callback: dummy_cb
             topic: topic_H
-          - subscription: sub_M
+          - subscription: M
             callback: dummy_cb
             topic: topic_M
-          - subscription: sub_L
+          - subscription: L
             callback: dummy_cb
             topic: topic_L

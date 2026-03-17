@@ -410,7 +410,8 @@ def map_subscriber_cb(
                                   amount_of_publishers=interface_count,
                                   publisher_release_time=interface_release_times,
                                   publisher_id=interface_id_list,
-                                  executorID= out.get_exe_register_id(node.name)
+                                  executorID= out.get_exe_register_id(node.name),
+                                  name=subscription.name
                                   )
 
 # maps topic from client to server
@@ -464,8 +465,9 @@ def map_server(
                           amount_of_publishers=interface_count,
                           publisher_release_time=interface_release_times,
                           publisher_id=interface_id_list,
-                          executorID=out.get_exe_register_id(server_node.name))
-
+                          executorID=out.get_exe_register_id(server_node.name),
+                          name=service)
+    
     ### UPPAAL-Topic back from server to client ###
     # needs additional receiver_id for this
     # (callback in other end is unique to this relation)
@@ -501,8 +503,9 @@ def map_client(
                           amount_of_publishers=interface_count,
                           publisher_release_time=interface_release_times,
                           publisher_id= interface_id_list,
-                          executorID=out.get_exe_register_id(parent_node.name))
-                          #TODO: check how qos (requst vs. offered) is resolved
+                          executorID=out.get_exe_register_id(parent_node.name),
+                          name=client_obj.name) #TODO: check how qos (requst vs. offered) is resolved
+
 
 def map_topic(
         out: ds.System,
@@ -552,7 +555,8 @@ def map_node(out: ds.System, node: ros.Node, validations: validator.ValidationRe
                                       amount_of_publishers=interface_count,
                                       publisher_release_time=interface_release_times,
                                       publisher_id=interface_id_list,
-                                      executorID=out.get_exe_register_id(node.name)
+                                      executorID=out.get_exe_register_id(node.name),
+                                      name=timer.name
                                       )
         else:
             first_release = (timer.offset % timer.period) if timer.offset < 0 else timer.period + timer.offset
@@ -565,7 +569,8 @@ def map_node(out: ds.System, node: ros.Node, validations: validator.ValidationRe
                                       amount_of_publishers=interface_count,
                                       publisher_release_time=interface_release_times,
                                       publisher_id=interface_id_list,
-                                      executorID=out.get_exe_register_id(node.name)
+                                      executorID=out.get_exe_register_id(node.name),
+                                      name=timer.name
                                       )
     # case 2) service with wall_times
     for service in node.services:
@@ -583,7 +588,8 @@ def map_node(out: ds.System, node: ros.Node, validations: validator.ValidationRe
                                       amount_of_publishers=interface_count,
                                       publisher_release_time=interface_release_times,
                                       publisher_id=interface_id_list,
-                                      executorID=out.get_exe_register_id(node.name)
+                                      executorID=out.get_exe_register_id(node.name),
+                                      name=service.name
                                       )
     # case 3) subscriber with wall_times
     for subscription in node.subscriptions:
@@ -601,7 +607,8 @@ def map_node(out: ds.System, node: ros.Node, validations: validator.ValidationRe
                                       amount_of_publishers=interface_count,
                                       publisher_release_time=interface_release_times,
                                       publisher_id=interface_id_list,
-                                      executorID=out.get_exe_register_id(node.name)
+                                      executorID=out.get_exe_register_id(node.name),
+                                      name=subscription.name
                                       )
 
 # initiates executors (and maintain mapping from node_name to exec_id)

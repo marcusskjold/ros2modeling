@@ -57,6 +57,8 @@ class UppaalTemplate(ABC):
         s = self.name() + "=" + type(self).__name__ + "("
         variables = vars(self).items()
         for var, val in variables:
+            if var == '_name':
+                continue
             if type(val) is list:
                 s+= self.param_name(var) + ","
             else:
@@ -68,6 +70,8 @@ class UppaalTemplate(ABC):
         s = "" +type(self).__name__ + "("
         variables = vars(self).items()
         for var, val in variables:
+            if var == '_name':
+                continue
             if type(val) is list:
                 s+= str(var) + " = " + self.param_name(var) + ","
             else:
@@ -114,7 +118,8 @@ class PeriodicCallback(UppaalTemplate):
             amount_of_publishers : int,
             publisher_release_time : list[int],
             publisher_id : list[int],
-            executorID : int
+            executorID : int,
+            name : str
             ):
         self.id = id
         self.exec_time = exec_time
@@ -126,9 +131,10 @@ class PeriodicCallback(UppaalTemplate):
         self.publisher_release_time = publisher_release_time
         self.publisher_id = publisher_id
         self.executorID = executorID
+        self._name = name
 
     def name(self) -> str:
-        return self.type + str(self.id) + '_EX_' + str(self.executorID)
+        return self._name
 
 
 class SporadicCallback(UppaalTemplate):
@@ -142,7 +148,8 @@ class SporadicCallback(UppaalTemplate):
             buffersize : int,
             amount_of_publishers : int,
             publisher_release_time : list[int],
-            publisher_id : list[int], executorID : int
+            publisher_id : list[int], executorID : int,
+            name : str
             ):
         self.id = id
         self.exec_time = exec_time
@@ -154,9 +161,10 @@ class SporadicCallback(UppaalTemplate):
         self.publisher_release_time = publisher_release_time
         self.publisher_id = publisher_id
         self.executorID = executorID
+        self._name = name
     
     def name(self):
-        return self.type + str(self.id) + '_EX_' + str(self.executorID)
+        return self._name
 
 class DataCallback(UppaalTemplate):
     def __init__(
@@ -169,7 +177,8 @@ class DataCallback(UppaalTemplate):
             amount_of_publishers : int,
             publisher_release_time : list[int],
             publisher_id : list[int],
-            executorID : int
+            executorID : int,
+            name
             ):
         self.id = id
         self.exec_time = exec_time
@@ -180,9 +189,10 @@ class DataCallback(UppaalTemplate):
         self.publisher_release_time = publisher_release_time
         self.publisher_id = publisher_id
         self.executorID = executorID
+        self._name = name
     
     def name(self):
-        return self.type + str(self.id) + '_EX_' + str(self.executorID)
+        return self._name
 
 
 ## Class representing a ROS system
@@ -313,11 +323,12 @@ class System():
             amount_of_publishers : int,
             publisher_release_time : list[int],
             publisher_id : list[int],
-            executorID : int
+            executorID : int,
+            name : str
             ) -> None:
         self.callbacks.append(PeriodicCallback(
             id, exec_time, period, type, offset, buffersize, amount_of_publishers,
-            publisher_release_time, publisher_id, executorID))
+            publisher_release_time, publisher_id, executorID, name))
         
     def add_sporadic_callback(
             self,
@@ -330,11 +341,12 @@ class System():
             amount_of_publishers : int,
             publisher_release_time : list[int],
             publisher_id : list[int],
-            executorID : int
+            executorID : int,
+            name
             ) -> None:
         self.callbacks.append(SporadicCallback(
             id, exec_time, length, releases, type, buffersize, amount_of_publishers, 
-            publisher_release_time, publisher_id, executorID))
+            publisher_release_time, publisher_id, executorID, name))
     
     def add_data_callback(
             self,
@@ -346,17 +358,19 @@ class System():
             amount_of_publishers : int,
             publisher_release_time : list[int],
             publisher_id : list[int],
-            executorID : int
+            executorID : int,
+            name
             ) -> None:
         self.callbacks.append(DataCallback(
             id, exec_time, topicID, type, buffersize, amount_of_publishers,
-            publisher_release_time, publisher_id, executorID))
+            publisher_release_time, publisher_id, executorID, name))
         
-    def add_data_callback(self, id : int, exec_time : int, topicID : int, type : int, buffersize : int,
-                  amount_of_publishers : int, publisher_release_time : list[int],
-                    publisher_id : list[int], executorID : int):
-        self.callbacks.append(DataCallback(id, exec_time, topicID, type, buffersize,
-                  amount_of_publishers, publisher_release_time, publisher_id, executorID))
+    # TODO: remove
+    # def add_data_callback(self, id : int, exec_time : int, topicID : int, type : int, buffersize : int,
+    #               amount_of_publishers : int, publisher_release_time : list[int],
+    #                 publisher_id : list[int], executorID : int):
+    #     self.callbacks.append(DataCallback(id, exec_time, topicID, type, buffersize,
+    #               amount_of_publishers, publisher_release_time, publisher_id, executorID))
 
 
     # for sizeconstants: if size is 0, makes it 1 instead
@@ -450,9 +464,18 @@ class System():
         checkables_names = [c.name() for c in checkables]
         return UPPAAL.max_buffer_size(OUTPUT_UPPAAL_FILE, checkables_names)
     
-    def max_latency(self, prioritized : bool = True, stop_time : int = -1) -> dict[str,int]:
+    def max_latency(self, prioritized : bool = True, stop_time : int = -1, checks : list[str] | None = None) -> dict[str,int]:
+        """
+        Checks the max-latency for all callbacks in the system, or the ones listed in parameter 'checks'.
+        Applies the stoptime to the executors-parameters.
+        If prioritized is set to False, assumption A2 will be used rather than A1
+        """
         self.write(infile=INPUT_UPPAAL_FILE, outfile=OUTPUT_UPPAAL_FILE, prioritized=prioritized, stop_time=stop_time)
         checkables_names = [c.name() for c in self.callbacks]
+        if checks is not None:
+            if not set(checks) <= set(checkables_names):
+                raise ValueError("Some entities specified for model checking is not present in the system.")
+            checkables_names = checks
         return UPPAAL.max_latency(OUTPUT_UPPAAL_FILE, checkables_names)
     
     def max_latency_trace(self, max_latencies : dict | None = None, prioritized : bool = True, stop_time : int = -1):
