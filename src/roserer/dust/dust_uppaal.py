@@ -45,6 +45,8 @@ class UPPAAL():
         for checkable in checkables:
             while "Verifying formula" not in lines[idx]:
                 idx += 1
+            while "Formula is" not in lines[idx+1]: # in case extra lines before verdict
+                idx += 1
             verdict = lines[idx+1].strip() # Formula is/NOT satisfied
             if "Formula is NOT satisfied" in verdict:
                 results[checkable] = False
