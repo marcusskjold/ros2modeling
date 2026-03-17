@@ -1,0 +1,120 @@
+System:
+  system: dust_scenario_2_EXV1_holistic
+  default_distribution: Humble
+  hosts:
+  - host: 
+    executors:
+      - executor: exe_1
+        implementation: SingleThreadedExecutor
+        nodes:
+        - node: node_1
+          timers:
+          - timer: sequence_0
+            callback: seq_0_cb
+            period: 1
+            offset: -1
+            end: 0
+          - timer: sequence_1
+            callback: seq_1_cb
+            period: 32
+            end: 32
+          - timer: sequence_ 2
+            callback: seq_2_cb
+            period: 45
+            end: 45
+          - timer: sequence_3
+            callback: seq_3_cb
+            period: 63
+            end: 63
+          publishers:
+          - publisher: pub_H
+            topic: topic_H
+          - publisher: pub_M
+            topic: topic_M
+          - publisher: pub_L
+            topic: topic_L
+          clients:
+          - client: client_SH
+            service: service_SH
+          - client: client_SM
+            service: service_SM
+          - client: client_SL
+            service: service_SL
+          callbacks:
+          - callback: response_SH
+            wcet: 0
+          - callback: response_SM
+            wcet: 0
+          - callback: response_SL
+            wcet: 0
+          - callback: seq_0_cb
+            wcet: 0
+            publishers:
+            - pub_H
+            - pub_M
+            - pub_L
+            request: 
+              client: client_SH 
+              response: response_SH
+            calls: nest_1
+          - callback: nest_1
+            wcet: 0
+            request: 
+              client: client_SM
+              response: response_SM 
+            calls: nest_2
+          - callback: nest_2
+            wcet: 0 
+            request: 
+              client: client_SL
+              response: response_SL
+          - callback: seq_1_cb
+            wcet: 0
+            publishers:
+            - pub_H
+            - pub_M
+            - pub_L
+          - callback: seq_2_cb
+            wcet: 0
+            request: 
+              client: client_SH
+              response: response_SH
+            calls: nest_3
+          - callback: nest_3
+            wcet: 0
+            request: 
+              client: client_SM
+              response: response_SM
+          - callback: seq_3_cb
+            wcet: 0
+            publishers:
+            - pub_H
+      
+      - executor: exe_2
+        implementation: SingleThreadedExecutor
+        nodes:
+        - node: node_2
+          callbacks:
+          - callback: dummy_cb
+            wcet: 5
+          timers:
+          - timer: timer_T0
+            period: 13
+            callback: dummy_cb
+          services:
+          - service: service_SH
+            callback: dummy_cb
+          - service: service_SM
+            callback: dummy_cb
+          - service: service_SL
+            callback: dummy_cb
+          subscriptions:
+          - subscription: sub_H
+            callback: dummy_cb
+            topic: topic_H
+          - subscription: sub_M
+            callback: dummy_cb
+            topic: topic_M
+          - subscription: sub_L
+            callback: dummy_cb
+            topic: topic_L
