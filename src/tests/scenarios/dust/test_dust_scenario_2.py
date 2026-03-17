@@ -34,7 +34,7 @@ def test_dust_scenario_2_individual_EXV1_max_latency() -> None:
         if dust_system is not None:
             # Assumption A1)
             # check that no buffer-overflows
-            overflows = dust_system.buffer_overflow(stop_time=90)
+            overflows = dust_system.buffer_overflow(stop_time=90, checks=['T0', 'H', 'M', 'L', 'SH', 'SM', 'SL'])
             assert False not in overflows.values()
             #check max-latencies
             latency_results = dust_system.max_latency(stop_time=90, checks=['T0', 'H', 'M', 'L', 'SH', 'SM', 'SL'])
@@ -49,7 +49,7 @@ def test_dust_scenario_2_individual_EXV1_max_latency() -> None:
             }
             # Assumption A2)
             # check that no buffer-overflows
-            overflows = dust_system.buffer_overflow(stop_time=90, prioritized=False)
+            overflows = dust_system.buffer_overflow(stop_time=90, prioritized=False, checks=['T0', 'H', 'M', 'L', 'SH', 'SM', 'SL'])
             assert False not in overflows.values()
             #check max-latencies
             latency_results = dust_system.max_latency(stop_time=90, prioritized=False, checks=['T0', 'H', 'M', 'L', 'SH', 'SM', 'SL'])
@@ -87,8 +87,8 @@ def test_dust_scenario_2_holistic_EXV1_max_latency() -> None:
         if dust_system is not None:
             # Assumption A1)
             # check that no buffer-overflows
-            # overflows = dust_system.buffer_overflow(stop_time=90)
-            # assert False not in overflows.values()
+            overflows = dust_system.buffer_overflow(stop_time=90, checks=['T0', 'H', 'M', 'L', 'SH', 'SM', 'SL'])
+            assert False not in overflows.values()
             #check max-latencies
             latency_results = dust_system.max_latency(stop_time=90, checks=['T0', 'H', 'M', 'L', 'SH', 'SM', 'SL'])
             assert latency_results == {
@@ -102,7 +102,7 @@ def test_dust_scenario_2_holistic_EXV1_max_latency() -> None:
             }
             # Assumption A2)
             # check that no buffer-overflows
-            # overflows = dust_system.buffer_overflow(stop_time=90, prioritized=False)
+            # overflows = dust_system.buffer_overflow(stop_time=90, prioritized=False, checks=['T0', 'H', 'M', 'L', 'SH', 'SM', 'SL'])
             # assert False not in overflows.values()
             # #check max-latencies
             # latency_results = dust_system.max_latency(stop_time=90, prioritized=False, checks=['T0', 'H', 'M', 'L', 'SH', 'SM', 'SL'])
@@ -143,7 +143,7 @@ def test_dust_scenario_2_individual_EXV2_max_latency() -> None:
         if dust_system is not None:
             # Assumption A1)
             # check that buffer-overflow happens
-            overflows = dust_system.buffer_overflow(stop_time=90)
+            overflows = dust_system.buffer_overflow(stop_time=90, checks=['T0', 'H', 'M', 'L', 'SH', 'SM', 'SL'])
             assert False in overflows.values()
             #check max-latencies
             latency_results = dust_system.max_latency(stop_time=90, checks=['T0', 'H', 'M', 'L', 'SH', 'SM', 'SL'])
@@ -158,7 +158,7 @@ def test_dust_scenario_2_individual_EXV2_max_latency() -> None:
             }
             # Assumption A2)
             # check that buffer-overflow happens
-            overflows = dust_system.buffer_overflow(stop_time=90, prioritized=False)
+            overflows = dust_system.buffer_overflow(stop_time=90, prioritized=False, checks=['T0', 'H', 'M', 'L', 'SH', 'SM', 'SL'])
             assert False in overflows.values()
             #check max-latencies
             latency_results = dust_system.max_latency(stop_time=90, prioritized=False, checks=['T0', 'H', 'M', 'L', 'SH', 'SM', 'SL'])
@@ -195,6 +195,10 @@ def test_dust_scenario_2_holistic_EXV2_max_latency() -> None:
             print(ln)
         if dust_system is not None:
             # Assumption A1)
+            # check that buffer-overflow happens
+            overflows = dust_system.buffer_overflow(stop_time=90, checks=['T0', 'H', 'M', 'L', 'SH', 'SM', 'SL'])
+            assert False in overflows.values()
+            #check max-latencies
             latency_results = dust_system.max_latency(stop_time=90, checks=['T0', 'H', 'M', 'L', 'SH', 'SM', 'SL'])
             assert latency_results == {
                 'T0' : 22,
@@ -206,6 +210,10 @@ def test_dust_scenario_2_holistic_EXV2_max_latency() -> None:
                 'L' : 18
             }
             # Assumption A2)
+            # check that buffer-overflow happens
+            # overflows = dust_system.buffer_overflow(stop_time=90, prioritized=False, checks=['T0', 'H', 'M', 'L', 'SH', 'SM', 'SL'])
+            # assert False in overflows.values()
+            #check max-latencies
             # latency_results = dust_system.max_latency(stop_time=90, prioritized=False, checks=['T0', 'H', 'M', 'L', 'SH', 'SM', 'SL'])
             # expected_results = {
             #     'T0' : 22,

@@ -451,11 +451,16 @@ class System():
         s += ','.join(component_names) + ";\n"
         return s
 
-    def buffer_overflow(self, prioritized : bool = True, stop_time : int = -1) -> dict:
+    def buffer_overflow(self, prioritized : bool = True, stop_time : int = -1, checks : list[str] | None = None) -> dict:
         self.write(infile=INPUT_UPPAAL_FILE, outfile=OUTPUT_UPPAAL_FILE, prioritized=prioritized, stop_time=stop_time)
         checkables : list[UppaalTemplate] = self.topics + self.callbacks
         checkables_names = [c.name() for c in checkables]
+        if checks is not None:
+            if not set(checks) <= set(checkables_names):
+                raise ValueError("Some entities specified for model checking is not present in the system.")
+            checkables_names = checks
         return UPPAAL.buffer_overflow(OUTPUT_UPPAAL_FILE, checkables_names)
+    
     
     # assumes NO bufferoverflow or result will be trivially the size of the buffer
     def max_buffer_size(self, prioritized : bool = True, stop_time : int = -1) -> dict[str,int]:
