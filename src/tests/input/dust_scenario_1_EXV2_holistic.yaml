@@ -28,11 +28,11 @@ System:
           topic: topic_L
         clients:
         - client: client_SH
-          service: service_SH
+          service: SH
         - client: client_SM
-          service: service_SM
+          service: SM
         - client: client_SL
-          service: service_SL
+          service: SL
         callbacks:
         - callback: response_SH
           wcet: 0
@@ -89,22 +89,22 @@ System:
       nodes: 
       - node: node_1
         timers:
-        - timer: T_0
+        - timer: T0
           period: 7
           offset: -5
           callback: dummy_cb
           end: 2
-        - timer: T_1
+        - timer: T1
           period: 7
           offset: -5
           callback: dummy_cb
           end: 2
-        - timer: T_2
+        - timer: T2
           period: 23
           offset: 0
           callback: dummy_cb
           end: 23
-        - timer: T_3
+        - timer: T3
           period: 23
           offset: 0
           callback: dummy_cb
@@ -113,19 +113,19 @@ System:
         - callback: dummy_cb
           wcet: 5
         services:
-        - service: service_SH
+        - service: SH
           callback: dummy_cb
-        - service: service_SM
+        - service: SM
           callback: dummy_cb
-        - service: service_SL
+        - service: SL
           callback: dummy_cb
         subscriptions:
-        - subscription: sub_H
+        - subscription: H
           callback: dummy_cb
           topic: topic_H
-        - subscription: sub_M
+        - subscription: M
           callback: dummy_cb
           topic: topic_M
-        - subscription: sub_L
+        - subscription: L
           callback: dummy_cb
           topic: topic_L
