@@ -1,10 +1,9 @@
 import roserer.yamlParser as yparser
 import roserer.systemvalidator as sv
 import pytest as pt
-# import roserer.adapters.dust_adapter as da
+import roserer.adapters.dust_adapter as da
 import roserer.dust.dust_system as ds
 
-@pt.mark.skip("Wait till Dust mapping has been completed")
 def test_transform_system_no_duplicate_subscribers() -> None:
     """
     Tests that a callback- and topic-template is made for each publisher to the same topic,
@@ -13,48 +12,67 @@ def test_transform_system_no_duplicate_subscribers() -> None:
     Even when same publisher used twice in two different callbacks.
     """
     test_sys = yparser.parse_yaml("src/tests/input/dust/test_transform_system_no_duplicate_subscribers.yaml")
-    errors, warnings, dust_sys = da.transform_system(test_sys)
-    assert errors == []
-    assert warnings == []
+    dust_sys, warnings = da.transform_system(test_sys)
+    assert isinstance(dust_sys, ds.System)
     assert len(dust_sys.topics) == 2
     assert len(dust_sys.callbacks) == 3
 
-@pt.mark.skip("Wait till Dust mapping has been completed")
+def test_executors_connected_topic_no_disconnected_warning() -> None:
+    """
+    Tests that when two executors are connected by topic
+    that no warning about them being disconnected is made
+    """
+    test_sys = yparser.parse_yaml("src/tests/input/dust/test_transform_system_no_duplicate_subscribers.yaml")
+    dust_sys, warnings = da.transform_system(test_sys)
+    assert not any("Not all executors are connected" in warn for warn in warnings)
+
+
 def test_transform_system_detects_two_clients_same_service() -> None:
     """
-    Tests service invoked from different clients isn't accepted by validator
+    Tests service invoked from different clients isn't accepted by dust-validator
     """ 
     test_sys = yparser.parse_yaml("src/tests/input/dust/test_transform_system_detects_two_clients_same_service.yaml")
-    errors, warnings, dust_sys = da.transform_system(test_sys)
-    assert "The same service is being requested from multiple sources. This model only support a service being requested from one place." in errors
+    errors, warnings= da.transform_system(test_sys)
+    assert any("is requested by more than one client" in er for er in errors)
 
-@pt.mark.skip("Wait till Dust mapping has been completed")
+def test_executors_connected_by_service_no_disconnected_warning() -> None:
+    """
+    Tests that when two executors are connected by service-communication
+    that no warning about them being disconnected is made
+    """
+    test_sys = yparser.parse_yaml("src/tests/input/dust/test_transform_system_detects_two_clients_same_service.yaml")
+    errors, warnings= da.transform_system(test_sys)
+    assert not any("Not all executors are connected" in warn for warn in warnings)
+
+
 def test_transform_system_detects_one_client_different_responses() -> None:
     """
     Tests that two requests with same client but different response-callbacks
     are not accepted by the dust-validator
     """
     test_sys = yparser.parse_yaml("src/tests/input/dust/test_transform_system_detects_one_client_different_responses.yaml")
-    errors, warnings, dust_sys = da.transform_system(test_sys)
-    assert errors != [] #TODO: specify message when merged with new validations
+    errors, warnings = da.transform_system(test_sys)
+    assert any("There are multiple response callbacks tied to the same client" in er for er in errors)
 
-@pt.mark.skip("Wait till Dust mapping has been completed")
 def test_transform_system_no_duplicate_clients() -> None: ##TODO: implement
     """
     Tests that node calling same client from more callbacks doesn't result in duplicate templates
     """
     test_sys = yparser.parse_yaml("src/tests/input/dust/test_transform_system_no_duplicate_clients.yaml")
+    dust_sys, warnings = da.transform_system(test_sys)
+    print(dust_sys.gen_system())
+    assert len(dust_sys.topics) == 2
+    assert len(dust_sys.callbacks) == 4
 
-@pt.mark.skip("Wait till Dust mapping has been completed")
+
 def test_transform_system_service_client_correct_mapping() -> None:
     """
     Tests that a system simple system with service-client is mapped correctly
     (topic back and forth between server-client)
     """
     test_sys = yparser.parse_yaml("src/tests/input/dust/test_transform_system_service_client_correct_mapping.yaml")
-    errors, warnings, dust_sys = da.transform_system(test_sys)
-    assert errors == []
-    assert warnings == []
+    dust_sys, warnings = da.transform_system(test_sys)
+    assert isinstance(dust_sys, ds.System)
     assert len(dust_sys.executors) == 2
     assert len(dust_sys.topics) == 2
     assert len(dust_sys.callbacks) == 3
@@ -70,7 +88,6 @@ def test_transform_system_service_client_correct_mapping() -> None:
     assert expected_topic_1.__dict__ in component_attributes
     assert expected_topic_2.__dict__ in component_attributes
 
-@pt.mark.skip("Wait till Dust mapping has been completed")
 def test_transform_system_nested_calls_collapsed() -> None:
     """
     Tests that a callback with nested calls is collapsed into a single callback
@@ -78,9 +95,8 @@ def test_transform_system_nested_calls_collapsed() -> None:
     Also checks that a separate topic is made for each publisher to same topic
     """
     test_sys = yparser.parse_yaml("src/tests/input/dust/test_transform_system_nested_calls_collapsed.yaml")
-    errors, warnings, dust_sys = da.transform_system(test_sys)
-    assert errors == []
-    assert warnings == []
+    dust_sys, warnings = da.transform_system(test_sys)
+    assert isinstance(dust_sys, ds.System)
     expected_components = []
     expected_components.append(ds.PeriodicCallback(id=0, exec_time=12, period=20, type=0, offset=0, buffersize=1, amount_of_publishers=3, publisher_release_time=[3,7,12], publisher_id=[0,1,2], executorID=0, name='timer_1').__dict__)
     expected_components.append(ds.Topic(receiver_id=0, sender_id=0, delay=0,max_jitter=0,buffersize=10).__dict__)
@@ -95,16 +111,14 @@ def test_transform_system_nested_calls_collapsed() -> None:
         assert com in component_attributes
     assert len(component_attributes) == len(expected_components)
 
-@pt.mark.skip("Wait till Dust mapping has been completed")
 def test_transform_system_cbs_correct_ids() -> None:
     """
     Tests that each callback is assigned correct id's
     -> id's should be assigned on a per callback-type per executor basis
     """
     test_sys = yparser.parse_yaml("src/tests/input/dust/test_transform_system_cbs_correct_ids.yaml")
-    errors, warnings, dust_sys = da.transform_system(test_sys)
-    assert errors == []
-    assert warnings == []
+    dust_sys, warnings = da.transform_system(test_sys)
+    assert isinstance(dust_sys, ds.System)
     timer_cb_ids = [cb.id for cb in dust_sys.callbacks if cb.type == 'TIMER']
     service_cb_ids = [cb.id for cb in dust_sys.callbacks if cb.type == 'SERVICE']
     subscription_cb_ids = [cb.id for cb in dust_sys.callbacks if cb.type == 'SUBSCRIBER']
@@ -134,25 +148,22 @@ def test_validate_timer_edge_wcet_sum_accepted() -> None:
     errors, warnings, dust_sys = da.transform_system(test_sys)
     assert errors == []
 
-@pt.mark.skip("Wait till Dust mapping has been completed")
 def test_validate_system_disconnected_executors_detected() -> None:
     """
     Tests that a system with some executors not being connected prompts a warning.
     Uses system with 4 executors only connected in pairs
     """
     test_sys = yparser.parse_yaml("src/tests/input/dust/test_validate_system_disconnected_executors_detected.yaml")
-    errors, warnings, dust_sys = da.transform_system(test_sys)
-    assert warnings != []
+    dust_sys, warnings = da.transform_system(test_sys)
+    assert any("Not all executors are connected" in warn for warn in warnings)
 
-@pt.mark.skip("Wait till Dust mapping has been completed")
 def test_validate_system_disconnected_nodes_accepted() -> None:
     """
     Tests that system with two disconnected nodes under same executor is accepted
     """
     test_sys = yparser.parse_yaml("src/tests/input/dust/test_validate_system_disconnected_nodes_accepted.yaml")
     errors, warnings, dust_sys = da.transform_system(test_sys)
-    assert len(warnings) == 2 # TODO: check for specific message not in there, when new validations loaded
-    assert errors == []
+    assert not any("Not all executors are connected" in warn for warn in warnings)
 
 @pt.mark.skip("Wait till Dust mapping has been completed")
 def test_transform_system_callback_order_maintained() -> None:
