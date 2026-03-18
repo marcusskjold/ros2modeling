@@ -1,0 +1,33 @@
+System:
+  system: test_parse_system_connected_hosts_allowed
+  hosts:
+  - host: host_1
+    executors:
+    - executor:
+      nodes:
+      - node: node_1
+        publishers:
+        - publisher: pub_1
+          topic: topic_1
+        callbacks:
+        - callback: cb_1
+          wcet: 5
+          publishers:
+          - pub_1
+        timers:
+        - timer: timer_1
+          period: 10
+          callback: cb_1
+  
+  - host: host_2
+    executors:
+    - executor:
+      nodes:
+      - node: node_2
+        subscriptions: 
+        - subscription: sub_1
+          topic: topic_1
+          callback: cb_2
+        callbacks:
+        - callback: cb_2
+          wcet: 5
