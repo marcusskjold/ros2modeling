@@ -2,6 +2,15 @@ import roserer.yamlParser as yparser
 import roserer.systemvalidator as sv
 import pytest
 
+def test_parse_system_connected_hosts_allowed() -> None:
+    """
+    Tests that hosts connected by topic-communication doesn't prompt a warning 
+    about being disconnected
+    """
+    test_sys = yparser.parse_yaml("src/tests/input/yaml_parser/test_parse_system_connected_hosts_allowed.yaml")
+    feedback = sv.validate_system(test_sys) 
+    assert not any("Not all hosts are connected" in warn for warn in feedback.warnings)
+
 def test_validate_calls_detects_cycle() -> None:
     """
     Tests that a callback-function doesn't call itself infinitely.
