@@ -153,7 +153,7 @@ def test_graphnode_get_paths_to_n3_multipath() -> None:
     assert n1.get_paths_to(n4) == [[n1,n3,n4],[n1,n2,n4],[n1,n2,n3,n4]]
     assert n2.get_paths_to(n4) == [[n2,n4],[n2,n3,n4]]
 
-def test_graphnode_contract() -> None:
+def test_graphnode_contract_base() -> None:
     p1 = GraphNode("parent", NodeType.NODE)
     n1 = GraphNode("node1", NodeType.CALLBACK, p1)
     n2 = GraphNode("node2", NodeType.CALLBACK, p1)
@@ -175,3 +175,57 @@ def test_graphnode_contract() -> None:
     assert n3.incoming == [n1]
     assert c1.parent == p1
     
+def test_graphnode_contract_move_to_parent() -> None:
+    p1 = GraphNode("parent1", NodeType.NODE)
+    p2 = GraphNode("parent2", NodeType.NODE)
+    p3 = GraphNode("parent3", NodeType.NODE)
+    n1 = GraphNode("node1", NodeType.CALLBACK, p1)
+    n2 = GraphNode("node2", NodeType.CALLBACK, p2)
+    n3 = GraphNode("node3", NodeType.CALLBACK, p3)
+    n1.add_edge_to(n2)
+    n2.add_edge_to(n3)
+
+    n2.contract()
+    assert p1.children == [n1]
+    assert p2.children == []
+    assert p2.incoming == [n1]
+    assert p2.outgoing == [n3]
+    assert p3.children == [n3]
+    assert n1.outgoing == [p2]
+    assert n1.incoming == []
+    assert n3.incoming == [p2]
+    assert n3.outgoing == []
+    n1.contract()
+    n3.contract()
+    assert p1.children == []
+    assert p1.outgoing == [p2]
+    assert p2.children == []
+    assert p2.incoming == [p1]
+    assert p2.outgoing == [p3]
+    assert p3.children == []
+    assert p3.incoming == [p2]
+    assert p3.outgoing == []
+
+def test_graphnode_contract_source_or_sink_containers_are_linked() -> None:
+    p1 = GraphNode("parent1", NodeType.NODE)
+    p2 = GraphNode("parent2", NodeType.NODE)
+    p3 = GraphNode("parent3", NodeType.NODE)
+    n1 = GraphNode("node1", NodeType.CALLBACK, p1)
+    n2 = GraphNode("node2", NodeType.CALLBACK, p2)
+    n3 = GraphNode("node3", NodeType.CALLBACK, p3)
+    n1.add_edge_to(n2)
+    n2.add_edge_to(n3)
+
+    n1.contract()
+    n3.contract()
+    assert p1.children == []
+    assert p1.incoming == [n2]
+    assert p1.outgoing == []
+    assert p2.children == [n2]
+    assert p2.incoming == []
+    assert p2.outgoing == []
+    assert p3.children == []
+    assert n3.incoming == [n2]
+    assert n3.outgoing == []
+    assert n2.incoming == [p1]
+    assert n2.outgoing == [p3]
