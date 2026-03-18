@@ -110,16 +110,31 @@ class GraphNode:
         return paths
 
     def contract(self) -> None:
-        if self.parent:
+        if self.parent is not None:
             self.parent.children.remove(self)
         for child in self.children:
             child.parent = self.parent
         for source in self.incoming:
             source.outgoing.remove(self)
+            if (self.parent is not None 
+                and self.outgoing == []
+                and source.parent != self.parent):
+                source.outgoing.append(self.parent)
+                self.parent.incoming.append(source)
         for target in self.outgoing:
             target.incoming.remove(self)
+            if (self.parent is not None 
+                and self.incoming == []
+                and source.parent != self.parent):
+                source.incoming.append(self.parent)
+                self.parent.outgoing.append(source)
             for source in self.incoming:
                 if source != target and source not in target.incoming:
+                    if (self.parent is not None
+                        and source.parent != self.parent
+                        and target.parent != self.parent):
+                        target.incoming.append(self.parent)
+                        source.outgoing.append(self.parent)
                     target.incoming.append(source)
                     source.outgoing.append(target)
 
@@ -130,7 +145,6 @@ class GraphNode:
 # A list can be provided if multiple edges from an origin should be added
 
 # For external use
-@dataclass
 class RosGraphView(dict[NodeType, dict[str, GraphNode]]):
     Elem = GraphNode | str | list[str]
     EdgeSpec = tuple[NodeType, Elem, NodeType, Elem]
@@ -144,6 +158,8 @@ class RosGraphView(dict[NodeType, dict[str, GraphNode]]):
                 self._add_system(from_object)
             elif isinstance(from_object, list):
                 self.add_list(from_object)
+            else:
+                raise ValueError("from_object is neither a system or a list")
 
     def add_list(self, list: list[GraphNode]) -> RosGraphView:
         for node in list:
