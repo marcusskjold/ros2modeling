@@ -326,6 +326,12 @@ class Node():
             if serv.name == service_name:
                 return serv
         raise ValueError("Service requested is not contained in this node")
+    
+    def get_subscription(self, sub_name: str) -> Subscription:
+        for sub in self.subscriptions:
+            if sub.name == sub_name:
+                return sub
+        raise ValueError("Subscription requested is not contained in this node")
 
     # gets sum of wcet of nested calls
     def full_wcet(self, cb: str | Callback) -> int:
@@ -454,6 +460,15 @@ class System():
                 for executor in host.executors
                 for node in executor.nodes]
     
+    def get_node(self, node_name)-> Node:
+        """ returns node with name 'node_name'. 
+        Raises error if no node with given name present """
+        n =  next((node for node in self.get_nodes() if node.name == node_name), None)
+        if n is None:
+            raise ValueError(f"Node with name, {node_name}, doesn't exist in this system.")
+        return n
+
+
     def get_subscriptions(self)->list[Subscription]:
         """ returns list of all subscriptions in system """
         return [subscription

@@ -5,6 +5,7 @@ import roserer.dust.dust_system as ds
 import roserer.ros2system as ros
 import roserer.systemvalidator as validator
 import roserer.qos as quality
+from roserer.rosgraph import RosGraphView, GraphNode
 
 ############################----HELPER----############################
 
@@ -44,7 +45,7 @@ def error_graph_service_with_multiple_clients(graph: RosGraphView) -> list[str]:
     """
     Report each service that is requested by more than one client.
 
-    The Dust model models service/client forhold by instantiating a pair of one-to-one
+    The Dust-model models service/client relations by instantiating a pair of one-to-one
     topics.
     If a service is requested by multiple clients, it must be modeled using multiple
     topics. In this case, the topics will have separate buffers.
@@ -58,16 +59,11 @@ def error_graph_service_with_multiple_clients(graph: RosGraphView) -> list[str]:
 
 def error_node_has_multiple_response_callbacks_for_client(node: ros.Node) -> list[str]:
     """
-    Report each publisher that has more than one response callback assigned through
+    Report each client that has more than one response callback assigned through
     response objects.
 
-    The Dust model models service/client forhold by instantiating a pair of one-to-one
-    topics.
-    If a there would be multiple callbacks that could respond to a service, it would
-    have to be modeled using multiple topics. In that case, the topics will have separate buffers.
-
-    A violation of this constraint would result in buffer overflow checks becoming
-    invalid.
+    The Dust-model assumes fixed behavior of callbacks. As such, different responses for the same
+    client would not be possible to model. 
     """
     requests: dict[str, set[str]] = {}
     for cb in node.callbacks:
@@ -272,10 +268,12 @@ def get_interval_times(timer : ros.Timer) -> list[int]:
         wall_times.append(wt)
     return wall_times
 
+# check
 def map_data_sending(out: ds.System,
                      parent_node : ros.Node,
                      callback : ros.Callback,
-                     validations: validator.ValidationResult,
+                     system : ros.System,
+                     graph : RosGraphView,
                      interface_count : int = None,
                      interface_id_list : list[int] = None,
                      interface_release_times : list[int] = None,
@@ -316,7 +314,8 @@ def map_data_sending(out: ds.System,
                     publisher=publisher_obj,
                     topic=topic,
                     sender_id=sender_id,
-                    validations=validations
+                    system=system,
+                    graph=graph
                     )
         # else just register among publishers in template
         else:
@@ -340,23 +339,26 @@ def map_data_sending(out: ds.System,
             server_receiver_id = map_req_topic(
                     out=out,
                     client=client,
-                    sender_id=sender_id,
-                    validations=validations
+                    sender_id=sender_id
                     )
 
             # Map server-callback and topic back.
             # Must map (Topic X DataCallback X Topic) templates pr. client-server-
             # communication
-            service = client.service
+            # get ros-graph-node for server
+            server_g_node = graph[NodeType.SERVICE][client.service]
             client_receiver_id = map_server(
                     out=out,
-                    service=service,
+                    server_g_node=server_g_node,
                     receiver_id=server_receiver_id,
-                    validations=validations)
+                    system=system,
+                    graph=graph)
 
             # map client's response-callback
             # only one will exist per client, as service can only be invoked from one client
-            map_client(out=out, receiver_id=client_receiver_id, validations=validations, request=request)
+            # TODO: could do this inside function?
+            client_g_node = graph[NodeType.CLIENT][client.name]
+            map_client(out=out, receiver_id=client_receiver_id, request=request, parent_node=parent_node, graph=graph, client_g_node=client_g_node, system=system)
         else:
             # else just register among client-requests in template
             sender_id = out.get_registered_id(client.name, REQUEST)
@@ -370,11 +372,12 @@ def map_data_sending(out: ds.System,
                 out=out,
                 parent_node=parent_node,
                 callback=nested_cb,
-                validations=validations,
                 interface_count=interface_count,
                 interface_id_list=interface_id_list,
                 interface_release_times=interface_release_times,
-                wcet=wcet
+                wcet=wcet,
+                graph=graph,
+                system=system
                 )
         interface_count = call_interface_count
         interface_id_list = call_interface_id_list
@@ -382,44 +385,48 @@ def map_data_sending(out: ds.System,
         wcet = call_wcet
     return interface_count, interface_id_list, interface_release_times, wcet
 
-def map_subscriber_cb(
+def map_subscription_cb(
         out: ds.System,
         receiver_id : int,
-        callback : str,
-        topic : str,
-        validations: validator.ValidationResult
+        system : ros.System,
+        sub_g_node : GraphNode,
+        graph: RosGraphView
         ):
-    # get node-object
-    node : ros.Node = validations.objects.callback[callback]
-    callback_obj : ros.Callback = node.get_callback(callback)
+    # get subscription-object
+    parent_node = system.get_node(sub_g_node.parent.name)
+    sub_obj = parent_node.get_subscription(sub_g_node.name)
+    # # get node-object
+    # subscription_g_nodes = [sub for sub in graph[NodeType.TOPIC][topic].outgoing]
+    # all_subscriptions = 
+    # node : ros.Node = validations.objects.callback[callback]
+    callback_obj : ros.Callback = parent_node.get_callback(sub_obj.callback)
     # in case more subscriptions are using same callback
-    subscriptions : list[ros.Subscription] = [
-            sub for sub in node.subscriptions if sub.callback == callback]
-    for subscription in subscriptions:
-        if subscription.topic == topic:
-            # get sender info
-            interface_count, interface_id_list, interface_release_times, wcet = map_data_sending(out=out, parent_node=node,
-                                                                callback=callback_obj,validations=validations)
-            # create callback
-            cb_id = out.get_cb_id(validations.objects.node[node.name].name, subscription.name)
-            out.add_data_callback(id= cb_id,
-                                  exec_time=wcet,
-                                  topicID=receiver_id,
-                                  type=SUBSCRIBER,
-                                  buffersize=subscription.qos.depth,
-                                  amount_of_publishers=interface_count,
-                                  publisher_release_time=interface_release_times,
-                                  publisher_id=interface_id_list,
-                                  executorID= out.get_exe_register_id(node.name),
-                                  name=subscription.name
-                                  )
+    # subscriptions : list[ros.Subscription] = [
+    #         sub for sub in node.subscriptions if sub.callback == callback]
+
+    #if subscription.topic == topic:
+        # get sender info
+    interface_count, interface_id_list, interface_release_times, wcet = map_data_sending(out=out, parent_node=parent_node,
+                                                        callback=callback_obj, graph=graph, system=system)
+    # create callback
+    cb_id = out.get_cb_id(sub_g_node.parent.parent.name, sub_g_node.name)
+    out.add_data_callback(id= cb_id,
+                          exec_time=wcet,
+                          topicID=receiver_id,
+                          type=SUBSCRIBER,
+                          buffersize=sub_obj.qos.depth,
+                          amount_of_publishers=interface_count,
+                          publisher_release_time=interface_release_times,
+                          publisher_id=interface_id_list,
+                          executorID= out.get_exe_register_id(parent_node.name),
+                          name=sub_obj.name
+                          )
 
 # maps topic from client to server
 def map_req_topic(
         out : ds.System,
         client : ros.Client,
         sender_id : int,
-        validations : validator.ValidationResult
         ) -> int:
     # id for requesting from client to server-callback
     receiver_id = out.gen_id(RECEIVER) # TODO: make avoid duplicates?
@@ -436,37 +443,42 @@ def map_req_topic(
 # maps server-callback and "topic" from client to server
 def map_server(
         out: ds.System,
-        service : str,
+        server_g_node: GraphNode,
         receiver_id : int,
-        validations: validator.ValidationResult
+        graph: RosGraphView,
+        system: ros.System
         ) -> int:
     ### UPPAAL-DataCallback in server ###
     # id for sending back to client
     sender_id = out.gen_id(SENDER) # TODO: avoid redundancies here, maybe?
-    server_callback = validations.interfaces['services offered'][service][0] 
-    server_node : ros.Node = validations.objects.callback[server_callback]
-    server_callback_object = server_node.get_callback(server_callback)
-    server = server_node.get_service(service)
+    parent_node = system.get_node(server_g_node.parent.name)
+    service = parent_node.get_service(server_g_node.name)
+    server_callback_object = parent_node.get_callback(service.callback)
+    # server_callback_object = parent_node.get_callback(server_g_node.name)
+
+    # server_callback = validations.interfaces['services offered'][service][0] 
+    # server_node : ros.Node = validations.objects.callback[server_callback]
+    # server = parent_node.get_service(service)
 
     # get publishing-info (response to client included)
-    interface_count, interface_id_list, interface_release_times, wcet = map_data_sending(out=out, parent_node=server_node,
-                                                        callback=server_callback_object,validations=validations, interface_count=1,
+    interface_count, interface_id_list, interface_release_times, wcet = map_data_sending(out=out, parent_node=parent_node,
+                                                        callback=server_callback_object, interface_count=1,
                                                         interface_id_list=[sender_id],
-                                                        interface_release_times=[server_callback_object.wcet])
+                                                        interface_release_times=[server_callback_object.wcet], graph=graph, system=system)
 
 
     # create data-callback for sending back to client (upon receiving request)
-    cb_id = out.get_cb_id(validations.objects.node[server_node.name].name, service)
+    cb_id = out.get_cb_id(server_g_node.parent.parent.name, service.name)
     out.add_data_callback(id=cb_id,
                           exec_time=wcet,
                           topicID=receiver_id,
                           type=SERVICE,
-                          buffersize=server.qos.depth,
+                          buffersize=service.qos.depth,
                           amount_of_publishers=interface_count,
                           publisher_release_time=interface_release_times,
                           publisher_id=interface_id_list,
-                          executorID=out.get_exe_register_id(server_node.name),
-                          name=service)
+                          executorID=out.get_exe_register_id(parent_node.name),
+                          name=service.name)
     
     ### UPPAAL-Topic back from server to client ###
     # needs additional receiver_id for this
@@ -477,7 +489,7 @@ def map_server(
                   sender_id=sender_id,
                   delay=0,
                   max_jitter=0,
-                  buffersize=server.qos.depth)
+                  buffersize=service.qos.depth)
                   #TODO: add docs that they are same to github-repo
     return receiver_id
 
@@ -485,16 +497,18 @@ def map_server(
 def map_client(
         out: ds.System,
         request : ros.Request,
+        parent_node : ros.Node,
+        client_g_node : GraphNode,
         receiver_id : int,
-        validations: validator.ValidationResult
+        graph: RosGraphView,
+        system: ros.System
         ):
-    parent_node = validations.objects.callback[request.response]
     client_obj = parent_node.get_client(request.client)
     client_callback = parent_node.get_callback(request.response)
-    interface_count, interface_id_list, interface_release_times, wcet = map_data_sending(out=out, parent_node=validations.objects.callback[client_callback.name],
-                                                        callback=client_callback,validations=validations)
+    interface_count, interface_id_list, interface_release_times, wcet = map_data_sending(out=out, parent_node=parent_node,
+                                                        callback=client_callback, graph=graph, system=system)
     # add callback for client (upon receiving back from server)
-    cb_id = out.get_cb_id(validations.objects.node[parent_node.name].name, client_obj.name)
+    cb_id = out.get_cb_id(client_g_node.parent.parent.name, client_obj.name)
     out.add_data_callback(id=cb_id,
                           exec_time=wcet,
                           topicID=receiver_id,
@@ -512,7 +526,8 @@ def map_topic(
         publisher : ros.Publisher,
         topic : str,
         sender_id : int,
-        validations: validator.ValidationResult) -> None:
+        graph: RosGraphView,
+        system : ros.System) -> None:
 
     # If subscribers for this topic hasn't been made already:
     if not out.has_id(topic, SUB):
@@ -520,14 +535,30 @@ def map_topic(
         # get receiver_id from register
         receiver_id = out.get_registered_id(topic, SUB)
         # map subscribers:   
-        # same callback can be here twice -> make it a set!!
-        for callback in set(validations.interfaces['topics subscribed to'][topic]):
-            map_subscriber_cb(
-                    out=out,
-                    receiver_id=receiver_id,
-                    topic=topic,
-                    callback=callback,
-                    validations=validations)
+        sub_g_nodes = [sub for sub in graph[NodeType.TOPIC][topic].outgoing]
+        for sub in sub_g_nodes:
+            map_subscription_cb(out=out,
+                                receiver_id=receiver_id,
+                                system=system,
+                                sub_g_node=sub, 
+                                graph=graph)
+
+
+        # # same callback can be here twice -> make it a set!!
+        # #for callback in set(validations.interfaces['topics subscribed to'][topic]):
+        #     # map_subscriber_cb(
+        #     #         out=out,
+        #     #         receiver_id=receiver_id,
+        #     #         topic=topic,
+        #     #         callback=callback,
+        #     #         subscription=sub,
+        #     #         validations=validations,
+        #     #         graph=graph)
+        # map_subscription_cbs(
+        #              out=out,
+        #              receiver_id=receiver_id,
+        #              topic=topic,
+        #              graph=graph)
     else: 
         receiver_id = out.get_registered_id(topic, SUB)
     out.add_topic(receiver_id=receiver_id,
@@ -536,13 +567,16 @@ def map_topic(
                   max_jitter=0,
                   buffersize=publisher.qos.depth)
 
-def map_node(out: ds.System, node: ros.Node, validations: validator.ValidationResult):
+def map_node(out: ds.System, node: ros.Node, system: ros.System, graph: RosGraphView):
+    # get name of owning executor to fetch cb_id below
+    node_graph_node = graph[NodeType.NODE][node.name]
+    exe_name = node_graph_node.parent.name
     # case 1) timers
     for timer in node.timers:
         timer_cb = node.get_callback(timer.callback)
         interface_count, interface_id_list, interface_release_times, wcet = map_data_sending(out=out, parent_node=node,
-                                                        callback=timer_cb,validations=validations)
-        cb_id = out.get_cb_id(validations.objects.node[node.name].name, timer.name)
+                                                        callback=timer_cb, system=system, graph=graph)
+        cb_id = out.get_cb_id(exe_name, timer.name)
         if timer.end is not None: # ( end=0 okay)
             # convert interval to list of release-times
             wt = get_interval_times(timer)
@@ -577,8 +611,8 @@ def map_node(out: ds.System, node: ros.Node, validations: validator.ValidationRe
         if service.wall_times:
             service_callback = node.get_callback(service.callback)
             interface_count, interface_id_list, interface_release_times, wcet = map_data_sending(out=out, parent_node=node,
-                                                        callback=service_callback,validations=validations)
-            cb_id = out.get_cb_id(validations.objects.node[node.name].name, service.name)
+                                                        callback=service_callback, graph=graph, system=system)
+            cb_id = out.get_cb_id(exe_name, service.name)
             out.add_sporadic_callback(id=cb_id,
                                       exec_time=wcet,
                                       length=len(service.wall_times),
@@ -596,8 +630,8 @@ def map_node(out: ds.System, node: ros.Node, validations: validator.ValidationRe
         if subscription.wall_times:
             subscription_callback = node.get_callback(subscription.callback)
             interface_count, interface_id_list, interface_release_times, wcet = map_data_sending(out=out, parent_node=node,
-                                                        callback=subscription_callback,validations=validations)
-            cb_id = out.get_cb_id(validations.objects.node[node.name].name, subscription.name)
+                                                        callback=subscription_callback, graph=graph, system=system)
+            cb_id = out.get_cb_id(exe_name, subscription.name)
             out.add_sporadic_callback(id=cb_id,
                                       exec_time=wcet,
                                       length=len(subscription.wall_times),
@@ -658,10 +692,10 @@ def map_executor(out: ds.System, executor: ros.Executor) -> None:
             client_id+=1
 
 def map_system(
-        system: ros.System,
-        validations : validator.ValidationResult
+        system: ros.System
         ) -> ds.System:
     out = ds.System(system.name)
+    graph = RosGraphView(system)
     # first map all executors
     for host in system.hosts:
         for executor in host.executors:
@@ -670,7 +704,7 @@ def map_system(
     for host in system.hosts:
         for executor in host.executors:
             for node in executor.nodes:
-                map_node(out=out,node=node,validations=validations)
+                map_node(out=out,node=node, system=system, graph=graph)
                 # TODO: maybe other name
     return out
 
@@ -679,15 +713,15 @@ def map_system(
 # TODO: this could maybe become common interface for our adapters?
 def transform_system(system: ros.System) -> tuple[list[str] | ds.System, list[str]]:
 
-    valerr, valwarn = validator.validate_system(system)
-    if valerr != []:
+    feedback = validator.validate_system(system)
+    if feedback.errors != []:
         return (["System is not well formed, cannot start transformation. \
-                 Validation feedback:"] + valerr, valwarn)
+                 Validation feedback:"] + feedback.errors, feedback.warnings)
 
-    errors, warnings = validate_system(system)
-    warnings = valwarn + warnings
+    dust_feedback = validate_system(system)
+    warnings = dust_feedback.warnings + feedback.warnings
 
-    if errors != []:
-        return errors, warnings
+    if dust_feedback.errors != []:
+        return dust_feedback.errors, warnings
 
     return map_system(system), warnings
