@@ -6,8 +6,8 @@ System:
   default_time_unit: 'milliseconds'
   hosts:
   - host: host_1
-    operating_system: windows 97
-    architecture: i8
+    operating_system: windows
+    architecture: amd64
     default_distribution: Eloquent
     default_qos: {reliability: reliable}
     executors:
