@@ -2,6 +2,9 @@ import roserer.yamlParser as yparser
 from tests.input.yaml_parser.parse_system_maps_correctly import sys as expected_sys
 import pytest
 import roserer.ros2system as ros
+from roserer.types import (
+        EXECUTOR, DISTRIBUTION, ARCHITECTURE, OPERATING_SYSTEM, DDS_IMPLEMENTATION,
+        TimeUnit)
 
 def test_parse_system_maps_correctly() -> None:
     """ 
@@ -63,16 +66,16 @@ def test_validate_attributes_invalid_attributes_caught() -> None:
 
 
 parse_time_unit__valid = [
-        ('ns', ros.TimeUnit.NANOSECONDS),
-        ('nanoseconds', ros.TimeUnit.NANOSECONDS),
-        ('us', ros.TimeUnit.MICROSECONDS),
-        ('microseconds', ros.TimeUnit.MICROSECONDS),
-        ('ms', ros.TimeUnit.MILLISECONDS),
-        ('milliseconds', ros.TimeUnit.MILLISECONDS),
-        ('sec', ros.TimeUnit.SECONDS),
-        ('seconds', ros.TimeUnit.SECONDS),
-        ('min', ros.TimeUnit.MINUTES),
-        ('minutes', ros.TimeUnit.MINUTES)
+        ('ns', TimeUnit.NANOSECONDS),
+        ('nanoseconds', TimeUnit.NANOSECONDS),
+        ('us', TimeUnit.MICROSECONDS),
+        ('microseconds', TimeUnit.MICROSECONDS),
+        ('ms', TimeUnit.MILLISECONDS),
+        ('milliseconds', TimeUnit.MILLISECONDS),
+        ('sec', TimeUnit.SECONDS),
+        ('seconds', TimeUnit.SECONDS),
+        ('min', TimeUnit.MINUTES),
+        ('minutes', TimeUnit.MINUTES)
         ]
 @pytest.mark.parametrize("input,exp_enum", parse_time_unit__valid)
 def test_validate_time_unit_enums_created(input, exp_enum)-> None:

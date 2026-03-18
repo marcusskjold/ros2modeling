@@ -1,22 +1,23 @@
 import roserer.ros2system as ros
 import roserer.qos as qos
+import roserer.types as typ
 
 sys = ros.System(name='test_parse_system_maps_correctly',
-                 dds_implementation='FastDDS',
+                 dds_implementation=typ.DDS_IMPLEMENTATION.Fast,
                  default_qos={'history': 'keep_all'},
-                 default_distribution='Humble',
-                 default_time_unit=ros.TimeUnit.MILLISECONDS
+                 default_distribution=typ.DISTRIBUTION.Humble,
+                 default_time_unit=typ.TimeUnit.MILLISECONDS
                  )
 
 host = sys.add_host(name='host_1',
-                    operating_system='windows 97',
-                    architecture='i8',
+                    operating_system=typ.OPERATING_SYSTEM.Windows,
+                    architecture=typ.ARCHITECTURE.amd64,
                     default_qos={'reliability': 'reliable'},
-                    default_distribution='Eloquent')
+                    default_distribution=typ.DISTRIBUTION.Eloquent)
 
 executor = host.add_executor(name='exe_1',
-                  implementation='SingleThreadedExecutor',
-                  ros_distribution='Humble',
+                  implementation=typ.EXECUTOR.SingleThreadedExecutor,
+                  ros_distribution=typ.DISTRIBUTION.Humble,
                   default_qos={'durability': 'volatile'}
                   )
 

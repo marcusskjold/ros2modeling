@@ -1,6 +1,9 @@
 import roserer.ros2system as ros
 # from roserer.qos import QoS
 from ruamel.yaml import YAML
+from roserer.types import (
+        EXECUTOR, DISTRIBUTION, ARCHITECTURE, OPERATING_SYSTEM, DDS_IMPLEMENTATION,
+        TimeUnit)
 
 VALID_ATTRIBUTES = {
     'system' : ['system', 'dds_implementation', 'default_qos', 'default_distribution', 'default_time_unit', 'hosts'],
@@ -199,13 +202,64 @@ def parse_nodes(ros_executor: ros.Executor, yaml_nodes: dict) -> None:
             yaml_services = node['services']
             parse_services(ros_node, yaml_services)
 
+def parse_distribution(dist : str) -> DISTRIBUTION:
+        """
+        Helper for converting ros-distribution to corresponding enum
+        """
+        match dist.lower():
+            case 'kilted' | 'kilted kaiju':
+                return DISTRIBUTION.Kilted
+            case 'jazzy' | 'jazzy jalisco':
+                return DISTRIBUTION.Jazzy
+            case 'iron' | 'iron irwini':
+                return DISTRIBUTION.Iron
+            case 'humble' | 'humble hawksbill':
+                return DISTRIBUTION.Humble
+            case 'galactic' | 'galactic geochelone':
+                return DISTRIBUTION.Galactic
+            case 'foxy' | 'foxy fitzroy':
+                return DISTRIBUTION.Foxy
+            case 'eloquent' | 'eloquent elusor':
+                return DISTRIBUTION.Eloquent
+            case 'dashing' | 'dashing diademata':
+                return DISTRIBUTION.Dashing
+            case 'crystal' | 'crystal clemmys':
+                return DISTRIBUTION.Crystal
+            case 'bouncy' | 'bouncy bolson':
+                return DISTRIBUTION.Bouncy
+            case 'ardent' | 'ardent apalone':
+                return DISTRIBUTION.Ardent
+            case _:
+                raise ValueError(f"Unspecified distribution chosen. Choose among the following: "
+                                 f"{[dist.name for dist in DISTRIBUTION]}."
+                                 f"Or don't specify at all")
 
 #recursively call this with current ros-object and current part of yaml-dict
 def parse_executors(ros_host: ros.Host, yaml_execs: dict) -> None:
+    def parse_implementation(impl : str) -> EXECUTOR:
+        """
+        Helper for converting executor-implementation to corresponding enum
+        """
+        match impl.lower():
+            case 'singlethreadedexecutor':
+                return EXECUTOR.SingleThreadedExecutor
+            case 'multithreadedexecutor':
+                return EXECUTOR.MultiThreadedExecutor
+            case 'staticsinglethreadedexecutor':
+                return EXECUTOR.StaticSingleThreadedExecutor
+            case 'eventsexecutor':
+                return EXECUTOR.EventsExecutor
+            case _:
+                raise ValueError(f"Unspecified executor-version chosen. Choose among the following: "
+                                 f"{[i.name for i in EXECUTOR]}.")
     for executor in yaml_execs:
         validate_yaml_attributes("executor", executor)
         exec_args = {k: executor[k] for k in executor.keys() 
-                     & {'ros_distribution','implementation', 'default_qos'}}
+                     & {'default_qos'}}
+        if 'implementation' in executor:
+            exec_args['implementation'] = parse_implementation(executor['implementation'])
+        if 'ros_distribution' in executor:
+            exec_args['ros_distribution'] = parse_distribution(executor['ros_distribution'])
         if 'executor' in executor:
             exec_args['name'] = executor['executor']
         ros_executor = ros_host.add_executor(**exec_args)
@@ -214,13 +268,54 @@ def parse_executors(ros_host: ros.Host, yaml_execs: dict) -> None:
 
 
 def parse_hosts(ros_system: ros.System, yaml_hosts: dict) -> None:
+    def parse_operating_system(os : str) -> OPERATING_SYSTEM:
+        """
+        Helper for converting operating system to corresponding enum
+        """
+        match os.lower():
+            case 'windows':
+                return OPERATING_SYSTEM.Windows
+            case 'debian':
+                return OPERATING_SYSTEM.Debian
+            case 'macos' | 'mac' | 'mac_os':
+                return OPERATING_SYSTEM.MacOS
+            case 'ubuntu':
+                return OPERATING_SYSTEM.Ubuntu
+            case 'openembedded' | "open_embedded":
+                return OPERATING_SYSTEM.OpenEmbedded
+            case 'rtlinuxkernel' | 'rt_linux_kernel':
+                return OPERATING_SYSTEM.RTLinuxKernel
+            case _:
+                raise ValueError(f"Unspecified operating system chosen. Choose among the following: "
+                                 f"{[o.name for o in OPERATING_SYSTEM]}."
+                                 f"Or don't specify at all")
+    def parse_architecture(arc : str) -> ARCHITECTURE:
+        """
+        Helper for converting architecture to corresponding enum
+        """
+        match arc.lower():
+            case 'amd64':
+                return ARCHITECTURE.amd64
+            case 'arm64':
+                return ARCHITECTURE.arm64
+            case 'arm32':
+                return ARCHITECTURE.arm32
+            case _:
+                raise ValueError(f"Unspecified architecture chosen. Choose among the following: "
+                                 f"{[ar.name for ar in ARCHITECTURE]}."
+                                 f"Or don't specify at all")
     for host in yaml_hosts:
         # checks that all attributes are valid
         validate_yaml_attributes("host", host)
         #conditionally populating arguments for adding host
         host_args = {k: host[k] for k in host.keys()
-                     & {'operating_system', 'architecture', 
-                        'default_qos', 'default_distribution'}}
+                     & {'default_qos'}}
+        if 'operating_system' in host:
+            host_args['operating_system'] = parse_operating_system(host['operating_system'])
+        if 'architecture' in host:
+            host_args['architecture'] = parse_architecture(host['architecture'])
+        if 'default_distribution' in host:
+            host_args['default_distribution'] = parse_distribution(host['default_distribution'])
         #change key 'name' to 'host'
         if 'host' in host:
             host_args['name'] = host['host']
@@ -231,28 +326,54 @@ def parse_hosts(ros_system: ros.System, yaml_hosts: dict) -> None:
         yaml_executors = host['executors']
         parse_executors(ros_host, yaml_executors)
 
-
-#helper-method for correctly parsing default_time_unit
-def parse_time_unit(unit : str) -> ros.TimeUnit:
-    match unit:
+    #helper-method for correctly parsing default_time_unit
+def parse_time_unit(unit : str) -> TimeUnit:
+    """
+    Helper for converting default-time-unit to corresponding enum
+    """
+    match unit.lower():
         case 'nanoseconds' | 'ns':
-            return ros.TimeUnit.NANOSECONDS
+            return TimeUnit.NANOSECONDS
         case 'microseconds' | 'us':
-            return ros.TimeUnit.MICROSECONDS
+            return TimeUnit.MICROSECONDS
         case 'milliseconds' | 'ms':
-            return ros.TimeUnit.MILLISECONDS
+            return TimeUnit.MILLISECONDS
         case 'seconds' | 'sec':
-            return ros.TimeUnit.SECONDS
+            return TimeUnit.SECONDS
         case 'minutes' | 'min':
-            return ros.TimeUnit.MINUTES
+            return TimeUnit.MINUTES
         case _:
             raise ValueError(f"Unspecified timeunit chosen. Choose among the following: "
-                             f"{VALID_TIME_UNITS}.")
+                             f"{VALID_TIME_UNITS}."
+                             f"Or don't specify at all")
 
 def parse_system(yaml_system: dict) -> ros.System: 
+
+    def parse_dds(dds : str) -> DDS_IMPLEMENTATION:
+        """
+        Helper for converting dds-implementation to corresponding enum
+        """
+        match dds.lower():
+            case 'cyclone' | 'cyclonedds' | 'cyclone_dds':
+                return DDS_IMPLEMENTATION.Cyclone
+            case 'fast' | 'fastdds' | 'fast_dds':
+                return DDS_IMPLEMENTATION.Fast
+            case 'connext' | 'rticonnext' | 'rti_connext':
+                return DDS_IMPLEMENTATION.Connext
+            case 'gurum' | 'gurumdds' | 'gurum_dds':
+                return DDS_IMPLEMENTATION.Gurum
+            case _:
+                raise ValueError(f"Unspecified dds-implementation chosen. Choose among the following: "
+                                 f"{[dd.name for dd in DDS_IMPLEMENTATION]}."
+                                 f"Or don't specify at all")
+
     validate_yaml_attributes("system", yaml_system)
     system_args = {k: yaml_system[k] for k in yaml_system.keys()
-                   & {'dds_implementation', 'default_qos', 'default_distribution'}}
+                   & {'default_qos'}}
+    if 'dds_implementation' in yaml_system:
+        system_args['dds_implementation'] = parse_dds(yaml_system['dds_implementation'])
+    if 'default_distribution' in yaml_system:
+        system_args['default_distribution'] = parse_distribution(yaml_system['default_distribution'])
     if 'default_time_unit' in yaml_system:
         system_args['default_time_unit'] = parse_time_unit(yaml_system['default_time_unit'])
     if 'system' in yaml_system:
