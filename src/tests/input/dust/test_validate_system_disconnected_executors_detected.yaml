@@ -46,13 +46,13 @@ System:
         - publisher: pub_1
           topic: topic_1
         timers:
-        - timer: timer_1
+        - timer: timer_2
           callback: cb_4
           period: 10
 
     - executor: exe_4
       nodes:
-      - node: node_3
+      - node: node_4
         callbacks:
         - callback: cb_5
           wcet: 5
