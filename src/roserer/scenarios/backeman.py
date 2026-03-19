@@ -1,3 +1,4 @@
+import pytest
 import roserer.ros2system as ros
 from roserer.ros2system import EXECUTOR, DISTRIBUTION
 from roserer.patterns.backeman import (
@@ -44,7 +45,90 @@ def backeman_ss_scenario() -> ros.System:
     add_datagenerator(e, "SENSOR2", 20, 360, 0)
     add_subscriber(e, "FILTER1", 10, "SENSOR1")
     add_subscriber(e, "FILTER2", 20, "SENSOR2")
-    add_subscriber(e, "FUSION1", 30, "FILTER1", ["FILTER2"], [30])
+    add_subscriber(e, "FUSION1", 30, "FILTER1", ["SENSOR1"], [30])
     add_subscriber(e, "FILTER3", 30, "FUSION1")
     add_subscriber(e, "ACTUATOR1", 30, "FILTER3")
     return s
+
+def backeman_ss_scenario_erroneous() -> ros.System:
+    load_dotenv()
+    s, e = new_default_backeman_system("backeman_ss")
+
+    add_datagenerator(e, "SENSOR1", 10, 360, 0)
+    add_datagenerator(e, "SENSOR2", 20, 360, 0)
+    add_subscriber(e, "FILTER1", 10, "SENSOR1")
+    add_subscriber(e, "FILTER2", 20, "SENSOR2")
+    add_subscriber(e, "FUSION1", 30, "SENSOR1", ["SENSOR2"], [30])
+    add_subscriber(e, "FILTER3", 30, "FUSION1")
+    add_subscriber(e, "ACTUATOR1", 30, "FILTER3")
+    return s
+
+def backeman_linear() -> ros.System:
+    load_dotenv()
+    s, e = new_default_backeman_system("backeman_linear")
+
+    add_datagenerator(e, "SENSOR1", 1, 5, 0)
+    add_subscriber(e, "FILTER1", 1, "SENSOR1")
+    add_subscriber(e, "ACTUATOR1", 3, "FILTER1")
+    return s
+
+def backeman_linear_mistake() -> ros.System:
+    load_dotenv()
+    s, e = new_default_backeman_system("backeman_linear")
+
+    add_datagenerator(e, "SENSOR1", 1, 5, 0)
+    add_subscriber(e, "FILTER1", 1, "SENSOR1")
+    add_subscriber(e, "ACTUATOR1", 3, "SENSOR1")
+    return s
+
+def backeman_ss_scenario_variant() -> ros.System:
+    load_dotenv()
+    s, e = new_default_backeman_system("backeman_ss")
+
+    add_datagenerator(e, "SENSOR1", 10, 230, 0)
+    add_datagenerator(e, "SENSOR2", 20, 220, 0)
+    add_subscriber(e, "FILTER1", 10, "SENSOR1")
+    add_subscriber(e, "FILTER2", 20, "SENSOR2")
+    add_subscriber(e, "FUSION1", 50, "FILTER1", ["FILTER2"], [50])
+    add_subscriber(e, "FILTER3", 30, "FUSION1")
+    add_subscriber(e, "ACTUATOR1", 30, "FILTER3")
+    return s
+
+def backeman_ss_scenario_variant_erroneous() -> ros.System:
+    load_dotenv()
+    s, e = new_default_backeman_system("backeman_ss")
+
+    add_datagenerator(e, "SENSOR1", 10, 230, 0)
+    add_datagenerator(e, "SENSOR2", 20, 220, 0)
+    add_subscriber(e, "FILTER1", 10, "SENSOR1")
+    add_subscriber(e, "FILTER2", 20, "SENSOR2")
+    add_subscriber(e, "FUSION1", 50, "FILTER1", ["SENSOR2"], [50])
+    add_subscriber(e, "FILTER3", 30, "FUSION1")
+    add_subscriber(e, "ACTUATOR1", 30, "FILTER3")
+    return s
+
+# def backeman_ss_scenario_variant() -> ros.System:
+#     load_dotenv()
+#     s, e = new_default_backeman_system("backeman_ss")
+#
+#     add_datagenerator(e, "SENSOR1", 10, 230, 0)
+#     add_datagenerator(e, "SENSOR2", 20, 220, 0)
+#     add_subscriber(e, "FILTER1", 10, "SENSOR1")
+#     add_subscriber(e, "FILTER2", 20, "SENSOR2")
+#     add_subscriber(e, "FUSION1", 50, "FILTER1", ["FILTER2"], [50])
+#     add_subscriber(e, "FILTER3", 30, "FUSION1")
+#     add_subscriber(e, "ACTUATOR1", 30, "FILTER3")
+#     return s
+#
+# def backeman_ss_scenario_variant_erroneous() -> ros.System:
+#     load_dotenv()
+#     s, e = new_default_backeman_system("backeman_ss")
+#
+#     add_datagenerator(e, "SENSOR1", 10, 230, 0)
+#     add_datagenerator(e, "SENSOR2", 20, 220, 0)
+#     add_subscriber(e, "FILTER1", 10, "SENSOR1")
+#     add_subscriber(e, "FILTER2", 20, "SENSOR2")
+#     add_subscriber(e, "FUSION1", 50, "FILTER1", ["FILTER2"], [50])
+#     add_subscriber(e, "FILTER3", 30, "SENSOR2")
+#     add_subscriber(e, "ACTUATOR1", 30, "FILTER3")
+#     return s
