@@ -1,9 +1,11 @@
 import logging
 import pytest
 from roserer.types import OPERATING_SYSTEM, DISTRIBUTION, EXECUTOR, DDS_IMPLEMENTATION
+from roserer.printers.graph_printer import GraphDrawer
 import roserer.experiments.backeman as be
 import roserer.experiments.experimenter as exp
 import roserer.scenarios.backeman as bs
+from roserer.systemvalidator import validate_system
 import roserer.ros2system as ros
 from functools import partial
 from dotenv import load_dotenv
@@ -63,7 +65,6 @@ def gen_backeman_ss_manual() -> ros.System:
 
     return system
 
-@pytest.mark.skip()
 def test_backeman_scenarios_are_equivalent() -> None:
 
     pattern = bs.backeman_ss_scenario()
@@ -86,6 +87,9 @@ def scenario_backeman_ss() -> None:
     assert result == 540
 
 def scenario_backeman_ss_erroneous() -> None:
+    """
+    Even though this system is erroneous, the results are the same as the correct version.
+    """
     from dotenv import load_dotenv
     load_dotenv()
 
@@ -97,52 +101,39 @@ def scenario_backeman_ss_erroneous() -> None:
     # See Backeman & Seceleanu (2025) Table 3 (p.310)
     assert result == 540
 
-@pytest.mark.skip()
-def scenario_backeman_linear() -> None:
-    from dotenv import load_dotenv
-    load_dotenv()
 
-    s1 = bs.backeman_linear()
-    s2 = bs.backeman_linear_mistake()
-    
-    experiment = partial(be.backeman_rt_experiment, monitor="SENSOR1", actuator="ACTUATOR1")
-    
-    result1 = exp.perform_reaction_time_experiment(s1, "backeman-ss", experiment)
-    result2 = exp.perform_reaction_time_experiment(s2, "backeman-ss", experiment)
-    # See Backeman & Seceleanu (2025) Table 3 (p.310)
-    assert result1 == result2
-
-
-@pytest.mark.skip()
 def scenario_backeman_ss_variant() -> None:
+    """
+    This test shows that:
+    - The mistake found in the backeman validation cases can result in different results
+      if the system in question has different timing specification.
+    - That our validation gives a warning that would help the user discover this error.
+    - That this is made clear by the graphic representation of the systems
+    """
     from dotenv import load_dotenv
     load_dotenv()
     log = logging.getLogger(__name__)
 
 
-    s = bs.backeman_ss_scenario_variant()
+    s1 = bs.backeman_ss_scenario_variant()
+    s2 = bs.backeman_ss_scenario_variant_erroneous()
+
+    GraphDrawer(s1).save_to_file("results/variant.svg")
+    GraphDrawer(s2).save_to_file("results/erroneous.svg")
     
     experiment = partial(be.backeman_rt_experiment, monitor="SENSOR2", actuator="ACTUATOR1")
     
-    result = exp.perform_reaction_time_experiment(s, "backeman-ss", experiment)
-    log.info(result)
+    result1 = exp.perform_reaction_time_experiment(s1, "backeman-ss", experiment)
+    result2 = exp.perform_reaction_time_experiment(s2, "backeman-ss", experiment)
     # See Backeman & Seceleanu (2025) Table 3 (p.310)
-    assert result == 660
-    
-@pytest.mark.skip()
-def scenario_backeman_ss_variant_erroneous() -> None:
-    from dotenv import load_dotenv
-    load_dotenv()
+    assert result1 == 660
+    assert result2 == 650
+    assert result1 != result2
+    assert not any("[W001]: topic FILTER2 is published to, but not subscribed to" 
+                   in warn for warn in validate_system(s1).warnings)
+    assert any("[W001]: topic FILTER2 is published to, but not subscribed to"
+               in warn for warn in validate_system(s2).warnings)
 
-    s = bs.backeman_ss_scenario_variant_erroneous()
-    
-    experiment = partial(be.backeman_rt_experiment, monitor="SENSOR2", actuator="ACTUATOR1")
-    
-    result = exp.perform_reaction_time_experiment(s, "backeman-ss", experiment)
-    # See Backeman & Seceleanu (2025) Table 3 (p.310)
-    assert result == 660
-
-@pytest.mark.skip()
 def scenario_backeman_st() -> None:
     from dotenv import load_dotenv
     load_dotenv()

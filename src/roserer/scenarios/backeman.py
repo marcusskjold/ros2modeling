@@ -22,8 +22,6 @@ def new_default_backeman_system(name: str) -> tuple[ros.System, ros.Executor]:
             ros_distribution=DISTRIBUTION.Eloquent)
     return s, e
 
-
-
 def backeman_st_scenario() -> ros.System:
     load_dotenv()
     s, e = new_default_backeman_system("backeman_st")
@@ -45,7 +43,7 @@ def backeman_ss_scenario() -> ros.System:
     add_datagenerator(e, "SENSOR2", 20, 360, 0)
     add_subscriber(e, "FILTER1", 10, "SENSOR1")
     add_subscriber(e, "FILTER2", 20, "SENSOR2")
-    add_subscriber(e, "FUSION1", 30, "FILTER1", ["SENSOR1"], [30])
+    add_subscriber(e, "FUSION1", 30, "FILTER1", ["FILTER2"], [30])
     add_subscriber(e, "FILTER3", 30, "FUSION1")
     add_subscriber(e, "ACTUATOR1", 30, "FILTER3")
     return s
@@ -61,24 +59,6 @@ def backeman_ss_scenario_erroneous() -> ros.System:
     add_subscriber(e, "FUSION1", 30, "SENSOR1", ["SENSOR2"], [30])
     add_subscriber(e, "FILTER3", 30, "FUSION1")
     add_subscriber(e, "ACTUATOR1", 30, "FILTER3")
-    return s
-
-def backeman_linear() -> ros.System:
-    load_dotenv()
-    s, e = new_default_backeman_system("backeman_linear")
-
-    add_datagenerator(e, "SENSOR1", 1, 5, 0)
-    add_subscriber(e, "FILTER1", 1, "SENSOR1")
-    add_subscriber(e, "ACTUATOR1", 3, "FILTER1")
-    return s
-
-def backeman_linear_mistake() -> ros.System:
-    load_dotenv()
-    s, e = new_default_backeman_system("backeman_linear")
-
-    add_datagenerator(e, "SENSOR1", 1, 5, 0)
-    add_subscriber(e, "FILTER1", 1, "SENSOR1")
-    add_subscriber(e, "ACTUATOR1", 3, "SENSOR1")
     return s
 
 def backeman_ss_scenario_variant() -> ros.System:
@@ -108,6 +88,9 @@ def backeman_ss_scenario_variant_erroneous() -> ros.System:
     return s
 
 # def backeman_ss_scenario_variant() -> ros.System:
+#     """
+#     Another example of an error resulting in wrong system declaration
+#     """
 #     load_dotenv()
 #     s, e = new_default_backeman_system("backeman_ss")
 #
