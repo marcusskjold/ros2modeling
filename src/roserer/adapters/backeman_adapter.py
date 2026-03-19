@@ -442,7 +442,7 @@ def add_subscriber(bksystem: bk.System, node: ros.Node, chain: list[GraphNode]) 
     assert topic
 
     main_task_in_chain = rosgraph.find_in_list(chain, NodeType.CALLBACK, main_task.name)
-    if sub_tasks != [] or main_task_in_chain is None:
+    if sub_tasks == [] or main_task_in_chain is None:
         data_source = "pd"
     else:
         data_source = get_data_source_for_cb_in_chain(chain, main_task_in_chain)
