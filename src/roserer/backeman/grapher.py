@@ -91,7 +91,7 @@ class Grapher:
                 + str(i) + ") node[right] {};")
             strings.append(
                 "\\node[minimum width=4cm, anchor=east, text width=4cm] at (0," \
-                + str(i+0.5) + ") {\small " \
+                + str(i+0.5) + ") {\\small " \
                 + n + "};")
 
 

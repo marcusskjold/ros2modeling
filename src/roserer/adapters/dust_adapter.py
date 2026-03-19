@@ -274,10 +274,10 @@ def map_data_sending(out: ds.System,
                      callback : ros.Callback,
                      system : ros.System,
                      graph : RosGraphView,
-                     interface_count : int = None,
-                     interface_id_list : list[int] = None,
-                     interface_release_times : list[int] = None,
-                     wcet : int = None)-> tuple[int, list[int], list[int], int]:
+                     interface_count : int | None = None,
+                     interface_id_list : list[int] | None  = None,
+                     interface_release_times : list[int] | None = None,
+                     wcet : int | None = None)-> tuple[int, list[int], list[int], int]:
     # counter for numbers of interfaces posted to
     if interface_count is None:
         interface_count = 0
