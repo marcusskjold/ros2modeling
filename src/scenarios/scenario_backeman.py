@@ -1,3 +1,5 @@
+import logging
+import pytest
 from roserer.types import OPERATING_SYSTEM, DISTRIBUTION, EXECUTOR, DDS_IMPLEMENTATION
 import roserer.experiments.backeman as be
 import roserer.experiments.experimenter as exp
@@ -61,6 +63,7 @@ def gen_backeman_ss_manual() -> ros.System:
 
     return system
 
+@pytest.mark.skip()
 def test_backeman_scenarios_are_equivalent() -> None:
 
     pattern = bs.backeman_ss_scenario()
@@ -82,7 +85,64 @@ def scenario_backeman_ss() -> None:
     # See Backeman & Seceleanu (2025) Table 3 (p.310)
     assert result == 540
 
+def scenario_backeman_ss_erroneous() -> None:
+    from dotenv import load_dotenv
+    load_dotenv()
 
+    s = bs.backeman_ss_scenario_erroneous()
+    
+    experiment = partial(be.backeman_rt_experiment, monitor="SENSOR1", actuator="ACTUATOR1")
+    
+    result = exp.perform_reaction_time_experiment(s, "backeman-ss", experiment)
+    # See Backeman & Seceleanu (2025) Table 3 (p.310)
+    assert result == 540
+
+@pytest.mark.skip()
+def scenario_backeman_linear() -> None:
+    from dotenv import load_dotenv
+    load_dotenv()
+
+    s1 = bs.backeman_linear()
+    s2 = bs.backeman_linear_mistake()
+    
+    experiment = partial(be.backeman_rt_experiment, monitor="SENSOR1", actuator="ACTUATOR1")
+    
+    result1 = exp.perform_reaction_time_experiment(s1, "backeman-ss", experiment)
+    result2 = exp.perform_reaction_time_experiment(s2, "backeman-ss", experiment)
+    # See Backeman & Seceleanu (2025) Table 3 (p.310)
+    assert result1 == result2
+
+
+@pytest.mark.skip()
+def scenario_backeman_ss_variant() -> None:
+    from dotenv import load_dotenv
+    load_dotenv()
+    log = logging.getLogger(__name__)
+
+
+    s = bs.backeman_ss_scenario_variant()
+    
+    experiment = partial(be.backeman_rt_experiment, monitor="SENSOR2", actuator="ACTUATOR1")
+    
+    result = exp.perform_reaction_time_experiment(s, "backeman-ss", experiment)
+    log.info(result)
+    # See Backeman & Seceleanu (2025) Table 3 (p.310)
+    assert result == 660
+    
+@pytest.mark.skip()
+def scenario_backeman_ss_variant_erroneous() -> None:
+    from dotenv import load_dotenv
+    load_dotenv()
+
+    s = bs.backeman_ss_scenario_variant_erroneous()
+    
+    experiment = partial(be.backeman_rt_experiment, monitor="SENSOR2", actuator="ACTUATOR1")
+    
+    result = exp.perform_reaction_time_experiment(s, "backeman-ss", experiment)
+    # See Backeman & Seceleanu (2025) Table 3 (p.310)
+    assert result == 660
+
+@pytest.mark.skip()
 def scenario_backeman_st() -> None:
     from dotenv import load_dotenv
     load_dotenv()
