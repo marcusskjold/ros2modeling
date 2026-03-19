@@ -1,3 +1,4 @@
+import logging
 from roserer.types import NodeType
 from roserer.rosgraph import GraphNode, RosGraphView
 
@@ -169,7 +170,7 @@ def test_graphnode_contract_base() -> None:
     assert n3.incoming == [n2]
     assert c1.parent == n2
     n2.contract()
-    assert p1.children == [n1]
+    assert p1.children == [n1, c1]
     assert n1.outgoing == [n3]
     assert n1.incoming == [c1]
     assert n3.incoming == [n1]
@@ -219,8 +220,8 @@ def test_graphnode_contract_source_or_sink_containers_are_linked() -> None:
     n1.contract()
     n3.contract()
     assert p1.children == []
-    assert p1.incoming == [n2]
-    assert p1.outgoing == []
+    assert p1.incoming == []
+    assert p1.outgoing == [n2]
     assert p2.children == [n2]
     assert p2.incoming == []
     assert p2.outgoing == []
@@ -229,3 +230,67 @@ def test_graphnode_contract_source_or_sink_containers_are_linked() -> None:
     assert n3.outgoing == []
     assert n2.incoming == [p1]
     assert n2.outgoing == [p3]
+
+def test_graphnode_contract_parent() -> None:
+    p1 = GraphNode("parent1", NodeType.NODE)
+    n1 = GraphNode("node1", NodeType.CALLBACK, p1)
+
+    log = logging.getLogger(__name__)
+    log.debug(str(p1))
+    log.debug(str(n1))
+    p1.contract()
+    log.debug(str(p1))
+    log.debug(str(n1))
+    assert n1.parent is None 
+
+def test_graphnode_contract_grandparent() -> None:
+    g1 = GraphNode("grandparent1", NodeType.NODE)
+    p1 = GraphNode("parent1", NodeType.NODE, g1)
+    n1 = GraphNode("node1", NodeType.CALLBACK, p1)
+    p1.contract()
+    g1.contract()
+    assert n1.parent is None 
+
+def test_graphnode_contract_grandparent_inherits_from_children() -> None:
+    g1 = GraphNode("grandparent1", NodeType.NODE)
+    p1 = GraphNode("parent1", NodeType.NODE, g1)
+    n1 = GraphNode("node1", NodeType.CALLBACK, p1)
+    g2 = GraphNode("grandparent2", NodeType.NODE)
+    p2 = GraphNode("parent2", NodeType.NODE, g2)
+    n2 = GraphNode("node2", NodeType.CALLBACK, p2)
+    n1.add_edge_to(n2)
+    
+    p1.contract()
+    p2.contract()
+    n1.contract()
+    n2.contract()
+    assert g1.outgoing == [g2]
+
+def test_graphnode_contract_common_ancestor() -> None:
+    g1 = GraphNode("grandparent1", NodeType.NODE)
+    p1 = GraphNode("parent1", NodeType.NODE, g1)
+    n1 = GraphNode("node1", NodeType.NODE, p1)
+    p2 = GraphNode("parent2", NodeType.NODE, g1)
+    n2 = GraphNode("node2", NodeType.NODE, p2)
+
+    p3 = GraphNode("parent3", NodeType.NODE)
+    n3 = GraphNode("node3", NodeType.NODE, p3)
+    n1.add_edge_to(n2)
+    n2.add_edge_to(n3)
+    
+    p2.contract()
+    n2.contract()
+    p1.contract()
+
+    assert g1.outgoing == []
+    assert g1.incoming == []
+    assert g1.children == [n1]
+
+    assert n1.parent == g1
+    assert n1.incoming == []
+    assert n1.outgoing == [n3]
+
+    assert n3.parent == p3
+    assert n3.incoming == [n1]
+    assert n3.outgoing == []
+
