@@ -63,6 +63,14 @@ class GraphNode:
         else:
             return False
 
+    def ancestor_of(self, other: GraphNode) -> bool:
+        otherparent = other.parent
+        while otherparent is not None:
+            if otherparent == self:
+                return True
+            otherparent = otherparent.parent
+        return False
+
     def weakly_connected_with(self) -> list[GraphNode]:
             visited = []
             def visit(node: GraphNode):
@@ -74,8 +82,9 @@ class GraphNode:
             return visited
 
     def add_edge_to(self, other: GraphNode) -> None:
-        self.outgoing.append(other)
-        other.incoming.append(self)
+        if other not in self.outgoing and self != other:
+            self.outgoing.append(other)
+            other.incoming.append(self)
 
     def check_for_cycles(
             self,
@@ -115,33 +124,33 @@ class GraphNode:
         return paths
 
     def contract(self) -> None:
-        if self.parent is not None:
-            self.parent.children.remove(self)
+        parent = self.parent
+        if parent is not None:
+            parent.children.remove(self)
+            for child in self.children:
+                parent.children.append(child) 
         for child in self.children:
-            child.parent = self.parent
+            child.parent = parent
         for source in self.incoming:
             source.outgoing.remove(self)
-            if (self.parent is not None 
+            if (parent is not None 
                 and self.outgoing == []
-                and source.parent != self.parent):
-                source.outgoing.append(self.parent)
-                self.parent.incoming.append(source)
+                and not parent.ancestor_of(source)):
+                source.add_edge_to(parent)
         for target in self.outgoing:
             target.incoming.remove(self)
-            if (self.parent is not None 
+            if (parent is not None 
                 and self.incoming == []
-                and source.parent != self.parent):
-                source.incoming.append(self.parent)
-                self.parent.outgoing.append(source)
+                and not parent.ancestor_of(target)):
+                parent.add_edge_to(target)
             for source in self.incoming:
-                if source != target and source not in target.incoming:
-                    if (self.parent is not None
-                        and source.parent != self.parent
-                        and target.parent != self.parent):
-                        target.incoming.append(self.parent)
-                        source.outgoing.append(self.parent)
-                    target.incoming.append(source)
-                    source.outgoing.append(target)
+                if (parent is not None
+                    and not parent.ancestor_of(source)
+                    and not parent.ancestor_of(target)):
+                    parent.add_edge_to(target)
+                    source.add_edge_to(parent)
+                else:
+                    source.add_edge_to(target)
 
 # for internal use
 # this is a list of edges that should be added after all graph nodes are created
