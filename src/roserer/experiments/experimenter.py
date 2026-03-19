@@ -1,3 +1,4 @@
+from roserer.printers.graph_printer import GraphDrawer
 from roserer.types import NodeType
 import roserer.rosgraph as rosgraph
 from roserer.rosgraph import RosGraphView
@@ -17,7 +18,18 @@ def perform_reaction_time_experiment(
         ) -> int:
     logger = logging.getLogger(__name__)
     logger.info("Drawing graph of system")
-    gp.transform_and_save_system(s, f"results/{title}-system-graph.svg")
+    GraphDrawer(s,
+        #         [
+        # NodeType.CALLBACK,
+        # NodeType.EXECUTOR,
+        # NodeType.VARIABLE,
+        # # NodeType.TIMER,
+        # NodeType.NODE,
+        # NodeType.HOST,
+        # NodeType.SYSTEM,
+        # NodeType.TOPIC
+        # ]
+                ).save_to_file(f"results/{title}-system-graph.svg")
     logger.info("System graph saved in local results folder")
 
     logger.info("Validating system")
@@ -31,7 +43,7 @@ def perform_reaction_time_experiment(
     logger.info(f"Sinks: {[n.name for n in graph.get_sinks()]}")
     logger.info(f"Sources: {[n.name for n in graph.get_sources()]}")
     logger.info("Drawing callback graph")
-    cbgraph = rosgraph.filter_list_by_type(graph.get_all_nodes(), [NodeType.CALLBACK])
+    cbgraph = graph.get_contracted_view([NodeType.CALLBACK]).get_all_nodes()
     gp.transform_and_save_cb_graph(cbgraph, f"results/{title}-cb-graph.svg")
     logger.info("Callback graph saved in local results folder")
     return rt_experiment(s)
