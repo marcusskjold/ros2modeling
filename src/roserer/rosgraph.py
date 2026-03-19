@@ -47,7 +47,12 @@ class GraphNode:
         self.outgoing = []
 
     def __str__(self) -> str:
-        return f"Type: {self.nodetype}, Name: {self.name}"
+        parent_name = self.parent.name if self.parent is not None else "None"
+        return (f"Type: {self.nodetype}, Name: {self.name}, "
+                f"Parent: {parent_name}, "
+                f"Incoming: {[n.name for n in self.incoming]}, "
+                f"Outgoing: {[n.name for n in self.outgoing]}"
+                )
 
     def equivalent(self, other) -> bool:
         if other is None or not isinstance(other, GraphNode):
@@ -255,7 +260,7 @@ class RosGraphView(dict[NodeType, dict[str, GraphNode]]):
         visited: list[GraphNode] = []
 
         for node in self.get_all_nodes():
-            logger.debug(f"Checking for cycles from {node.name}")
+            # logger.debug(f"Checking for cycles from {node.name}")
             if node.check_for_cycles(settled, visited):
                 return True
 
@@ -279,11 +284,13 @@ class RosGraphView(dict[NodeType, dict[str, GraphNode]]):
             if other is None or not node.equivalent(other):
                 raise ValueError(f"Graph and chain does not refer to equivalent systems. \
                         There is no equivalent to {node.name} in graph")
-            log.debug(f"Appending {other.name} to chain")
+            # log.debug(f"Appending {other.name} to chain")
             out.append(other)
         return out
 
     def get_contracted_view(self, allowed_types: Iterable[NodeType]) -> RosGraphView:
+        # log = logging.getLogger(__name__)
+        # log.debug("\n".join(str(n) for li in self.clone().values() for n in li.values()))
         tovisit: list[GraphNode] = self.clone().get_all_nodes()
         newlist: list[GraphNode] = []
 
