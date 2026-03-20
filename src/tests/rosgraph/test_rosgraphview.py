@@ -1,4 +1,6 @@
+import logging
 import pytest
+import roserer.scenarios.backeman as bmscenarios
 from roserer.types import NodeType
 import roserer.rosgraph as rosgraph
 from roserer.rosgraph import RosGraphView, GraphNode
@@ -195,3 +197,65 @@ def test_rosgraphview_add_system_base(test_system) -> None:
     # _v2 = g.add(GraphNode("v2", NodeType.VARIABLE, _n))
     # cb = n.add_callback(1, "cb")
     # _cb = g.add(GraphNode("cb", NodeType.CALLBACK, _n))
+
+def test_rosgraphview_get_contracted_view_edge_case_1() -> None:
+    log = logging.getLogger(__name__)
+    s = bmscenarios.backeman_ss_scenario()
+    graph = RosGraphView(s)
+    cgraph = graph.get_contracted_view([
+        NodeType.CALLBACK,
+        NodeType.NODE,
+        NodeType.SYSTEM,
+        ])
+    fi1_cb1 =  cgraph[NodeType.CALLBACK]["FILTER1_cb0"]
+    assert fi1_cb1.parent is not None
+    assert fi1_cb1.parent.equivalent(GraphNode("FILTER1", NodeType.NODE))
+
+    fu1_cb1 =  cgraph[NodeType.CALLBACK]["FUSION1_cb1"]
+    assert fu1_cb1.parent is not None
+    assert fu1_cb1.parent.equivalent(GraphNode("FUSION1", NodeType.NODE))
+
+    fu1 =  cgraph[NodeType.NODE]["FUSION1"]
+    assert fu1.parent is not None
+    assert fu1.parent.equivalent(GraphNode("backeman_ss", NodeType.SYSTEM))
+
+    a_cb0 =  cgraph[NodeType.CALLBACK]["ACTUATOR1_cb0"]
+    assert a_cb0.parent is not None
+    assert a_cb0.parent.equivalent(GraphNode("ACTUATOR1", NodeType.NODE))
+
+    log.debug(str(cgraph))
+    log.debug("")
+
+
+def test_graphnode_get_contracted_view_topic() -> None:
+    g = RosGraphView()
+    g1 = GraphNode("grandparent1", NodeType.HOST)
+    p1 = GraphNode("parent1", NodeType.EXECUTOR, g1)
+    n1 = GraphNode("node1", NodeType.NODE, p1)
+    p2 = GraphNode("parent2", NodeType.EXECUTOR, g1)
+    n2 = GraphNode("node2", NodeType.NODE, p2)
+
+    p3 = GraphNode("parent3", NodeType.EXECUTOR, g1)
+    n3 = GraphNode("node3", NodeType.NODE, p3)
+    p4 = GraphNode("parent4", NodeType.EXECUTOR, g1)
+    n4 = GraphNode("node4", NodeType.NODE, p4)
+
+    t1 = GraphNode("topic1", NodeType.TOPIC)
+    t2 = GraphNode("topic2", NodeType.TOPIC)
+    t3 = GraphNode("topic3", NodeType.TOPIC)
+    g.add_list([g1,p1,n1,p2,n2,p3,n3,p4,n4,t1,t2,t3])
+    n1.add_edge_to(t1)
+    t1.add_edge_to(n2)
+    n2.add_edge_to(t2)
+    t2.add_edge_to(n3)
+    n3.add_edge_to(t3)
+    t3.add_edge_to(n4)
+    cg = g.get_contracted_view([NodeType.TOPIC])
+    assert len(cg.get_all_nodes()) == 3
+    u3, u2, u1 = cg[NodeType.TOPIC].values()
+    assert u1.outgoing == [u2]
+    assert u1.incoming == []
+    assert u2.incoming == [u1]
+    assert u2.outgoing == [u3]
+    assert u3.incoming == [u2]
+    assert u3.outgoing == []
