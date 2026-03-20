@@ -22,9 +22,9 @@ def new_default_backeman_system(name: str) -> tuple[ros.System, ros.Executor]:
             ros_distribution=DISTRIBUTION.Eloquent)
     return s, e
 
-def backeman_st_scenario() -> ros.System:
+def backeman_st_scenario(name: str = "backeman_st") -> ros.System:
     load_dotenv()
-    s, e = new_default_backeman_system("backeman_st")
+    s, e = new_default_backeman_system(name)
 
     add_datagenerator(e, "SENSOR1", 10, 420, 0)
     add_datagenerator(e, "SENSOR2", 20, 420, 0)
@@ -35,9 +35,9 @@ def backeman_st_scenario() -> ros.System:
     add_timer(e, "ACTUATOR1", 30, 840, 0, ["FILTER3"], [30])
     return s
 
-def backeman_ss_scenario() -> ros.System:
+def backeman_ss_scenario(name: str = "backeman_ss") -> ros.System:
     load_dotenv()
-    s, e = new_default_backeman_system("backeman_ss")
+    s, e = new_default_backeman_system(name)
 
     add_datagenerator(e, "SENSOR1", 10, 360, 0)
     add_datagenerator(e, "SENSOR2", 20, 360, 0)
@@ -50,7 +50,7 @@ def backeman_ss_scenario() -> ros.System:
 
 def backeman_ss_scenario_erroneous() -> ros.System:
     load_dotenv()
-    s, e = new_default_backeman_system("backeman_ss")
+    s, e = new_default_backeman_system("backeman_ss_erroneous")
 
     add_datagenerator(e, "SENSOR1", 10, 360, 0)
     add_datagenerator(e, "SENSOR2", 20, 360, 0)
@@ -63,7 +63,7 @@ def backeman_ss_scenario_erroneous() -> ros.System:
 
 def backeman_ss_scenario_variant() -> ros.System:
     load_dotenv()
-    s, e = new_default_backeman_system("backeman_ss")
+    s, e = new_default_backeman_system("backeman_ss_variant")
 
     add_datagenerator(e, "SENSOR1", 10, 230, 0)
     add_datagenerator(e, "SENSOR2", 20, 220, 0)
@@ -76,7 +76,7 @@ def backeman_ss_scenario_variant() -> ros.System:
 
 def backeman_ss_scenario_variant_erroneous() -> ros.System:
     load_dotenv()
-    s, e = new_default_backeman_system("backeman_ss")
+    s, e = new_default_backeman_system("backeman_ss_variant_erroneous")
 
     add_datagenerator(e, "SENSOR1", 10, 230, 0)
     add_datagenerator(e, "SENSOR2", 20, 220, 0)
