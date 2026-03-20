@@ -1,28 +1,13 @@
+from pathlib import Path
 from typing import Iterable
-from pygraphviz.graphviz import AGRAPH
 from roserer.types import NodeType
 from roserer.rosgraph import RosGraphView, GraphNode
 import pygraphviz as pgv
 from roserer.systemvalidator import validate_system
 from pygraphviz import AGraph
-import roserer.systemvalidator as sv
 import roserer.ros2system as ros
 
 Graph = dict[str, list[str]]
-def transform_cb_graph(graph: list[GraphNode]) -> AGraph:
-    A = pgv.AGraph(directed=True, strict=True, rankdir="TB")
-    for cb in graph:
-        A.add_node(cb.name)
-        for link in cb.outgoing:
-            A.add_edge(cb.name, link.name)
-    return A
-
-
-def transform_and_save_cb_graph(graph: list[GraphNode], file: str) -> AGraph:
-    A = transform_cb_graph(graph)
-    A.layout("dot")
-    A.draw(file)
-    return A
 
 # ---------------------------------
 
@@ -50,9 +35,12 @@ class GraphDrawer():
     PENWDTH = "0.7"
     SPEN = "0.4"
     VECLR = "steelblue"
-    A: AGRAPH
+    A: AGraph
     edgeconfig: dict[NodeType, dict[str,str]] = {
             NodeType.CALLBACK: {
+                "arrowsize": ARWSZ,
+                "color": ARWCLR,
+                "penwidth": PENWDTH,
                 },
             NodeType.PUBLISHER: {
                 "arrowsize": ARWSZ,
@@ -64,32 +52,24 @@ class GraphDrawer():
                 "color": ARWCLR,
                 "penwidth": PENWDTH,
                 },
-            NodeType.EXECUTOR: {
-                },
-            NodeType.HOST: {
-                },
-            NodeType.CLIENT: {
-                },
+            NodeType.EXECUTOR: {},
+            NodeType.HOST: {},
+            NodeType.CLIENT: {},
             NodeType.SUBSCRIBER: {
                 "arrowsize": ARWSZ,
                 "color": ARWCLR,
                 "penwidth": PENWDTH,
                 },
-            NodeType.ACTION: {
-                },
-            NodeType.EXTERNAL_INPUT: {
-                },
-            NodeType.EXTERNAL_OUTPUT: {
-                },
+            NodeType.ACTION: {},
+            NodeType.EXTERNAL_INPUT: {},
+            NodeType.EXTERNAL_OUTPUT: {},
             NodeType.TIMER: {
                 "arrowsize": ARWSZ,
                 "color": ARWCLR,
                 "penwidth": PENWDTH,
                 },
-            NodeType.SERVICE: {
-                },
-            NodeType.SYSTEM: {
-                },
+            NodeType.SERVICE: {},
+            NodeType.SYSTEM: {},
             NodeType.VARIABLE: {
                 "arrowsize": ARWSZ,
                 "color": VECLR,
@@ -133,30 +113,24 @@ class GraphDrawer():
                 "style": "solid",
                 "color": "dimgrey"
                 },
-            NodeType.CLIENT: {
-                },
+            NodeType.CLIENT: {},
             NodeType.SUBSCRIBER: {
                 "shape": "house",
                 "fillcolor": "lightblue",
                 "style": "filled",
                 "fontsize": "8",
                 },
-            NodeType.ACTION: {
-                },
-            NodeType.EXTERNAL_INPUT: {
-                },
-            NodeType.EXTERNAL_OUTPUT: {
-                },
+            NodeType.ACTION: {},
+            NodeType.EXTERNAL_INPUT: {},
+            NodeType.EXTERNAL_OUTPUT: {},
             NodeType.TIMER: {
                 "shape": "diamond",
                 "fontsize": "8",
                 "fillcolor": "lightblue",
                 "style": "filled"
                 },
-            NodeType.SERVICE: {
-                },
-            NodeType.SYSTEM: {
-                },
+            NodeType.SERVICE: {},
+            NodeType.SYSTEM: {},
             NodeType.VARIABLE: {
                 "shape": "oval",
                 "style": "filled",
@@ -184,14 +158,11 @@ class GraphDrawer():
             graph = graph.get_contracted_view(filter)
         self.added = []
         self.A = pgv.AGraph(
-            name=sys.name,
             directed=True,
             strict=True,
             rankdir="TB",
             concentrate="true",
             splines="ortho",
-            # newrank="true",
-            # ratio="0.5",
             nodesep=".3",
             ranksep="0.2"
             )
@@ -226,49 +197,15 @@ class GraphDrawer():
                     n=f"{node.nodetype.name} {node.name}",
                     label=f"{node.name}",
                     **self.nodeconfig[node.nodetype],
-                    # shape="rect",
-                    # style="filled",
-                    # margin="",
-                    # height="",
-                    # fontsize="",
                     )
-            for n in node.outgoing:
-                A.add_edge(
-                        f"{node.nodetype.name} {node.name}",
-                        f"{n.nodetype.name} {n.name}",
-                        **self.edgeconfig[node.nodetype]
-                        )
             self.added.append(node)
+            for neigh in node.outgoing:
+                if neigh.parent is None:
+                    A.add_edge(
+                            f"{node.nodetype.name} {node.name}",
+                            f"{neigh.nodetype.name} {neigh.name}",
+                            **self.edgeconfig[node.nodetype]
+                            )
+            
             for child in node.children:
                 self.draw_node(A, child)
-
-
-# def transform_system(sys: ros.System) -> AGraph:
-#     feedback = validate_system(sys)
-#     if feedback.errors != []:
-#         raise ValueError(f"Invalid system. Feedback: {feedback.errors}")
-#     graph = RosGraphView(sys)
-#     A = pgv.AGraph(
-#             name=sys.name,
-#             directed=True,
-#             strict=True,
-#             rankdir="TB",
-#             concentrate="true",
-#             splines="ortho",
-#             # newrank="true",
-#             # ratio="0.5",
-#             nodesep=".3",
-#             ranksep="0.2"
-#             )
-#
-#     for node in graph.get_all_nodes():
-#         draw_node(A, node)
-#     return A
-
-# def transform_and_save_system(sys: ros.System, file: str) -> AGraph:
-#     A = transform_system(sys)
-#     A.layout("dot")
-#     A.draw(file)
-#     return A
-
-
