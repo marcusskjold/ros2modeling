@@ -53,6 +53,12 @@ class GraphNode:
                 f"Outgoing: {[n.name for n in self.outgoing]}"
                 )
 
+    def __eq__(self, other):
+        return self is other
+
+    def __hash__(self):
+        return id(self)
+
     def equivalent(self, other) -> bool:
         if other is None or not isinstance(other, GraphNode):
             return False
@@ -173,6 +179,9 @@ class RosGraphView(dict[NodeType, dict[str, GraphNode]]):
                 self.add_list(from_object)
             else:
                 raise ValueError("from_object is neither a system or a list")
+
+    def __str__(self) -> str:
+        return "\n".join(str(n) for n in self.get_all_nodes())
 
     def add_list(self, list: list[GraphNode]) -> RosGraphView:
         for node in list:
