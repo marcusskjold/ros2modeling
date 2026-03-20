@@ -304,13 +304,22 @@ class RosGraphView(dict[NodeType, dict[str, GraphNode]]):
     def get_contracted_view(self, allowed_types: Iterable[NodeType]) -> RosGraphView:
         tovisit: list[GraphNode] = self.clone().get_all_nodes()
         newlist: list[GraphNode] = []
+        visited: list[GraphNode] = []
 
-        while len(tovisit) > 0:
-            node = tovisit.pop()
+        def visit(node: GraphNode) -> None:
+            if node in visited:
+                return
+            visited.append(node)
+            if node.parent is not None:
+                visit(node.parent)
             if node.nodetype not in allowed_types:
                 node.contract()
             else:
                 newlist.append(node)
+
+        while len(tovisit) > 0:
+            node = tovisit.pop()
+            visit(node)
         
         return RosGraphView(newlist)
 
