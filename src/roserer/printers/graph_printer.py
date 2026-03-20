@@ -173,6 +173,8 @@ class GraphDrawer():
             )
         for node in graph.get_all_nodes():
             self.draw_node(self.A, node)
+        for node in graph.get_all_nodes():
+            self.draw_edges(node)
 
     def save_to_file(self, filename: str) -> AGraph:
         path = Path(filename)
@@ -183,12 +185,21 @@ class GraphDrawer():
         self.A.draw(filename)
         return self.A
 
+    def draw_edges(self, node: GraphNode) -> None:
+        for n in node.outgoing:
+            self.A.add_edge(
+                    f"{node.nodetype.name} {node.name}",
+                    f"{n.nodetype.name} {n.name}",
+                    **self.edgeconfig[node.nodetype]
+                    )
+
     def draw_node(self, A: AGraph, node: GraphNode) -> None:
         if node in self.added:
             return
-        if node.parent is not None:
+        if node.parent is not None and node.parent not in self.added:
             self.draw_node(A, node.parent)
-        if node.children != [] and node.incoming == [] and node.outgoing == []:
+            return
+        if node.children != [] and node.outgoing == []:
             subgraph = A.add_subgraph(
                     label=f"{node.name}",
                     name=node.name,
