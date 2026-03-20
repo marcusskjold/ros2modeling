@@ -1,5 +1,4 @@
 from __future__ import annotations
-import logging
 from typing import Iterable
 from dataclasses import dataclass
 import roserer.ros2system as ros
@@ -263,13 +262,11 @@ class RosGraphView(dict[NodeType, dict[str, GraphNode]]):
                 if node.incoming == [] and node.children == []]
 
     def check_for_cycles(self) -> bool:
-        logger = logging.getLogger(__name__)
 
         settled: list[GraphNode] = []
         visited: list[GraphNode] = []
 
         for node in self.get_all_nodes():
-            # logger.debug(f"Checking for cycles from {node.name}")
             if node.check_for_cycles(settled, visited):
                 return True
 
@@ -286,20 +283,16 @@ class RosGraphView(dict[NodeType, dict[str, GraphNode]]):
 
     def find_equivalent_chain(self, chain: list[GraphNode]
                                  ) -> list[GraphNode]:
-        log = logging.getLogger(__name__)
         out: list[GraphNode] = []
         for node in chain:
             other = self[node.nodetype].get(node.name)
             if other is None or not node.equivalent(other):
                 raise ValueError(f"Graph and chain does not refer to equivalent systems. \
                         There is no equivalent to {node.name} in graph")
-            # log.debug(f"Appending {other.name} to chain")
             out.append(other)
         return out
 
     def get_contracted_view(self, allowed_types: Iterable[NodeType]) -> RosGraphView:
-        # log = logging.getLogger(__name__)
-        # log.debug("\n".join(str(n) for li in self.clone().values() for n in li.values()))
         tovisit: list[GraphNode] = self.clone().get_all_nodes()
         newlist: list[GraphNode] = []
 
