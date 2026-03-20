@@ -199,6 +199,10 @@ class GraphDrawer():
             self.draw_node(self.A, node)
 
     def save_to_file(self, filename: str) -> AGraph:
+        path = Path(filename)
+    
+        # Create parent directories if they don't exist
+        path.parent.mkdir(parents=True, exist_ok=True)
         self.A.layout("dot")
         self.A.draw(filename)
         return self.A

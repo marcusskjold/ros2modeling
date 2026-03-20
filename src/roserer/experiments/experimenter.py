@@ -29,7 +29,7 @@ def perform_reaction_time_experiment(
         # NodeType.SYSTEM,
         # NodeType.TOPIC
         # ]
-                ).save_to_file(f"results/{title}-system-graph.svg")
+                ).save_to_file(f"results/{title}/system-graph.svg")
     logger.info("System graph saved in local results folder")
 
     logger.info("Validating system")
@@ -44,6 +44,6 @@ def perform_reaction_time_experiment(
     logger.info(f"Sources: {[n.name for n in graph.get_sources()]}")
     logger.info("Drawing callback graph")
     cbgraph = graph.get_contracted_view([NodeType.CALLBACK]).get_all_nodes()
-    gp.transform_and_save_cb_graph(cbgraph, f"results/{title}-cb-graph.svg")
+    GraphDrawer(cbgraph).save_to_file(f"results/{title}/cb-graph.svg")
     logger.info("Callback graph saved in local results folder")
     return rt_experiment(s)

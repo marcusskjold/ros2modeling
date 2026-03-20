@@ -82,7 +82,7 @@ def scenario_backeman_ss() -> None:
     
     experiment = partial(be.backeman_rt_experiment, monitor="SENSOR1", actuator="ACTUATOR1")
     
-    result = exp.perform_reaction_time_experiment(s, "backeman-ss", experiment)
+    result = exp.perform_reaction_time_experiment(s, "backeman/ss", experiment)
     # See Backeman & Seceleanu (2025) Table 3 (p.310)
     assert result == 540
 
@@ -97,7 +97,7 @@ def scenario_backeman_ss_erroneous() -> None:
     
     experiment = partial(be.backeman_rt_experiment, monitor="SENSOR1", actuator="ACTUATOR1")
     
-    result = exp.perform_reaction_time_experiment(s, "backeman-ss", experiment)
+    result = exp.perform_reaction_time_experiment(s, "backeman/ss-errroneous", experiment)
     # See Backeman & Seceleanu (2025) Table 3 (p.310)
     assert result == 540
 
@@ -118,13 +118,11 @@ def scenario_backeman_ss_variant() -> None:
     s1 = bs.backeman_ss_scenario_variant()
     s2 = bs.backeman_ss_scenario_variant_erroneous()
 
-    GraphDrawer(s1).save_to_file("results/variant.svg")
-    GraphDrawer(s2).save_to_file("results/erroneous.svg")
     
     experiment = partial(be.backeman_rt_experiment, monitor="SENSOR2", actuator="ACTUATOR1")
     
-    result1 = exp.perform_reaction_time_experiment(s1, "backeman-ss", experiment)
-    result2 = exp.perform_reaction_time_experiment(s2, "backeman-ss", experiment)
+    result1 = exp.perform_reaction_time_experiment(s1, "backeman/ss-variant", experiment)
+    result2 = exp.perform_reaction_time_experiment(s2, "backeman/ss-variant-erroneous", experiment)
     # See Backeman & Seceleanu (2025) Table 3 (p.310)
     assert result1 == 660
     assert result2 == 650
@@ -141,7 +139,7 @@ def scenario_backeman_st() -> None:
     s = bs.backeman_st_scenario()
     experiment = partial(be.backeman_rt_experiment, monitor="SENSOR1", actuator="ACTUATOR1")
     
-    result = exp.perform_reaction_time_experiment(s, "backeman-st", experiment)
+    result = exp.perform_reaction_time_experiment(s, "backeman/st", experiment)
     # See Backeman & Seceleanu (2025) Table 3 (p.310)
     assert result == 1320
 
