@@ -149,11 +149,16 @@ class GraphDrawer():
         }
     added: list[GraphNode]
 
-    def __init__(self, sys: ros.System, filter: Iterable[NodeType] | None = None) -> None:
-        feedback = validate_system(sys)
-        if feedback.errors != []:
-            raise ValueError(f"Invalid system. Feedback: {feedback.errors}")
-        graph = RosGraphView(sys)
+    def __init__(self, sys: ros.System | RosGraphView | list[GraphNode], filter: Iterable[NodeType] | None = None) -> None:
+        if isinstance(sys, ros.System):
+            feedback = validate_system(sys)
+            if feedback.errors != []:
+                raise ValueError(f"Invalid system. Feedback: {feedback.errors}")
+            graph = RosGraphView(sys)
+        elif isinstance(sys, RosGraphView):
+            graph = sys
+        else:
+            graph = RosGraphView(sys)
         if filter is not None:
             graph = graph.get_contracted_view(filter)
         self.added = []
