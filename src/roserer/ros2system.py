@@ -91,6 +91,7 @@ class Request():
 class Callback():
     name: str
     wcet: int
+    bcet: int
     read_variables: list[str]
     write_variables: list[str]
     calls: str | None
@@ -102,6 +103,7 @@ class Callback():
             self,
             name: str,
             wcet: int,
+            bcet: int | None = None,
             read_variables: list[Variable] | list[str] | None = None,
             write_variables: list[Variable] | list[str] | None = None,
             calls: str | None = None,
@@ -110,7 +112,10 @@ class Callback():
             request: Request | None = None
             ) -> None:
         self.name = name
+        if bcet is None:
+            bcet = wcet
         self.wcet = wcet
+        self.bcet = bcet
         # TODO: Move to parser
         self.read_variables = _stringify_list(read_variables)
         self.write_variables = _stringify_list(write_variables)
@@ -235,6 +240,7 @@ class Node():
             self,
             wcet: int,
             name: str | None = None,
+            bcet: int | None = None,
             read_variables: list[str] | list[Variable] | None = None,
             write_variables: list[str] | list[Variable] | None = None,
             calls: str | None = None,
@@ -246,6 +252,7 @@ class Node():
         callback = Callback(
             name=_name_init(name, self.name, "cb", len(self.callbacks)),
             wcet=wcet,
+            bcet=bcet,
             read_variables=read_variables,
             write_variables=write_variables,
             calls=calls,

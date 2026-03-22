@@ -182,6 +182,17 @@ def validate_chain(chain: list[GraphNode], graph: RosGraphView) -> list[str]:
         errors += [f"[E108] Invalid chain: {ve}"]
     return errors
 
+def error_system_incorrect_bcet(system: ros.System) -> list[str]:
+    callbacks = system.get_callbacks()
+    if all(cb.bcet == cb.wcet for cb in callbacks):
+        return []
+    if all(cb.bcet == cb.wcet / 2 for cb in callbacks):
+        return []
+    else:
+        return ["[E124]: This model can only model systems that are deterministic "
+                "(meaning for each callback, the bcet == wcet) or if "
+                "non-deterministic, the bcew of every callback must be wcet / 2"]
+
 
 # ======================= OBJECT VALIDATION ======================
 
@@ -346,6 +357,9 @@ def monitor(system: bk.System, generator: str, actuator: str):
 
 # ============================== MAPPING ===============================
 
+def is_system_deterministic(system: ros.System) -> bool:
+    return all(cb.bcet == cb.wcet for cb in system.get_callbacks())
+
 def get_main_and_sub_tasks(node: ros.Node) -> tuple[ros.Callback, list[ros.Callback]]:
     main_task: ros.Callback
     sub_tasks: list[ros.Callback] = []
@@ -452,7 +466,7 @@ def add_subscriber(bksystem: bk.System, node: ros.Node, chain: list[GraphNode]) 
 
 def map_system(system: ros.System, chain: list[GraphNode]) -> bk.System:
     out = bk.System(system.name.upper())
-    out.deterministic_hosts(True) # TODO: Support nondeterminism
+    out.deterministic_hosts(is_system_deterministic(system))
     graph = RosGraphView(system)
     chain = graph.find_equivalent_chain(chain)
     nodes = system.get_nodes()

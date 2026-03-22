@@ -175,7 +175,15 @@ def validate_service(service : ros.Service) -> Feedback:
     return Feedback()
 
 def validate_callback(callback: ros.Callback) -> Feedback:
-    return Feedback()
+    feedback = Feedback()
+    warnings = feedback.warnings
+    if callback.bcet != callback.wcet:
+        warnings += [
+                f"[W205]: Callback {callback.name} has bcet different from wcet. "
+                "This model does not support non-determinism. The callback will be "
+                "modeled as if it always performs at the wcet."
+                ]
+    return feedback
 
 def validate_variable(var: ros.Variable) -> Feedback:
     feedback = Feedback()

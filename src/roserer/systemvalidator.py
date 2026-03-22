@@ -290,6 +290,12 @@ def validate_callback(callback: ros.Callback,) -> Feedback:
     if callback.wcet < 0:
         return Feedback([f"[E012]: Callback '{callback.name}' has a negative wcet"], 
                         [])
+    if callback.bcet < 0:
+        return Feedback([f"[E017]: Callback '{callback.name}' has a negative bcet"], 
+                        [])
+    if callback.bcet > callback.wcet:
+        return Feedback([f"[E018]: Callback '{callback.name}' has a bcet larger than its wcet"], 
+                        [])
     # Remember to validate requests if necessary
     # Not currently necessary
     return Feedback()

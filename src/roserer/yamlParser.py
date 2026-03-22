@@ -10,7 +10,7 @@ VALID_ATTRIBUTES = {
     'host' : ['host', 'architecture', 'operating_system', 'default_qos', 'default_distribution', 'executors'],
     'executor' : ['executor', 'ros_distribution', 'implementation', 'default_qos', 'nodes'],
     'node' : ['node', 'default_qos', 'publishers','callbacks', 'subscriptions', 'variables', 'timers', 'services', 'external_inputs', 'external_outputs', 'clients'],
-    'callback' : ['callback', 'wcet', 'read_variables', 'write_variables', 'calls', 'publishers', 'external_outputs', 'request'],
+    'callback' : ['callback', 'wcet', 'bcet', 'read_variables', 'write_variables', 'calls', 'publishers', 'external_outputs', 'request'],
     'publisher' : ['publisher', 'topic', 'qos'],
     'timer' : ['timer', 'period', 'offset', 'callback', 'end'],
     'subscription' : ['subscription', 'topic', 'callback', 'qos', 'wall_times'],
@@ -118,7 +118,7 @@ def parse_callbacks(ros_node: ros.Node, yaml_callbacks: dict) -> None:
     for callback in yaml_callbacks:
         validate_yaml_attributes("callback", callback)
         callback_args = {k: callback[k] for k in callback.keys()
-                         & {'wcet', 'calls'}}
+                         & {'wcet', 'bcet', 'calls'}}
         if 'callback' in callback:
             callback_args['name'] = callback['callback']
         if 'publishers' in callback: 
