@@ -49,50 +49,50 @@ def scenario_autoware_reference_system_singlethreaded():
     # https://github.com/ros-realtime/reference-system/blob/main/autoware_reference_system/include/autoware_reference_system/autoware_system_builder.hpp
 
     # Sensors
-    # sensors = ["FrontLidarDriver",
-    #            "RearLidarDriver",
-    #            "PointCloudMap", 
-    #            "EuclideanClusterSettings",
-    #            "Visualizer",
-    #            "Lanelet2Map"]
-    # for name in sensors:
-    #     add_sensor_node(e, name, WCET, CYCLE_TIME)
-    #
-    # # Transform nodes
-    # transformers = [("PointsTransformerFront", "FrontLidarDriver"),
-    #                 ("PointsTransformerRear", "RearLidarDriver"),
-    #                 ("VoxelGridDownsampler", "PointCloudFusion"),
-    #                 ("PointCloudMapLoader", "PointCloudMap"),
-    #                 ("RayGroundFilter", "PointCloudFusion"),
-    #                 ("ObjectCollisionEstimator", "EuclideanClusterDetector"),
-    #                 ("MPCController", "BehaviorPlanner"),
-    #                 ("ParkingPlanner", "Lanelet2MapLoader"),
-    #                 ("LanePlanner", "Lanelet2MapLoader")]
-    # for name, input_topic in transformers:
-    #     add_transform_node(e, name, WCET, input_topic)
-    #
-    # # Fusion nodes
-    # fusions = [("PointCloudFusion", "PointsTransformerFront", "PointsTransformerRear"),
-    #            ("NDTLocalizer", "VoxelGridDownsampler", "PointCloudMapLoader"),
-    #            ("VehicleInterface", "MPCController", "BehaviorPlanner"),
-    #            ("Lanelet2GlobalPlanner", "Visualizer", "NDTLocalizer"),
-    #            ("Lanelet2MapLoader", "Lanelet2Map", "Lanelet2GlobalPlanner")]
-    # for name, sub_topic1, sub_topic2 in fusions:
-    #     add_fusion_node(e, name, WCET, sub_topic1, sub_topic2)
-    #
-    # # Cyclic node
-    # add_cyclic_node(e, "BehaviorPlanner", WCET, CYCLE_TIME,[
-    #     "ObjectCollisionEstimator", "NDTLocalizer", "Lanelet2GlobalPlanner",
-    #     "Lanelet2MapLoader", "ParkingPlanner", "LanePlanner"])
-    #
-    # # Intersection node
-    # add_intersection_node(e, "EuclideanClusterDetector", WCET, [
-    #     ("RayGroundFilter", "EuclideanClusterDetector"),
-    #     ("EuclideanClusterSettings", "EuclideanIntersection")
-    #     ])
-    #
-    # # Command node
-    # add_command_node(e, "VehicleDBWSystem", WCET, "VehicleInterface")
-    # add_command_node(e, "IntersectionOutput", WCET, "EuclideanIntersection")
-    #
-    # # assert exp.perform_reaction_time_experiment(s, "autoware_reference_system_singlethreaded", exp.dummy_experimenter) == 0
+    sensors = ["FrontLidarDriver",
+               "RearLidarDriver",
+               "PointCloudMap", 
+               "EuclideanClusterSettings",
+               "Visualizer",
+               "Lanelet2Map"]
+    for name in sensors:
+        add_sensor_node(e, name, WCET, CYCLE_TIME)
+
+    # Transform nodes
+    transformers = [("PointsTransformerFront", "FrontLidarDriver"),
+                    ("PointsTransformerRear", "RearLidarDriver"),
+                    ("VoxelGridDownsampler", "PointCloudFusion"),
+                    ("PointCloudMapLoader", "PointCloudMap"),
+                    ("RayGroundFilter", "PointCloudFusion"),
+                    ("ObjectCollisionEstimator", "EuclideanClusterDetector"),
+                    ("MPCController", "BehaviorPlanner"),
+                    ("ParkingPlanner", "Lanelet2MapLoader"),
+                    ("LanePlanner", "Lanelet2MapLoader")]
+    for name, input_topic in transformers:
+        add_transform_node(e, name, WCET, input_topic)
+
+    # Fusion nodes
+    fusions = [("PointCloudFusion", "PointsTransformerFront", "PointsTransformerRear"),
+               ("NDTLocalizer", "VoxelGridDownsampler", "PointCloudMapLoader"),
+               ("VehicleInterface", "MPCController", "BehaviorPlanner"),
+               ("Lanelet2GlobalPlanner", "Visualizer", "NDTLocalizer"),
+               ("Lanelet2MapLoader", "Lanelet2Map", "Lanelet2GlobalPlanner")]
+    for name, sub_topic1, sub_topic2 in fusions:
+        add_fusion_node(e, name, WCET, sub_topic1, sub_topic2)
+
+    # Cyclic node
+    add_cyclic_node(e, "BehaviorPlanner", WCET, CYCLE_TIME,[
+        "ObjectCollisionEstimator", "NDTLocalizer", "Lanelet2GlobalPlanner",
+        "Lanelet2MapLoader", "ParkingPlanner", "LanePlanner"])
+
+    # Intersection node
+    add_intersection_node(e, "EuclideanClusterDetector", WCET, [
+        ("RayGroundFilter", "EuclideanClusterDetector"),
+        ("EuclideanClusterSettings", "EuclideanIntersection")
+        ])
+
+    # Command node
+    add_command_node(e, "VehicleDBWSystem", WCET, "VehicleInterface")
+    add_command_node(e, "IntersectionOutput", WCET, "EuclideanIntersection")
+
+    assert exp.perform_reaction_time_experiment(s, "autoware_reference_system_singlethreaded", exp.dummy_experimenter) == 0
