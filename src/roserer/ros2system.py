@@ -67,6 +67,7 @@ class Timer():
     period: int
     offset: int
     end: int | None
+    probability: int
     callback: str
 
 @dataclass
@@ -283,14 +284,18 @@ class Node():
             callback: Callback,
             name: str | None = None,
             offset: int = 0,
-            end: int | None = None
+            end: int | None = None,
+            probability: int = 100
             ) -> Timer:
+        if probability < 0 or probability > 100:
+            raise ValueError("Probability must be expressed as a number from 0 to 100")
         timer = Timer(
                 callback=callback.name,
                 period=period,
                 offset=offset,
                 name=_name_init(name, self.name, "timer", len(self.timers)),
-                end=end
+                end=end,
+                probability=probability
                 )
         self.timers.append(timer)
         return timer

@@ -36,14 +36,16 @@ def test_parse_timer_interval_endpoints_parsed() -> None:
             'callback' : 'cb_1',
             'period' : 5,
             'offset' : -3,
-            'end' : 20
+            'end' : 20,
+            'probability' : 100
         },
         'timer_2': {
             'name' : 'timer_2',
             'callback' : 'cb_1',
             'period' : 6,
             'offset' : 0,
-            'end' : 20
+            'end' : 20,
+            'probability' : 100
         }
     }
     assert expected_timers['timer_1'] in actual_timers

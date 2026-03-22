@@ -194,7 +194,12 @@ def validate_variable(var: ros.Variable) -> Feedback:
     return feedback
 
 def validate_timer(timer: ros.Timer) -> Feedback:
-    return Feedback()
+    feedback = Feedback()
+    errors = feedback.errors
+    if timer.probability != 100:
+        errors += [f"[E210]: Timer {timer.name} has a non-100% probability of "
+                   "triggering. This model only supports deterministic systems."]
+    return feedback
 
 def validate_host(host : ros.Host) -> Feedback:
     """

@@ -301,6 +301,13 @@ def validate_node(node: ros.Node) -> Feedback:
                    f"    Subscriptions: {len(node.subscriptions)}",
                    f"    Callbacks:     {len(node.callbacks)}",
                    f"    Variables:     {len(node.variables)}"]
+    if (not is_valid_data_generator(node)
+        and any(timer.probability != 100 for timer in node.timers)):
+        errors += [f"[E125]: Node '{node.name}' has non-deterministic timers, yet "
+                   "it is not a valid data generator. This model only supports non-"
+                   "deterministic release of timer callbacks for nodes that are "
+                   "sources of data."]
+
     return feedback
 
 def validate_executor(executor: ros.Executor) -> Feedback:
@@ -374,12 +381,19 @@ def get_main_and_sub_tasks(node: ros.Node) -> tuple[ros.Callback, list[ros.Callb
     return main_task, sub_tasks
 
 def add_datagenerator(bksystem: bk.System, node: ros.Node, priority: int) -> None:
-    period = node.timers[0].period
-    delay = node.timers[0].offset
+    timer = node.timers[0]
+    period = timer.period
+    delay = timer.offset
+    probability = timer.probability
     wcet = node.callbacks[0].wcet
     name = node.name.upper()
-    bksystem.add_datagenerator(
-            name=name, period=period, wcet=wcet, delay=delay, prio=priority)
+    if probability == 100:
+        bksystem.add_datagenerator(
+                name=name, period=period, wcet=wcet, delay=delay, prio=priority)
+    else:
+        bksystem.add_probalisticdatagenerator(
+                name=name, period=period, wcet=wcet, delay=delay, prob=probability, 
+                prio=priority)
 
 # TODO: Move and improve this note
 # For examples of how to construct different systems according to which node

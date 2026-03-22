@@ -12,7 +12,7 @@ VALID_ATTRIBUTES = {
     'node' : ['node', 'default_qos', 'publishers','callbacks', 'subscriptions', 'variables', 'timers', 'services', 'external_inputs', 'external_outputs', 'clients'],
     'callback' : ['callback', 'wcet', 'bcet', 'read_variables', 'write_variables', 'calls', 'publishers', 'external_outputs', 'request'],
     'publisher' : ['publisher', 'topic', 'qos'],
-    'timer' : ['timer', 'period', 'offset', 'callback', 'end'],
+    'timer' : ['timer', 'period', 'offset', 'callback', 'end', 'probability'],
     'subscription' : ['subscription', 'topic', 'callback', 'qos', 'wall_times'],
     'service' : ['service', 'callback', 'qos', 'wall_times'],
     'client' : ['client', 'service', 'qos'],
@@ -69,7 +69,7 @@ def parse_timers(ros_node: ros.Node, yaml_timers: dict) -> None:
     for timer in yaml_timers:
         validate_yaml_attributes("timer", timer)
         timer_args = {k: timer[k] for k in timer.keys()
-                      & {'period', 'offset', 'end'}}
+                      & {'period', 'offset', 'end', 'probability'}}
         if 'timer' in timer:
             timer_args['name'] = timer['timer']
         # find callback that has the specified name
