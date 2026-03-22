@@ -19,7 +19,7 @@ def scenario_autoware_reference_system_singlethreaded():
             # https://docs.ros.org/en/rolling/Releases.html
             # Where Connext 6 is the default DDS implementation:
             # https://docs.ros.org/en/humble/Releases/Release-Humble-Hawksbill.html#use-connext-6-by-default
-            # And the latest version of arf (1.1.0 at Sep 14, 2023):
+            # And the latest version of ars (1.1.0 at Sep 14, 2023):
             # https://github.com/ros-realtime/reference-system/releases/tag/v1.1.0
             # Note that version 1.0.0 is the only listed release - this is released before Humble.
             # However releases before Humble are no longer supported, and so we assume v1.1.0

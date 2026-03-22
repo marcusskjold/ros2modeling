@@ -288,8 +288,8 @@ class System():
             case "data_callback":
                 self.callbacks.append(DataCallback(*args))
             case _:
-                raise ValueError("provided component_type not included among templates \
-                        in this model!")
+                raise ValueError("provided component_type not included among templates "
+                                 "in this model!")
 
     def add_executor_v1(self, id : int):
         self.executors.append(ExecutorV1(id))

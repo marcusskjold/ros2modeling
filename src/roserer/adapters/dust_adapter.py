@@ -11,8 +11,8 @@ from roserer.rosgraph import RosGraphView, GraphNode
 
 def unspecified_warning(component : str) -> list[str]:
     # TODO: Reword
-    return [f"[Warning]: This model does not consider the effect of {component}. \
-            This should not have an effect on the results of the model."]
+    return [f"[W201]: This model does not consider the effect of {component}. "
+            "This should not have an effect on the results of the model."]
 
 ############################----RELATIONAL VALIDATION----############################
 
@@ -37,8 +37,8 @@ def warning_system_disconnected_at_executor_level(graph: RosGraphView) -> list[s
         connected = origin.weakly_connected_with()
         for executor in executors:
             if executor not in connected:
-                return [f"[Warning]: Not all executors are connected, for example no object \
-                        in {executor.name} communicates with any object in {origin.name}"]
+                return [f"[W202]: Not all executors are connected, for example no object "
+                        "in {executor.name} communicates with any object in {origin.name}"]
     return []
 
 def error_graph_service_with_multiple_clients(graph: RosGraphView) -> list[str]:
@@ -53,7 +53,7 @@ def error_graph_service_with_multiple_clients(graph: RosGraphView) -> list[str]:
     A violation of this constraint would result in buffer overflow checks becoming
     invalid.
     """
-    return [f"[Error]: Service {service.name} is requested by more than one client."
+    return [f"[E201]: Service {service.name} is requested by more than one client."
             for service in graph[NodeType.SERVICE].values()
             if len(service.incoming) > 1 ]
 
@@ -71,15 +71,14 @@ def error_node_has_multiple_response_callbacks_for_client(node: ros.Node) -> lis
         if r is not None:
             requests.setdefault(r.client,set())
             requests[r.client].add(r.response)
-    return [f"[Error]: There are multiple response callbacks tied to the same client \
-            {client} in node {node.name}"
+    return [f"[E202]: There are multiple response callbacks tied to the same client "
+            "{client} in node {node.name}"
             for client, responseset in requests.items()
             if len(responseset) > 1]
 
 def error_graph_unsupported_node_types(graph: RosGraphView) -> list[str]:
     if len(graph[NodeType.ACTION]) > 0:
-        return ["This model doesn't support ROS2 actions. Please remove any actions \
-                from your system in order to use this model."]
+        return ["[E203]: This model doesn't support ROS2 actions."]
     else:
         return []
 
@@ -93,18 +92,18 @@ def error_system_wt_and_msg_in_one_interface(system: ros.System) -> list[str]:
     """
     errors: list[str] = []
     graph = RosGraphView(system)
-    errors += [f"Subscription {sub.name} to {sub.topic} is triggered by wall_times, \
-            but publishers are also publishing to this topic. This cannot be modeled \
-            correctly by this model"
-               f"Remove the wall_times from this subscription or make sure no other callback is publishing "
-               f"to this topic."
+    errors += [f"[E204]: Subscription {sub.name} to {sub.topic} is triggered by "
+               "wall_times, but publishers are also publishing to this topic. "
+               "This cannot be modeled correctly by this model. Remove the wall_times "
+               "from this subscription or make sure no other callback is publishing "
+               "to this topic."
                for sub in system.get_subscriptions()
                if sub.wall_times is not None
                and len(graph[NodeType.SUBSCRIBER][sub.name].incoming) > 0 ]
-    errors += [f"Service {service.name} is triggered by wall_times of client-requests "
-               f"but other callbacks in the system are requesting this service. "
-               f"Remove the wall_times from this service or make sure no other callback is requesting "
-               f"this service."
+    errors += [f"[E205]: Service {service.name} is triggered by wall_times of client-"
+               "requests but other callbacks in the system are requesting this "
+               "service. Remove the wall_times from this service or make sure no other "
+               "callback is requesting this service."
                for service in system.get_subscriptions()
                if service.wall_times is not None
                and len(graph[NodeType.SERVICE][service.name].incoming) > 0 ]
@@ -122,8 +121,9 @@ def validate_qos(qos: ros.QoS, component_name : str) -> Feedback:
     default_qos = quality.qos_profile_default()
     for config in vars(qos):
         if getattr(qos,config) is not getattr(default_qos,config) and config != "depth":
-            errors += [f"[Error]: QoS policy {config} in {component_name} is \
-                    unsupported. The model only supports {getattr(default_qos,config)}"]
+            errors += [f"[E206]: QoS policy {config} in {component_name} is "
+                       "unsupported. The model only supports "
+                       f"{getattr(default_qos,config)}"]
     return feedback
 
 def validate_executor(executor : ros.Executor) -> Feedback:
@@ -149,18 +149,18 @@ def validate_executor(executor : ros.Executor) -> Feedback:
 
     VRD: str = ','.join([d.name for d in VALID_ROS_DISTRIBUTIONS])
     if executor.ros_distribution not in VALID_ROS_DISTRIBUTIONS:
-        errors += [f"[Error]: Executor '{executor.name}' runs on a distribution not \
-                supported by this model. Make sure that the distribution is one of the \
-                following: {VRD}"]
+        errors += [f"[E207]: Executor '{executor.name}' runs on a distribution not "
+                   "supported by this model. Make sure that the distribution is one "
+                   f"of the following: {VRD}"]
     if executor.implementation != types.EXECUTOR.SingleThreadedExecutor:
-        errors += [f"[Error]: The implementation, {executor.implementation.name}, of \
-                '{executor.name}' is not supported. This model only supports variants \
-                of the SingleThreadedExecutor implementation"]
+        errors += [f"[E208]: The implementation, {executor.implementation.name}, of "
+                   f"'{executor.name}' is not supported. This model only supports "
+                   "variants of the SingleThreadedExecutor implementation"]
     if len(executor.nodes) > 1:
-        warnings += [f"[Warning]: Executor {executor.name} has {len(executor.nodes)} \
-                nodes. This model assumes that each executor has exactly one node. \
-                The model produced will treat all nodes under this executor as one. \
-                This should not cause wrong results."]
+        warnings += [f"[W203]: Executor {executor.name} has {len(executor.nodes)} "
+                     "nodes. This model assumes that each executor has exactly one "
+                     "node. The model produced will treat all nodes under this "
+                     "executor as one. This should not cause wrong results."]
     return feedback
 
 def validate_node(node : ros.Node) -> Feedback:
@@ -190,7 +190,7 @@ def validate_variable(var: ros.Variable) -> Feedback:
     errors = feedback.errors
     if var.condition:
         errors += [
-                f"[Error]: Variable {var.name}: This model does not support conditions"]
+                f"[E209]: Variable {var.name}: This model does not support conditions"]
     return feedback
 
 def validate_timer(timer: ros.Timer) -> Feedback:
@@ -222,9 +222,9 @@ def validate_system(system : ros.System) -> Feedback:
     feedback = Feedback()
     errors, warnings = feedback.errors, feedback.warnings
 
-    warnings += ["[Warning]: This model expects 100 % thread availability for each \
-            executor in the host operating system. If this is not the case, then there \
-            might be errors in the system not covered by this model"]
+    warnings += ["[W206]: This model expects 100 % thread availability for each "
+                 "executor in the host operating system. If this is not the case, "
+                 "then there might be errors in the system not covered by this model"]
     if system.dds_implementation != DDS_IMPLEMENTATION.Generic:
         warnings += unspecified_warning("DDS-implementation")
     if len(system.hosts) > 1:
@@ -723,8 +723,8 @@ def transform_system(system: ros.System) -> tuple[list[str] | ds.System, list[st
 
     feedback = validator.validate_system(system)
     if feedback.errors != []:
-        return (["System is not well formed, cannot start transformation. \
-                 Validation feedback:"] + feedback.errors, feedback.warnings)
+        return (["System is not well formed, cannot start transformation. "
+                 "Validation feedback:"] + feedback.errors, feedback.warnings)
 
     dust_feedback = validate_system(system)
     warnings = dust_feedback.warnings + feedback.warnings

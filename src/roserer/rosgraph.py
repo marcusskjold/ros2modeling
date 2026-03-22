@@ -296,8 +296,8 @@ class RosGraphView(dict[NodeType, dict[str, GraphNode]]):
         for node in chain:
             other = self[node.nodetype].get(node.name)
             if other is None or not node.equivalent(other):
-                raise ValueError(f"Graph and chain does not refer to equivalent systems. \
-                        There is no equivalent to {node.name} in graph")
+                raise ValueError("Graph and chain does not refer to equivalent systems. "
+                                 f"There is no equivalent to {node.name} in graph")
             out.append(other)
         return out
 
