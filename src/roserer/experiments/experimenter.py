@@ -18,18 +18,10 @@ def perform_reaction_time_experiment(
         ) -> int:
     logger = logging.getLogger(__name__)
     logger.info("Drawing graph of system")
-    GraphDrawer(s,
-        #         [
-        # NodeType.CALLBACK,
-        # NodeType.EXECUTOR,
-        # NodeType.VARIABLE,
-        # # NodeType.TIMER,
-        # NodeType.NODE,
-        # NodeType.HOST,
-        # NodeType.SYSTEM,
-        # NodeType.TOPIC
-        # ]
-                ).save_to_file(f"results/{title}/system-graph.svg")
+    gd = GraphDrawer(s)
+    gd.save_to_file(f"results/{title}/system-graph.svg")
+    gd.save_to_file(f"results/{title}/system-graph.pdf")
+
     logger.info("System graph saved in local results folder")
 
     logger.info("Validating system")
@@ -44,6 +36,12 @@ def perform_reaction_time_experiment(
     logger.info(f"Sources: {[n.name for n in graph.get_sources()]}")
     logger.info("Drawing callback graph")
     cbgraph = graph.get_contracted_view([NodeType.CALLBACK]).get_all_nodes()
-    GraphDrawer(cbgraph).save_to_file(f"results/{title}/cb-graph.svg")
+    gd = GraphDrawer(cbgraph)
+    gd.save_to_file(f"results/{title}/cb-graph.svg")
+    gd.save_to_file(f"results/{title}/cb-graph.pdf")
+
+    nodegraph = GraphDrawer(graph.get_contracted_view([NodeType.NODE]).get_all_nodes())
+    nodegraph.save_to_file(f"results/{title}/node-graph.svg")
+    nodegraph.save_to_file(f"results/{title}/node-graph.pdf")
     logger.info("Callback graph saved in local results folder")
     return rt_experiment(s)
