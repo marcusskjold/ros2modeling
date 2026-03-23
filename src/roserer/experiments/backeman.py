@@ -39,7 +39,11 @@ def backeman_rt_experiment(
     if bksystem is not None:
         ba.monitor(bksystem, monitor, actuator)
         logger.info("Measuring max reaction time of chain")
-        time, _, _ = bksystem.max_reaction_time(gen_graph=False)
+        time, trace, graph = bksystem.max_reaction_time(gen_graph=True)
+        print("Max reaction time: ", str(time))
+        if graph is not None:
+            logger.info("\n\n\nGraph:")
+            logger.info('\n'.join(graph))
         if time is not None:
             logger.info(f"Max reaction time: {time}")
             return time
