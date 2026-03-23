@@ -1,4 +1,3 @@
-import logging
 import roserer.rosgraph as rosgraph
 from roserer.types import Feedback, run_validation, NodeType
 from roserer.rosgraph import RosGraphView
@@ -235,6 +234,8 @@ def error_system_different_subscription_times(system : ros.System) -> list[str]:
 
 def warning_system_timer_period_too_small(system: ros.System) -> list[str]:
     warnings: list[str] = []
+    if RosGraphView(system).check_for_cycles():
+        return []
     for node in system.get_nodes():
         for timer in node.timers:
             wcet = node.full_wcet(timer.callback)
@@ -421,5 +422,6 @@ def validate_system(system: ros.System) -> Feedback:
     feedback.warnings += warning_graph_disconnected_at_host_level(graph)
     feedback.warnings += warning_graph_empty_container(graph)
     feedback.warnings += warning_graph_unbalanced_interfaces(graph)
+    feedback.warnings += warning_system_timer_period_too_small(system)
 
     return feedback
