@@ -1,5 +1,4 @@
 
-
 # This is a test of the defined default values.
 # https://github.com/ros2/rmw/blob/79ee1d7915098815df2c1abc8c0062c1ffe7dc9a/rmw/include/rmw/qos_profiles.h
 # https://github.com/ros2/rmw/blob/rolling/rmw/include/rmw/types.h#L540 
@@ -25,3 +24,18 @@
 # 
 # Deadline RMW_QOS_DEADLINE_BEST_AVAILABLE
 # https://github.com/ros2/rmw/blob/rolling/rmw/include/rmw/types.h#L534C9-L534C40 n
+from roserer.ros2system import System
+import roserer.qos as qos
+
+def test_get_qos_profiles() -> None:
+    sys = System("test")
+    n = sys.add_host().add_executor().add_node()
+    n.add_publisher("topic", name="pub")
+    n.add_callback(3, "cb")
+    n.add_subscription("topic", "cb", name="sub")
+
+    assert sys.get_qos_profiles() == [
+            (qos.qos_profile_default(), "pub"),
+            (qos.qos_profile_default(), "sub")
+            ]
+
