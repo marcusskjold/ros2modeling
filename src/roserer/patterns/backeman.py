@@ -1,5 +1,16 @@
 import roserer.ros2system as ros
 
+def make_nondeterministic(system: ros.System | ros.Executor) -> None:
+    cbs: list[ros.Callback]
+    if isinstance(system, ros.Executor):
+        cbs = [cb for node in system.nodes for cb in node.callbacks]
+    elif isinstance(system, ros.System):
+        cbs = system.get_callbacks()
+    else:
+        raise ValueError("Invalid system object")
+    for cb in cbs:
+        cb.bcet = cb.wcet // 2
+
 def add_node(e: ros.Executor, name: str) -> tuple[ros.Node, ros.Publisher]:
     n = e.add_node(name=name)
     p = n.add_publisher(topic=name)
@@ -42,6 +53,19 @@ def add_datagenerator(
     n, p = add_node(e, name)
     c = n.add_callback(wcet=wcet, publishers=[p])
     n.add_timer(period=period, offset=delay, callback=c)
+    return n
+
+def add_probabilistic_datagenerator(
+        e: ros.Executor,
+        name: str,
+        wcet: int,
+        period: int,
+        delay: int,
+        probability: int
+        ) -> ros.Node:
+    n, p = add_node(e, name)
+    c = n.add_callback(wcet=wcet, publishers=[p])
+    n.add_timer(period=period, offset=delay, callback=c, probability=probability)
     return n
 
 def add_subscriber(
