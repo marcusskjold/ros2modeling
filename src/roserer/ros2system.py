@@ -181,11 +181,13 @@ class Node():
     def add_subscription(
             self,
             topic: Topic,
-            callback: Callback,
+            callback: Callback | str,
             name: str | None = None,
             qos: QoS | dict[str, Any] | None = None,
             wall_times: list[int] | None = None
             ) -> Subscription:
+        if isinstance(callback, str):
+            callback = self.get_callback(callback)
         subscription = Subscription(
                 name=_name_init(name, 
                                 self.name,
@@ -274,7 +276,7 @@ class Node():
     def add_timer(
             self,
             period: int,
-            callback: Callback,
+            callback: Callback | str,
             name: str | None = None,
             offset: int = 0,
             end: int | None = None,
@@ -282,6 +284,8 @@ class Node():
             ) -> Timer:
         if probability < 0 or probability > 100:
             raise ValueError("Probability must be expressed as a number from 0 to 100")
+        if isinstance(callback, str):
+            callback = self.get_callback(callback)
         timer = Timer(
                 callback=callback.name,
                 period=period,
@@ -451,7 +455,7 @@ class System():
             name: str | None = None,
             operating_system: OPERATING_SYSTEM = GENERIC_OPERATING_SYSTEM,
             architecture: ARCHITECTURE = GENERIC_ARCHITECTURE,
-            default_qos: QoS | dict[str, Any]| None = None,
+            default_qos: QoS | dict[str, Any] | None = None,
             default_distribution: DISTRIBUTION | None = None
             ) -> Host:
         host = Host(executors=[],
