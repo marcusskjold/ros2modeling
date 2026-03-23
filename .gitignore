@@ -197,6 +197,7 @@ pyrightconfig.json
 .DS_Store
 
 ## backeman additions
+*validation*.xml
 *-backeman.xml
 *-backeman.xml.q
 *-dust.xml
