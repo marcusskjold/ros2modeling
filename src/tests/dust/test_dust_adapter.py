@@ -133,25 +133,6 @@ def test_transform_system_cbs_correct_ids() -> None:
     assert subscription_cb_ids == [0,1]
     assert client_cb_ids == [0,1]
 
-
-def test_validate_timer_invalid_wcet_sum_caught() -> None:
-    """
-    Tests that a net sum wcet of a callback above the period of its timer
-    is caught (when individual wcet of calls is below)
-    """
-    test_sys = yparser.parse_yaml("src/tests/input/dust/test_validate_timer_invalid_wcet_sum_caught.yaml")
-    errors = da.transform_system(test_sys)
-    assert not isinstance(errors, ds.System)
-    assert errors != []
-
-def test_validate_timer_edge_wcet_sum_accepted() -> None:
-    """
-    Tests that a net sum wcet of a callback equal to period of timer is accepted
-    """
-    test_sys = yparser.parse_yaml("src/tests/input/dust/test_validate_timer_edge_wcet_sum_accepted.yaml")
-    errors, warnings = da.transform_system(test_sys)
-    assert isinstance(errors, ds.System)
-
 def test_validate_system_disconnected_executors_detected() -> None:
     """
     Tests that a system with some executors not being connected prompts a warning.

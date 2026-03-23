@@ -1,3 +1,4 @@
+from roserer.ros2system import System
 import roserer.yamlParser as yparser
 import roserer.systemvalidator as sv
 import pytest
@@ -48,3 +49,44 @@ def test_validation_results_detects_nested_service_cycle() -> None:
     test_sys = yparser.parse_yaml("src/tests/input/system_validator/test_validation_results_detects_nested_service_cycle.yaml")
     feedback = sv.validate_system(test_sys)
     assert feedback.errors == ["[E004]: Graph of system contains cycles. Only acyclic systems may be analyzed"]
+
+def test_warning_graph_disconnected_at_host_level() -> None:
+    sys = System("test")
+    h1 = sys.add_host("host1")
+    h2 = sys.add_host("host2")
+    n1 = h1.add_executor().add_node("node1")
+    n1.add_publisher("node1topic", name="pub1")
+    n1.add_callback(30, "cb1", publishers=["pub1"])
+    n1.add_timer(200, "cb1")
+    n2 = h1.add_executor().add_node("node2")
+    n2.add_callback(30, "cb2")
+    n2.add_subscription("node1topic", callback="cb2")
+
+    n3 = h2.add_executor().add_node("node3")
+    n3.add_publisher("node3topic", name="pub3")
+    n3.add_callback(30, "cb3", publishers=["pub3"])
+    n3.add_timer(200, "cb3")
+    n4 = h2.add_executor().add_node("node4")
+    n4.add_callback(30, "cb4")
+    n4.add_subscription("node3topic", callback="cb4")
+    feedback = sv.validate_system(sys)
+    assert feedback.errors == []
+    assert feedback.warnings == ["[W005]: Not all hosts are connected, for example no object"
+                                 " in host1 communicates with any object in host2"]
+
+def test_warning_system_timer_period_too_small_wcet_greater_than_period() -> None:
+    """
+    Tests that a net sum wcet of a callback above the period of its timer
+    is caught (when individual wcet of calls is below)
+    """
+    test_sys = yparser.parse_yaml("src/tests/input/dust/test_validate_timer_invalid_wcet_sum_caught.yaml")
+    feedback = sv.validate_system(test_sys)
+    assert feedback.contains("[W006]")
+
+def test_warning_system_timer_period_too_small_wcet_and_period_equal() -> None:
+    """
+    Tests that a net sum wcet of a callback equal to period of timer is accepted
+    """
+    test_sys = yparser.parse_yaml("src/tests/input/dust/test_validate_timer_edge_wcet_sum_accepted.yaml")
+    feedback = sv.validate_system(test_sys)
+    assert not feedback.contains("[W006]")
