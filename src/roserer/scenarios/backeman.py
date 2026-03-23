@@ -14,26 +14,13 @@ from dotenv import load_dotenv
 
 def new_default_backeman_system(name: str) -> tuple[ros.System, ros.Executor]:
     s = ros.System(name)
-    s.default_qos.depth = 20
+    # s.default_qos.depth = 20
 
     h = s.add_host()
     e = h.add_executor(
             implementation=EXECUTOR.SingleThreadedExecutor,
             ros_distribution=DISTRIBUTION.Eloquent)
     return s, e
-
-def backeman_st_scenario(name: str = "backeman_st") -> ros.System:
-    load_dotenv()
-    s, e = new_default_backeman_system(name)
-
-    add_datagenerator(e, "SENSOR1", 10, 420, 0)
-    add_datagenerator(e, "SENSOR2", 20, 420, 0)
-    add_subscriber(e, "FILTER1", 10, "SENSOR1")
-    add_subscriber(e, "FILTER2", 20, "SENSOR2")
-    add_subscriber(e, "FUSION1", 30, "FILTER1", ["FILTER2"], [30])
-    add_subscriber(e, "FILTER3", 30, "FUSION1")
-    add_timer(e, "ACTUATOR1", 30, 840, 0, ["FILTER3"], [30])
-    return s
 
 def backeman_ss_scenario(name: str = "backeman_ss") -> ros.System:
     load_dotenv()
@@ -87,31 +74,49 @@ def backeman_ss_scenario_variant_erroneous() -> ros.System:
     add_subscriber(e, "ACTUATOR1", 30, "FILTER3")
     return s
 
-# def backeman_ss_scenario_variant() -> ros.System:
-#     """
-#     Another example of an error resulting in wrong system declaration
-#     """
-#     load_dotenv()
-#     s, e = new_default_backeman_system("backeman_ss")
-#
-#     add_datagenerator(e, "SENSOR1", 10, 230, 0)
-#     add_datagenerator(e, "SENSOR2", 20, 220, 0)
-#     add_subscriber(e, "FILTER1", 10, "SENSOR1")
-#     add_subscriber(e, "FILTER2", 20, "SENSOR2")
-#     add_subscriber(e, "FUSION1", 50, "FILTER1", ["FILTER2"], [50])
-#     add_subscriber(e, "FILTER3", 30, "FUSION1")
-#     add_subscriber(e, "ACTUATOR1", 30, "FILTER3")
-#     return s
-#
-# def backeman_ss_scenario_variant_erroneous() -> ros.System:
-#     load_dotenv()
-#     s, e = new_default_backeman_system("backeman_ss")
-#
-#     add_datagenerator(e, "SENSOR1", 10, 230, 0)
-#     add_datagenerator(e, "SENSOR2", 20, 220, 0)
-#     add_subscriber(e, "FILTER1", 10, "SENSOR1")
-#     add_subscriber(e, "FILTER2", 20, "SENSOR2")
-#     add_subscriber(e, "FUSION1", 50, "FILTER1", ["FILTER2"], [50])
-#     add_subscriber(e, "FILTER3", 30, "SENSOR2")
-#     add_subscriber(e, "ACTUATOR1", 30, "FILTER3")
-#     return s
+def backeman_st_scenario(name: str = "backeman_st") -> ros.System:
+    load_dotenv()
+    s, e = new_default_backeman_system(name)
+
+    add_datagenerator(e, "SENSOR1", 10, 420, 0)
+    add_datagenerator(e, "SENSOR2", 20, 420, 0)
+    add_subscriber(e, "FILTER1", 10, "SENSOR1")
+    add_subscriber(e, "FILTER2", 20, "SENSOR2")
+    add_subscriber(e, "FUSION1", 30, "FILTER1", ["FILTER2"], [30])
+    add_subscriber(e, "FILTER3", 30, "FUSION1")
+    add_timer(e, "ACTUATOR1", 30, 840, 0, ["FILTER3"], [30])
+    return s
+
+def backeman_ts_scenario(name: str = "backeman_ts") -> ros.System:
+    load_dotenv()
+    s, e = new_default_backeman_system(name)
+
+    add_datagenerator(e, "SENSOR1", 10, 420, 0)
+    add_datagenerator(e, "SENSOR2", 20, 420, 0)
+    add_subscriber(e, "FILTER1", 10, "SENSOR1")
+    add_subscriber(e, "FILTER2", 20, "SENSOR2")
+    add_timer(e, "FUSION1", 30, 840, 0, ["FILTER1", "FILTER2"], [30, 30])
+    add_subscriber(e, "FILTER3", 30, "FUSION1")
+    add_subscriber(e, "ACTUATOR1", 30, "FILTER3")
+    return s
+
+def backeman_tt_scenario(name: str = "backeman_tt") -> ros.System:
+    load_dotenv()
+    s, e = new_default_backeman_system(name)
+
+    add_datagenerator(e, "SENSOR1", 10, 480, 0)
+    add_datagenerator(e, "SENSOR2", 20, 480, 0)
+    add_subscriber(e, "FILTER1", 10, "SENSOR1")
+    add_subscriber(e, "FILTER2", 20, "SENSOR2")
+    add_timer(e, "FUSION1", 30, 960, 0, ["FILTER1", "FILTER2"], [30, 30])
+    add_subscriber(e, "FILTER3", 30, "FUSION1")
+    add_timer(e, "ACTUATOR1", 30, 960, 0, ["FILTER3"], [30])
+    return s
+
+def backeman_prio_inversion_scenario(name: str = "backeman_prio_inv"):
+    s, e = new_default_backeman_system(name)
+    add_datagenerator(e, "SENSOR1", 50, 150, 0)
+    add_subscriber(e, "FILTER", 30, "SENSOR1" )
+    add_datagenerator(e, "SENSOR2", 30, 150, 50)
+    add_subscriber(e, "ACTUATOR", 10, "FILTER", ["SENSOR2"], [10])
+    return s
