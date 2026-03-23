@@ -186,7 +186,7 @@ def error_system_incorrect_bcet(system: ros.System) -> list[str]:
     callbacks = system.get_callbacks()
     if all(cb.bcet == cb.wcet for cb in callbacks):
         return []
-    if all(cb.bcet == cb.wcet / 2 for cb in callbacks):
+    if all(cb.bcet == cb.wcet // 2 for cb in callbacks):
         return []
     else:
         return ["[E124]: This model can only model systems that are deterministic "
