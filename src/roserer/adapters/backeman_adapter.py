@@ -224,8 +224,8 @@ def warning_buffer_size(system: ros.System) -> list[str]:
 def validate_timer(timer: ros.Timer) -> Feedback:
     feedback = Feedback()
     if timer.end:
-        feedback.errors += [f"[W103]: Timer {timer.name} has end time, this model"
-                            " assumes that timers continue indefinitely"]
+        feedback.warnings += [f"[W103]: Timer {timer.name} has end time, this model"
+                              " assumes that timers continue indefinitely"]
     return feedback
 
 def validate_subscription(sub: ros.Subscription) -> Feedback:

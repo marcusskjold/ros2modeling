@@ -179,7 +179,7 @@ def validate_callback(callback: ros.Callback) -> Feedback:
     warnings = feedback.warnings
     if callback.bcet != callback.wcet:
         warnings += [
-                f"[W205]: Callback {callback.name} has bcet different from wcet. "
+                f"[W204]: Callback {callback.name} has bcet different from wcet. "
                 "This model does not support non-determinism. The callback will be "
                 "modeled as if it always performs at the wcet."
                 ]
@@ -227,7 +227,7 @@ def validate_system(system : ros.System) -> Feedback:
     feedback = Feedback()
     errors, warnings = feedback.errors, feedback.warnings
 
-    warnings += ["[W206]: This model expects 100 % thread availability for each "
+    warnings += ["[W205]: This model expects 100 % thread availability for each "
                  "executor in the host operating system. If this is not the case, "
                  "then there might be errors in the system not covered by this model"]
     if system.dds_implementation != DDS_IMPLEMENTATION.Generic:

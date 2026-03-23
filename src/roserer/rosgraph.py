@@ -192,7 +192,7 @@ class RosGraphView(dict[NodeType, dict[str, GraphNode]]):
         # TODO: Write docs
         _type = node.nodetype
         if self[_type].get(node.name) is not None:
-            raise ValueError(f"Name is not unique for {node.name} of type {_type}"
+            raise ValueError(f"[E015]: Name is not unique for {node.name} of type {_type}"
                              " or the object is contained by more than one parent.")
         self[_type][node.name] = node
         return node
@@ -205,7 +205,7 @@ class RosGraphView(dict[NodeType, dict[str, GraphNode]]):
                 x = GraphNode(e, TOPIC)
                 self[TOPIC][e] = x
             else:
-                raise ValueError(f"Element {e} of type {t} does not exist. Graph nodes"
+                raise ValueError(f"[E016]: Element {e} of type {t} does not exist. Graph nodes"
                                  " registered: {[n.name for n in self.get_all_nodes()]}")
         return x
 

@@ -240,11 +240,13 @@ def warning_system_timer_period_too_small(system: ros.System) -> list[str]:
         for timer in node.timers:
             wcet = node.full_wcet(timer.callback)
         if timer.period < wcet:
-            warnings += [f"[W006]: The timer {timer.name} has a period of"
-                         f" {timer.period}. However, the combined wcets of the callback"
-                         f" released by this timer is {wcet} (including nested calls)."
-                         f" If a model assumes fixed execution-time (equal to wcet),"
-                         " then a buffer overflow will trivially occur."]
+            warnings += [f"[W006]: Timer {timer.name} has a period shorter than the "
+                         "combined period of its connected callbacks."
+                         f"{timer.name} has period {timer.period}, however, the "
+                         f"combined wcets of the callback released by this timer is "
+                         f"{wcet} (including nested calls). If a model assumes fixed "
+                         "execution-time (equal to wcet), then a buffer overflow will "
+                         "trivially occur."]
     return warnings
 
 def validate_qos(qos: qos.QoS, parent: str) -> Feedback:
@@ -257,11 +259,11 @@ def validate_qos(qos: qos.QoS, parent: str) -> Feedback:
     # TODO create proper comparison functions for durations
     # Not a current priority, because they are unused
     if qos.deadline < Duration(0, 0):
-        errors += [f"[E007]: {parent} has invalid qos deadline policy"]
+        errors += [f"[E006]: {parent} has invalid qos deadline policy"]
     if qos.lifespan < Duration(0, 0):
-        errors += [f"[E008]: {parent} has invalid qos lifespan policy"]
+        errors += [f"[E006]: {parent} has invalid qos lifespan policy"]
     if qos.liveliness_lease_duration < Duration(0, 0):
-        errors += [ f"[E009]: {parent} has invalid qos liveliness_lease_duration"
+        errors += [ f"[E006]: {parent} has invalid qos liveliness_lease_duration"
                    " policy"]
     return Feedback(errors, [])
 
@@ -273,9 +275,9 @@ def validate_wall_times(owner : str, wall_times : list[int]) -> Feedback:
     """
     errors = []
     if not all(wall_times[i] <= wall_times[i+1] for i in range(len(wall_times) - 1)):
-        errors += [f"[E010]: Wall-times of {owner} are not weakly increasing."]
+        errors += [f"[E007]: Wall-times of {owner} are not weakly increasing."]
     if not all(time >= 0 for time in wall_times):
-        errors += [f"[E011]: Wall-times of {owner} include negative time"]
+        errors += [f"[E008]: Wall-times of {owner} include negative time"]
     return Feedback(errors, [])
 
 def validate_client(client: ros.Client) -> Feedback:
@@ -289,13 +291,13 @@ def validate_variable(var: ros.Variable) -> Feedback:
 
 def validate_callback(callback: ros.Callback,) -> Feedback:
     if callback.wcet < 0:
-        return Feedback([f"[E012]: Callback '{callback.name}' has a negative wcet"], 
+        return Feedback([f"[E009]: Callback '{callback.name}' has a negative wcet"], 
                         [])
     if callback.bcet < 0:
-        return Feedback([f"[E017]: Callback '{callback.name}' has a negative bcet"], 
+        return Feedback([f"[E010]: Callback '{callback.name}' has a negative bcet"], 
                         [])
     if callback.bcet > callback.wcet:
-        return Feedback([f"[E018]: Callback '{callback.name}' has a bcet larger than its wcet"], 
+        return Feedback([f"[E011]: Callback '{callback.name}' has a bcet larger than its wcet"], 
                         [])
     # Remember to validate requests if necessary
     # Not currently necessary
@@ -364,7 +366,7 @@ def validate_node(node: ros.Node) -> Feedback:
     errors = feedback.errors
     # internal
     if len(node.callbacks) < 1:
-        errors += [f"[E013]: Node '{node.name}' must have at least one callback"]
+        errors += [f"[E012]: Node '{node.name}' must have at least one callback"]
     total_triggers = (0
             + len(node.external_inputs)
             + len(node.subscriptions)
@@ -373,7 +375,7 @@ def validate_node(node: ros.Node) -> Feedback:
             + len(node.actions)
             )
     if total_triggers < 1:
-        errors += [f"[E014]: Node '{node.name}' must have at least one trigger"]
+        errors += [f"[E013]: Node '{node.name}' must have at least one trigger"]
     return feedback
 
 def validate_executor(executor: ros.Executor) -> Feedback:
@@ -384,16 +386,12 @@ def validate_host(host: ros.Host) -> Feedback:
 
 def validate_system(system: ros.System) -> Feedback:
     feedback = Feedback()
-    logger = logging.getLogger(__name__)
-    logger.info("Start validation")
     try:
-        logger.info("Build graph")
         graph = RosGraphView(system)
-        logger.info("Graph built")
     except ValueError as ve:
-        return Feedback([f"[E015]: System is not a valid data graph.\n{ve}"], [])
+        return Feedback([f"{ve}"], [])
     if len(graph[NodeType.NODE]) < 1:
-        return Feedback(["[E016]: System has no nodes"], [])
+        return Feedback(["[E014]: System has no nodes"], [])
 
     # Validate objects
     feedback += run_validation(system.hosts, validate_host)
