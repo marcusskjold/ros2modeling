@@ -41,6 +41,9 @@ class Feedback():
         self.warnings += other.warnings
         return self
 
+    def contains(self, string) -> bool:
+        return any(string in f for f in self.errors + self.warnings)
+
 def run_validation(
         objects: Iterable[T],
         func: Callable[[T], Feedback],
