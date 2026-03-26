@@ -1,0 +1,85 @@
+\documentclass{article}
+\begin{document}
+\begin{table}
+\centering
+\begin{tabular}{|c|c|c|c|c|c|c|c|c|c|c|c|}
+\hline
+\#Cams & Load & $\leq 850$ & Time & \#Cams & Load & $\leq 850$ & Time & \#Cams & Load & $\leq 850$ & Time\\
+\hline
+1 & 25\% & Yes & 0.15 & 2 & 25\% & Yes & 0.18 & 3 & 25\% & Yes & 0.19\\
+1 & 50\% & Yes & 0.16 & 2 & 50\% & Yes & 0.19 & 3 & 50\% & Yes & 0.20\\
+1 & 75\% & Yes & 0.17 & 2 & 75\% & Yes & 0.20 & 3 & 75\% & Yes & 0.21\\
+1 & 100\% & Yes & 0.18 & 2 & 100\% & Yes & 0.19 & 3 & 100\% & Yes & 0.25\\
+\hline
+4 & 25\% & Yes & 0.21 & 5 & 25\% & Yes & 0.32 & 6 & 25\% & Yes & 0.44\\
+4 & 50\% & Yes & 0.22 & 5 & 50\% & No & 0.09 & 6 & 50\% & No & 0.07\\
+4 & 75\% & Yes & 0.25 & 5 & 75\% & No & 0.07 & 6 & 75\% & No & 0.07\\
+4 & 100\% & Yes & 0.27 & 5 & 100\% & No & 0.06 & 6 & 100\% & No & 0.07\\
+\hline
+\end{tabular}
+\caption{Use case monitoring 1, with timer-based fusion (period of 250) analysing 10000 time steps.}
+\end{table}
+
+
+\begin{table}
+\centering
+\begin{tabular}{|c|c|c|c|c|c|c|c|c|c|c|c|}
+\hline
+\#Cams & Load & $\leq 850$ & Time & \#Cams & Load & $\leq 850$ & Time & \#Cams & Load & $\leq 850$ & Time\\
+\hline
+1 & 25\% & No & 0.06 & 2 & 25\% & No & 0.07 & 3 & 25\% & No & 0.07\\
+1 & 50\% & No & 0.07 & 2 & 50\% & No & 0.06 & 3 & 50\% & No & 0.06\\
+1 & 75\% & No & 0.06 & 2 & 75\% & No & 0.06 & 3 & 75\% & No & 0.06\\
+1 & 100\% & No & 0.06 & 2 & 100\% & No & 0.06 & 3 & 100\% & No & 0.06\\
+\hline
+4 & 25\% & No & 0.07 & 5 & 25\% & No & 0.07 & 6 & 25\% & No & 0.07\\
+4 & 50\% & No & 0.06 & 5 & 50\% & No & 0.07 & 6 & 50\% & No & 0.07\\
+4 & 75\% & No & 0.07 & 5 & 75\% & No & 0.07 & 6 & 75\% & No & 0.07\\
+4 & 100\% & No & 0.06 & 5 & 100\% & No & 0.06 & 6 & 100\% & No & 0.06\\
+\hline
+\end{tabular}
+\caption{Use case monitoring 1, with timer-based fusion (period of 750) analysing 10000 time steps.}
+\end{table}
+
+
+\begin{table}
+\centering
+\begin{tabular}{|c|c|c|c|c|c|c|c|c|c|c|c|}
+\hline
+\#Cams & Load & $\leq 850$ & Time & \#Cams & Load & $\leq 850$ & Time & \#Cams & Load & $\leq 850$ & Time\\
+\hline
+1 & 25\% & n/a & 0.00 & 2 & 25\% & Yes & 0.16 & 3 & 25\% & Yes & 0.19\\
+1 & 50\% & n/a & 0.00 & 2 & 50\% & Yes & 0.18 & 3 & 50\% & Yes & 0.20\\
+1 & 75\% & n/a & 0.00 & 2 & 75\% & Yes & 0.21 & 3 & 75\% & Yes & 0.22\\
+1 & 100\% & n/a & 0.00 & 2 & 100\% & Yes & 0.20 & 3 & 100\% & Yes & 0.24\\
+\hline
+4 & 25\% & Yes & 0.22 & 5 & 25\% & Yes & 0.26 & 6 & 25\% & Yes & 1.19\\
+4 & 50\% & Yes & 0.22 & 5 & 50\% & No & 0.11 & 6 & 50\% & No & 0.08\\
+4 & 75\% & Yes & 0.25 & 5 & 75\% & No & 0.07 & 6 & 75\% & No & 0.07\\
+4 & 100\% & Yes & 0.29 & 5 & 100\% & No & 0.06 & 6 & 100\% & No & 0.07\\
+\hline
+\end{tabular}
+\caption{Use case monitoring 2, with timer-based fusion (period of 250) analysing 10000 time steps.}
+\end{table}
+
+
+\begin{table}
+\centering
+\begin{tabular}{|c|c|c|c|c|c|c|c|c|c|c|c|}
+\hline
+\#Cams & Load & $\leq 850$ & Time & \#Cams & Load & $\leq 850$ & Time & \#Cams & Load & $\leq 850$ & Time\\
+\hline
+1 & 25\% & n/a & 0.00 & 2 & 25\% & No & 0.07 & 3 & 25\% & No & 0.07\\
+1 & 50\% & n/a & 0.00 & 2 & 50\% & No & 0.06 & 3 & 50\% & No & 0.06\\
+1 & 75\% & n/a & 0.00 & 2 & 75\% & No & 0.06 & 3 & 75\% & No & 0.06\\
+1 & 100\% & n/a & 0.00 & 2 & 100\% & No & 0.06 & 3 & 100\% & No & 0.06\\
+\hline
+4 & 25\% & No & 0.07 & 5 & 25\% & No & 0.07 & 6 & 25\% & No & 0.07\\
+4 & 50\% & No & 0.06 & 5 & 50\% & No & 0.07 & 6 & 50\% & No & 0.07\\
+4 & 75\% & No & 0.07 & 5 & 75\% & No & 0.06 & 6 & 75\% & No & 0.07\\
+4 & 100\% & No & 0.06 & 5 & 100\% & No & 0.06 & 6 & 100\% & No & 0.07\\
+\hline
+\end{tabular}
+\caption{Use case monitoring 2, with timer-based fusion (period of 750) analysing 10000 time steps.}
+\end{table}
+\end{document}
