@@ -93,23 +93,23 @@ class GraphNode:
 
     def check_for_cycles(
             self,
-            settled: list[GraphNode] | None = None,
-            visited: list[GraphNode] | None = None
+            settled: set[GraphNode] | None = None,
+            visited: set[GraphNode] | None = None
             ) -> bool:
         if settled is None:
-            settled = []
+            settled = set()
         if visited is None:
-            visited = []
+            visited = set()
         if self in settled:
             return False
         if self in visited:
             return True
-        visited.append(self)
+        visited.add(self)
         dependents = self.outgoing
         for dep in dependents:
             if dep.check_for_cycles(settled, visited):
                 return True
-        settled.append(self)
+        settled.add(self)
         return False
 
     def get_paths_to(self, target: GraphNode) -> list[list[GraphNode]]:
@@ -272,8 +272,8 @@ class RosGraphView(dict[NodeType, dict[str, GraphNode]]):
 
     def check_for_cycles(self) -> bool:
 
-        settled: list[GraphNode] = []
-        visited: list[GraphNode] = []
+        settled: set[GraphNode] = set()
+        visited: set[GraphNode] = set()
 
         for node in self.get_all_nodes():
             if node.check_for_cycles(settled, visited):
