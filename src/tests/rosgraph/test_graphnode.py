@@ -29,6 +29,14 @@ def test_graphnode_equivalent_positive_different_links() -> None:
     assert n1.equivalent(n2)
     assert n2.equivalent(n1)
 
+def test_graphnode_eq() -> None:
+    n1 = GraphNode("n1", NodeType.CALLBACK)
+    n2 = GraphNode("n2", NodeType.CALLBACK)
+    n1.add_edge_to(n2)
+    n2.add_edge_to(n1)
+    assert n1 != n2
+    assert n1 is not None
+
 def test_graphnode_equivalent_negative_type() -> None:
     n1 = GraphNode("node1", NodeType.CALLBACK)
     n2 = GraphNode("node1", NodeType.EXECUTOR)
