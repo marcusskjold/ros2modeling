@@ -430,10 +430,11 @@ def get_data_source_for_cb_in_chain(chain: list[GraphNode], cb: GraphNode) -> st
 
 def add_timer(bksystem: bk.System, node: ros.Node, priority: int, chain: list[GraphNode]
               ) -> None:
+    log = logging.getLogger(__name__)
     main_task, sub_tasks = get_main_and_sub_tasks(node)
     name: str = node.name.upper()
     wcet: int = main_task.wcet
-    subscribers: list[str] = [s.topic for s in node.subscriptions]
+    subscribers: list[str] = [s.topic.upper() for s in node.subscriptions]
     wcets: list[int] = [node.get_callback(s.callback).wcet for s in node.subscriptions]
     period = node.timers[0].period
     delay = node.timers[0].offset
@@ -445,16 +446,20 @@ def add_timer(bksystem: bk.System, node: ros.Node, priority: int, chain: list[Gr
         #       Then any timer or subscriber downstream of the timer that are part of the
         #       monitored chain will not read from a variable that contains data
         #       originating from this timer.
-        data_source = name + "x" + subscribers[0] + "_data"
+        wn = subscribers[0].upper()
+        assert (isinstance(wn, str))
+        data_source = name + "x" + wn + "_data"
     else:
         data_source = get_data_source_for_cb_in_chain(chain, main_task_in_chain)
         assert data_source != "pd"
 
+    # log.debug("Data source:" + data_source)
     bksystem.add_timer(name=name, period=period, wcet=wcet, delay=delay, 
                        subscribers=subscribers, wcets=wcets, data_source=data_source,
                        prio=priority)
 
 def add_subscriber(bksystem: bk.System, node: ros.Node, chain: list[GraphNode]) -> None:
+    log = logging.getLogger(__name__)
     
     main_task, sub_tasks = get_main_and_sub_tasks(node)
 
@@ -471,7 +476,7 @@ def add_subscriber(bksystem: bk.System, node: ros.Node, chain: list[GraphNode]) 
         else:
             for cb in sub_tasks:
                 if sub.callback == cb.name:
-                    subscribers.append(sub.topic)
+                    subscribers.append(sub.topic.upper())
                     wcets.append(cb.wcet)
     assert topic
 
