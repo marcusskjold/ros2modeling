@@ -9,6 +9,7 @@ def backeman_rt_experiment(
         s: ros.System,
         monitor: str,
         actuator: str,
+        external_event: bool = False,
         ) -> int:
     logger = logging.getLogger(__name__)
     graph = RosGraphView(s)
@@ -31,13 +32,13 @@ def backeman_rt_experiment(
             graph[NodeType.CALLBACK][actuator_cb])[0]
     logger.info(f"Chain to monitor: {[n.name for n in chain]}")
     logger.info("Transforming system")
-    feedback, bksystem = ba.transform_system(s, chain)
+    feedback, bksystem = ba.transform_system(s, chain, external_event=external_event)
     for ln in feedback.errors:
         logger.error(ln)
     for ln in feedback.warnings:
         logger.warning(ln)
     if bksystem is not None:
-        ba.monitor(bksystem, monitor, actuator)
+        # ba.monitor(bksystem, monitor, actuator)
         logger.info("Measuring max reaction time of chain")
         time, trace, graph = bksystem.max_reaction_time(gen_graph=True)
         print("Max reaction time: ", str(time))
