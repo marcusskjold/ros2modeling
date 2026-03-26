@@ -179,8 +179,6 @@ def parse_duration(arg: Duration | str) -> Duration:
                     "Invalid format of argument string. Expected '(int, int)', "
                     f"got '{arg}'")
         return Duration(int(m.group(1)),int(m.group(2)))
-    else:
-        raise TypeError(f"{arg} is neither a string nor a Duration")
 
 def parse_int(arg: int | str) -> int:
     if isinstance(arg, int):
