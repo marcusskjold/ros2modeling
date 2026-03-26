@@ -73,7 +73,7 @@ def validation():
     systems = [validation_ss(), validation_st(), validation_ts(), validation_tt()]
     for name, system in zip(names, systems):
         mrt, _, graph = system.max_reaction_time()
-        print(name, "\t", mrt)
+        # print(name, "\t", mrt)
         # print('\n'.join(graph))
 
 
@@ -107,9 +107,9 @@ def case_study(cameras, prob, mcamera, subscription, fusion_period=500):
         return None
 
     if subscription:
-        name = "casestudy" + str(cameras) + "_" + str(mcamera) + "_sub"
+        name = "casestudy" + str(cameras) + "_" + str(mcamera) + "_sub" + str(prob)
     else:
-        name = "casestudy" + str(cameras) + "_" + str(mcamera) + "_tmr"
+        name = "casestudy" + str(cameras) + "_" + str(mcamera) + "_tmr" + str(prob)
 
     system = System(name)
 
@@ -175,14 +175,14 @@ def example():
 # Let's do the same but generate for each camera?
 # def case_study(cameras, prob, mcamera, subscription, fusion_period=500):
 def test_system(max_cameras, mcamera, subscription, upper_limit, fusion_period):
-    print("test_system(", mcamera, subscription, upper_limit, fusion_period, ")")
+    # print("test_system(", mcamera, subscription, upper_limit, fusion_period, ")")
     results = []
     probs = [25, 50, 75, 100]
     for cameras in range(1,max_cameras+1):
         for prob in probs:
-            print("\t", cameras, prob)
+            # print("\t", cameras, prob)
             system = case_study(cameras, prob, mcamera, subscription, fusion_period)
-            print(system)
+            # print(system)
             if system:
                 #print("\trunning system")
                 THRESHOLD = 850
@@ -190,11 +190,12 @@ def test_system(max_cameras, mcamera, subscription, upper_limit, fusion_period):
 
                 start = time.time()
                 formula, data = system.measure_load(THRESHOLD, PERCENTAGE, upper_limit)
+                print(f"HERE: {system.name}. RESULT: {data}")
                 end = time.time()
                 t = end - start
                 results.append((cameras, prob, data, formula, t))
             else:
-                print("\tsystem could not be created")
+                # print("\tsystem could not be created")
                 results.append((cameras, prob, "n/a", "", 0.0))
 
     # print("#Cams\tLoad\tResult")
@@ -340,4 +341,8 @@ def run_experiments():
     fout.write(latex)
     fout.close()
 
-validation_tt().write("validation_tt.xml")
+run_experiments()
+# s = case_study(7, 25, 6, False)
+# print(s.gen_declaration())
+# print(s.gen_system())
+# s.write("tmt_bm.xml")
