@@ -534,7 +534,11 @@ def transform_system(system: ros.System, chain: list[GraphNode] | tuple[str,str]
                                     " transformation. Validation feedback:"]), None
     if not isinstance(chain, list):
         mon, act = chain
-        chain = get_valid_chains(system, mon, act)[0]
+        try:
+            chain = get_valid_chains(system, mon, act)[0]
+        except ValueError as e:
+            feedback.errors += [f"[E125]: The callbacks specified cannot form a valid callback chain: {e}"]
+            chain = []
     
     feedback += validate_system(system, chain)
 
@@ -545,19 +549,23 @@ def transform_system(system: ros.System, chain: list[GraphNode] | tuple[str,str]
 def get_valid_chains(system: ros.System, monitor_node: str, actuator_node: str
                ) -> list[list[GraphNode]]:
     graph = RosGraphView(system)
+    monitor_cb = ""
+    actuator_cb = ""
+    print(monitor_node)
+    print(actuator_node)
     for n in system.get_nodes():
         if n.name == monitor_node and is_valid_data_generator(n):
             for cb in n.callbacks:
                 if is_main_task(cb):
                     monitor_cb = cb.name
-            if monitor_cb == "":
-                raise ValueError("Monitor node name is not valid")
         if n.name == actuator_node:
             for cb in n.callbacks:
                 if is_main_task(cb):
                     actuator_cb = cb.name
-            if actuator_cb == "":
-                raise ValueError("Actuator node name is not valid")
+    if actuator_cb == "":
+        raise ValueError("Actuator node name is not valid")
+    if monitor_cb == "":
+        raise ValueError("Monitor node name is not valid")
     chains = graph[NodeType.CALLBACK][monitor_cb].get_paths_to(
             graph[NodeType.CALLBACK][actuator_cb])
     if len(chains) < 1:
