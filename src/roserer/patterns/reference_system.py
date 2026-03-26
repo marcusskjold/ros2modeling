@@ -34,7 +34,7 @@ def add_cyclic_node(e: ros.Executor, name: str, wcet: int, cycle_time: int, inpu
     p = n.add_publisher(topic=name)
     variables = []
     for inp in inputs:
-        varname = inp + "_cache"
+        varname = name + "_" + inp + "_cache"
         v = n.add_variable(varname, reset_after_read=True)
         variables.append(v)
         cbb = n.add_callback(0, write_variables=[v])
@@ -55,5 +55,30 @@ def add_intersection_node(e: ros.Executor, name: str, wcet: int, connections: li
 def add_command_node(e: ros.Executor, name: str, wcet: int, input_topic: str):
     n = e.add_node(name=name)
     cb = n.add_callback(wcet)
+    n.add_subscription(topic=input_topic, callback=cb)
+    return n
+
+def add_intersection_node_backeman(e: ros.Executor, name: str, wcet: int, connections: list[tuple[str, str]]) -> ros.Node:
+    for sub, pub in connections:
+        n = e.add_node(name=f"{name}_{sub}X{pub}")
+        p = n.add_publisher(topic=pub)
+        cb = n.add_callback(wcet, publishers=[p])
+        n.add_subscription(topic=sub, callback=cb)
+    return n
+
+def add_fusion_node_no_condition(e: ros.Executor, name: str, wcet: int, sub_topic1: str, sub_topic2: str) -> ros.Node:
+    n = e.add_node(name=name)
+    p = n.add_publisher(topic=name)
+    v1 = n.add_variable(reset_after_read=True, condition=False)
+    cb1 = n.add_callback(wcet=wcet, write_variables=[v1])
+    cb2 = n.add_callback(wcet=wcet, read_variables=[v1], publishers=[p])
+    n.add_subscription(topic=sub_topic1, callback=cb1)
+    n.add_subscription(topic=sub_topic2, callback=cb2)
+    return n
+
+def add_command_node_with_pub(e: ros.Executor, name: str, wcet: int, input_topic: str):
+    n = e.add_node(name=name)
+    p = n.add_publisher(name + "_topic")
+    cb = n.add_callback(wcet, publishers=[p])
     n.add_subscription(topic=input_topic, callback=cb)
     return n
