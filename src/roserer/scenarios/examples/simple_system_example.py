@@ -4,6 +4,7 @@ import roserer.rosgraph as rosgraph
 from roserer.types import NodeType
 import roserer.printers.graph_printer as gp
 import roserer.systemvalidator as sv
+from roserer.printers.graph_printer import GraphDrawer
 
 # TODO: retrieve graph of this (with some components abstracted away)
 system = ros.System(name="simple_system")
@@ -38,5 +39,7 @@ if feedback.errors != []:
     raise ValueError("Validation went wrong!")
 
 graph = RosGraphView(system)
-graph_overview = rosgraph.filter_list_by_type(graph.get_all_nodes(), [NodeType.CALLBACK, NodeType.NODE, NodeType.TIMER, NodeType.SUBSCRIBER, NodeType.PUBLISHER])
-gp.transform_and_save_cb_graph(graph_overview, f"results/simple_system_graph.svg")
+# graph_overview = graph.get_contracted_view().get_all_nodes()
+gd = GraphDrawer(graph, [NodeType.NODE, NodeType.CALLBACK, NodeType.TIMER, NodeType.SUBSCRIBER, NodeType.PUBLISHER, NodeType.SERVICE, NodeType.EXECUTOR, NodeType.HOST, NodeType.SYSTEM, NodeType.CLIENT])
+gd.save_to_file("results/simple_system_graph.svg")
+#gp.transform_and_save_cb_graph(graph_overview, f"results/simple_system_graph.svg")
