@@ -173,12 +173,13 @@ class UPPAAL():
         # l3 = lines[idx+2] # (x/y runs) H1: ...
         # l4 = lines[idx+3] # with confidence
 
-        if "Formula is NOT satisfied" in l2:
+        if any("Formula is NOT satisfied" in ln for ln in lines):
             satisfied = False
-        elif "Formula is satisfied" in l2:
+        elif any("Formula is satisfied" in ln for ln in lines):
             satisfied = True
         else:
-            raise ValueError("Unexpected output contents")
+            newl = "\n"
+            raise ValueError(f"Unexpected output contents. Got {l2}. Full contents:{newl}{newl.join(ln for ln in lines)}")
 
         return satisfied
 
