@@ -1,26 +1,16 @@
-import pytest
 import roserer.ros2system as ros
-from roserer.ros2system import EXECUTOR, DISTRIBUTION
 from roserer.patterns.backeman import (
+        new_default_backeman_system,
         add_datagenerator,
         add_subscriber,
         add_timer
         )
 from dotenv import load_dotenv
+import roserer.adapters.backeman_adapter as ba
 
 # This setup is exactly translated from backeman/demo.py:validation_ss(), -st(), -tt(), and -ts()
 # Except: We assume that fusion should read from the filters, not the sensors.
 #         Therefor we assume that it is a mistake in the original function.
-
-def new_default_backeman_system(name: str) -> tuple[ros.System, ros.Executor]:
-    s = ros.System(name)
-    # s.default_qos.depth = 20
-
-    h = s.add_host()
-    e = h.add_executor(
-            implementation=EXECUTOR.SingleThreadedExecutor,
-            ros_distribution=DISTRIBUTION.Eloquent)
-    return s, e
 
 def backeman_ss_scenario(name: str = "backeman_ss") -> ros.System:
     load_dotenv()
@@ -120,3 +110,4 @@ def backeman_prio_inversion_scenario(name: str = "backeman_prio_inv"):
     add_datagenerator(e, "SENSOR2", 30, 150, 50)
     add_subscriber(e, "ACTUATOR", 10, "FILTER", ["SENSOR2"], [10])
     return s
+

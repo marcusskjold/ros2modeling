@@ -1,4 +1,15 @@
+from roserer.types import EXECUTOR, DISTRIBUTION
 import roserer.ros2system as ros
+
+def new_default_backeman_system(name: str) -> tuple[ros.System, ros.Executor]:
+    s = ros.System(name)
+    s.default_qos.depth = 20
+
+    h = s.add_host()
+    e = h.add_executor(
+            implementation=EXECUTOR.SingleThreadedExecutor,
+            ros_distribution=DISTRIBUTION.Eloquent)
+    return s, e
 
 def make_nondeterministic(system: ros.System | ros.Executor) -> None:
     cbs: list[ros.Callback]
