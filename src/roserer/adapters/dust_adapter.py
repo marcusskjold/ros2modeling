@@ -37,8 +37,8 @@ def warning_system_disconnected_at_executor_level(graph: RosGraphView) -> list[s
         connected = origin.weakly_connected_with()
         for executor in executors:
             if executor not in connected:
-                return [f"[W202]: Not all executors are connected, for example no object "
-                        "in {executor.name} communicates with any object in {origin.name}"]
+                return ["[W202]: Not all executors are connected, for example no object "
+                        f"in {executor.name} communicates with any object in {origin.name}"]
     return []
 
 def error_graph_service_with_multiple_clients(graph: RosGraphView) -> list[str]:
@@ -149,7 +149,7 @@ def validate_executor(executor : ros.Executor) -> Feedback:
 
     VRD: str = ','.join([d.name for d in VALID_ROS_DISTRIBUTIONS])
     if executor.ros_distribution not in VALID_ROS_DISTRIBUTIONS:
-        errors += [f"[E207]: Executor '{executor.name}' runs on a distribution not "
+        errors += [f"[E207]: Executor '{executor.name}' runs on a ros distribution not "
                    "supported by this model. Make sure that the distribution is one "
                    f"of the following: {VRD}"]
     if executor.implementation != types.EXECUTOR.SingleThreadedExecutor:
@@ -234,6 +234,7 @@ def validate_system(system : ros.System) -> Feedback:
         warnings += unspecified_warning("DDS-implementation")
     if len(system.hosts) > 1:
         warnings += unspecified_warning("distribution of the system between hosts")
+        #TODO isnt the point that it has multiple executors?
     # TODO: Make into a check for one to one mapping of executor to hosts.
 
     graph = RosGraphView(system)
