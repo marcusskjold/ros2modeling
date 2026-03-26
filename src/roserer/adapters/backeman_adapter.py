@@ -355,7 +355,7 @@ def validate_system(system: ros.System, chain: list[GraphNode]) -> Feedback:
 
 # ========================== MONITORING ================================
 
-def monitor(system: bk.System, generator: str, actuator: str):
+def monitor(system: bk.System, generator: str, actuator: str, external_event: bool):
     system.actuator = actuator.upper()
     period = -1
     for node in system.nodes:
@@ -364,7 +364,10 @@ def monitor(system: bk.System, generator: str, actuator: str):
             node: bk.DataGenerator
             node.monitored = True
             period = node.period
-    system.period = period
+    if external_event:
+        system.period = period
+    else:
+        system.period = 0
 
 # ============================== MAPPING ===============================
 
@@ -486,7 +489,7 @@ def add_subscriber(bksystem: bk.System, node: ros.Node, chain: list[GraphNode]) 
                        wcets=wcets,
                        data_source=data_source)
 
-def map_system(system: ros.System, chain: list[GraphNode]) -> bk.System:
+def map_system(system: ros.System, chain: list[GraphNode], external_event: bool) -> bk.System:
     out = bk.System(system.name.upper())
     out.deterministic_hosts(is_system_deterministic(system))
     graph = RosGraphView(system)
@@ -505,19 +508,24 @@ def map_system(system: ros.System, chain: list[GraphNode]) -> bk.System:
         else:
             raise Exception("Node failed to be added - validation must be incorrect")
 
-    monitor(out, chain[0].name, chain[-1].name)
+    generator = chain[0].parent
+    actuator = chain[-1].parent
+    assert generator is not None
+    assert actuator is not None
+    monitor(out, generator.name, actuator.name, external_event)
 
     return out
 
 # ===================== TRANSFORMATION ===========================
 
-def transform_system(system: ros.System, chain: list[GraphNode] | tuple[str,str]
+def transform_system(system: ros.System, chain: list[GraphNode] | tuple[str,str],
+                     external_event: bool = False,
                      ) -> tuple[Feedback, bk.System | None]:
 
     feedback = validator.validate_system(system)
 
     if feedback.errors != []:
-        return feedback + Feedback(["[E123]: System is not well formed, cannot start"
+        return feedback + Feedback(["System is not well formed, cannot start"
                                     " transformation. Validation feedback:"]), None
     if not isinstance(chain, list):
         mon, act = chain
@@ -527,7 +535,7 @@ def transform_system(system: ros.System, chain: list[GraphNode] | tuple[str,str]
 
     if feedback.errors != []:
         return feedback, None
-    return feedback, map_system(system, chain)
+    return feedback, map_system(system, chain, external_event)
 
 def get_valid_chains(system: ros.System, monitor_node: str, actuator_node: str
                ) -> list[list[GraphNode]]:
