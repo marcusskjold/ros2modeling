@@ -81,8 +81,10 @@ def scenario_backeman_ss() -> None:
 
     s = bs.backeman_ss_scenario()
 
-    experiment = partial(
-            be.backeman_rt_experiment, monitor="SENSOR1", actuator="ACTUATOR1")
+    experiment = partial(be.backeman_rt_experiment,
+                         monitor="SENSOR1",
+                         actuator="ACTUATOR1",
+                         external_event=True)
 
     result = exp.perform_reaction_time_experiment(s, "backeman/ss", experiment)
     # See Backeman & Seceleanu (2025) Table 3 (p.310)
@@ -96,8 +98,10 @@ def scenario_backeman_ss_erroneous() -> None:
     from dotenv import load_dotenv
     load_dotenv()
     s = bs.backeman_ss_scenario_erroneous()
-    experiment = partial(
-            be.backeman_rt_experiment, monitor="SENSOR1", actuator="ACTUATOR1")
+    experiment = partial(be.backeman_rt_experiment,
+                         monitor="SENSOR1",
+                         actuator="ACTUATOR1",
+                         external_event=True)
     result = exp.perform_reaction_time_experiment(
             s, "backeman/ss-errroneous", experiment)
     # See Backeman & Seceleanu (2025) Table 3 (p.310)
@@ -116,8 +120,10 @@ def scenario_backeman_ss_variant() -> None:
     load_dotenv()
     s1 = bs.backeman_ss_scenario_variant()
     s2 = bs.backeman_ss_scenario_variant_erroneous()
-    experiment = partial(
-            be.backeman_rt_experiment, monitor="SENSOR2", actuator="ACTUATOR1")
+    experiment = partial(be.backeman_rt_experiment,
+                         monitor="SENSOR2",
+                         actuator="ACTUATOR1",
+                         external_event=True)
     result1 = exp.perform_reaction_time_experiment(
             s1, "backeman/ss-variant", experiment)
     result2 = exp.perform_reaction_time_experiment(
@@ -137,7 +143,8 @@ def scenario_backeman_st() -> None:
     s = bs.backeman_st_scenario()
     experiment = partial(be.backeman_rt_experiment,
                          monitor="SENSOR1",
-                         actuator="ACTUATOR1")
+                         actuator="ACTUATOR1",
+                         external_event=True)
     result = exp.perform_reaction_time_experiment(s, "backeman/st", experiment)
     # See Backeman & Seceleanu (2025) Table 3 (p.310)
     assert result == 1320
@@ -148,7 +155,8 @@ def scenario_backeman_ts() -> None:
     s = bs.backeman_ts_scenario()
     experiment = partial(be.backeman_rt_experiment,
                          monitor="SENSOR1",
-                         actuator="ACTUATOR1")
+                         actuator="ACTUATOR1",
+                         external_event=True)
     result = exp.perform_reaction_time_experiment(s, "backeman/ts", experiment)
     # See Backeman & Seceleanu (2025) Table 3 (p.310)
     assert result == 1470
@@ -159,7 +167,8 @@ def scenario_backeman_tt() -> None:
     s = bs.backeman_tt_scenario()
     experiment = partial(be.backeman_rt_experiment,
                          monitor="SENSOR1",
-                         actuator="ACTUATOR1")
+                         actuator="ACTUATOR1",
+                         external_event=True)
     result = exp.perform_reaction_time_experiment(s, "backeman/tt", experiment)
     # See Backeman & Seceleanu (2025) Table 3 (p.310)
     assert result == 2490
@@ -185,14 +194,16 @@ def scenario_backeman_prio_inversion():
     s = bs.backeman_prio_inversion_scenario()
     experiment = partial(be.backeman_rt_experiment,
                          monitor="SENSOR2",
-                         actuator="ACTUATOR")
+                         actuator="ACTUATOR",
+                         external_event=True)
     result1 = exp.perform_reaction_time_experiment(s, "backeman/prio_inversion", experiment)
     # 80 + 150 == 230
     assert result1 == 230
     bmp.make_nondeterministic(s)
     experiment = partial(be.backeman_rt_experiment,
                          monitor="SENSOR2",
-                         actuator="ACTUATOR")
+                         actuator="ACTUATOR",
+                         external_event=True)
     result2 = exp.perform_reaction_time_experiment(s, "backeman/prio_inversion", experiment)
     # 230 + 150 == 380
     assert result2 == 380
