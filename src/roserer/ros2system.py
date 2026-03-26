@@ -448,7 +448,6 @@ class System():
     GENERIC_ARCHITECTURE = ARCHITECTURE.Generic
     GENERIC_OPERATING_SYSTEM = OPERATING_SYSTEM.Generic
     GENERIC_DDS = DDS_IMPLEMENTATION.Generic
-    DEFAULT_QOS = qos_profile_default()
 
     def add_host(
             self,
@@ -551,7 +550,7 @@ class System():
         self.name = name
         self.hosts = []
         self.dds_implementation = dds_implementation
-        self.default_qos = _qos_init(default_qos, self.DEFAULT_QOS)
+        self.default_qos = _qos_init(default_qos, qos_profile_default())
         self.default_distribution = default_distribution
         self.default_time_unit = default_time_unit
 
