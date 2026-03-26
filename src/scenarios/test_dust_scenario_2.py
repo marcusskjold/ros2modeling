@@ -100,7 +100,7 @@ def test_dust_scenario_2_holistic_EXV1_max_latency() -> None:
         assert False not in overflows.values()
         # #check max-latencies
         latency_results = dust_system.max_latency(stop_time=90, prioritized=False, checks=['T0', 'H', 'M', 'L', 'SH', 'SM', 'SL'])
-        latency_results == {
+        assert latency_results == {
             'T0' : 10,
             'H' : 40,
             'M' : 50,
