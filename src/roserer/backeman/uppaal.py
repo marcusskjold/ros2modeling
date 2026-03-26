@@ -1,4 +1,5 @@
 # Provides functions to perform various UPPAAL tasks.
+import logging
 import roserer.verifyta_resolver
 import subprocess
 import re
@@ -38,7 +39,7 @@ class UPPAAL():
     def write_measure_load_query(
         queryfile: str,
         load_threshold: int,
-        percentage: int,
+        percentage: float,
         upper_limit: int = 10000
     ) -> str:
         fout = open(queryfile, 'w')
@@ -211,12 +212,13 @@ class UPPAAL():
     def measure_load(
         modelfile: str,
         load_threshold: int,
-        percentage: int,
+        percentage: float,
         upper_limit: int
     ) -> tuple[str, bool | str]:
         queryfile = modelfile + ".q"
         formula = UPPAAL.write_measure_load_query(
             queryfile, load_threshold, percentage, upper_limit)
+        log = logging.getLogger(__name__)
         output = UPPAAL.run_uppaal(modelfile, queryfile)
         if UPPAAL.check_overload(output):
             return formula, "Overload"

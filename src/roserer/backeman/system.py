@@ -353,7 +353,7 @@ class System():
         print("Query time: ", end - start)
         return mrt, trace, graph
 
-    def measure_load(self, load_threshold: int, percentage: int, upper_limit: int
+    def measure_load(self, load_threshold: int, percentage: float, upper_limit: int
                      ) -> tuple[str, bool | str]:
         self.write(self.name + TMP_FILE)
         data = UPPAAL.measure_load(
