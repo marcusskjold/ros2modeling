@@ -89,7 +89,7 @@ def run_system(max_cameras: int, mcamera: int, subscription: bool, upper_limit: 
 
                 start = time.time()
                 formula, data = system.measure_load(THRESHOLD, PERCENTAGE, upper_limit)
-                log.info(f"HERE: {system.name}. RESULT: {data}")
+                # log.info(f"HERE: {system.name}. RESULT: {data}")
                 end = time.time()
                 t = end - start
                 results.append((cameras, prob, data, formula, t))
@@ -295,13 +295,19 @@ def test_backeman_case(filename: str, task: Callable):
     fout = open(dir + filename, 'w')
     fout.write(latex)
     # log.info(latex)
+    lni = 0
     for ln1, ln2 in zip(latex.split("\n"), expected.split("\n")):
         p1 = extract_yes_no_pattern(ln1)
         p2 = extract_yes_no_pattern(ln2)
         if p1 and p2:
+            lni += 1
             # log.info(f"{p1} | {p2}")
             # log.info(ln1)
             # log.info(ln2)
+            if p1 != p2:
+                log.info(lni)
+                log.info(p1)
+                log.info(p2)
             assert p1 == p2
         
         # log.info(p1)
