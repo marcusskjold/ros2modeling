@@ -29,7 +29,7 @@ server_1 = node_2.add_service(name="service_1", callback=service_callback)
 node_3 = executor.add_node(name="node_3")
 y = node_3.add_variable(name="y")
 client_1 = node_3.add_client(name="client_1", service="service_1")
-timer_2_callback = node_3.add_callback(wcet=1, name="timer_2_callback", request=ros.Request(client="client_1", response="response_callback"))
+timer_2_callback = node_3.add_callback(wcet=1, name="timer_2_callback", request=[ros.Request(client="client_1", response="response_callback")])
 response_cb = node_3.add_callback(wcet=1, name="response_callback", write_variables=[y])
 timer_2 = node_3.add_timer(period=10, callback=timer_2_callback, name="timer_2")
 

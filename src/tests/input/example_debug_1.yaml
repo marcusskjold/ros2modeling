@@ -30,8 +30,8 @@ System:
           publisher: sensor1service0publisher
           external_outputs:
           - external_output: goLeft
-          request:
-            client: client1
+          requests:
+          - client: client1
             response: sensor1callback0
         timers:
         - timer: sensor1timer0lol

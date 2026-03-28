@@ -67,8 +67,8 @@ def error_node_has_multiple_response_callbacks_for_client(node: ros.Node) -> lis
     """
     requests: dict[str, set[str]] = {}
     for cb in node.callbacks:
-        r = cb.request
-        if r is not None:
+        reqs = cb.requests
+        for r in reqs:
             requests.setdefault(r.client,set())
             requests[r.client].add(r.response)
     return [f"[E202]: There are multiple response callbacks tied to the same client "
@@ -338,11 +338,10 @@ def map_data_sending(out: ds.System,
             interface_release_times.append(wcet)
 
     # look for request
-    if callback.request is not None:
+    for request in callback.requests:
         #register sender
         interface_count += 1
         # create request-server-response if not mapped already
-        request = callback.request
         client = parent_node.get_client(request.client)
         if not out.has_id(client.name, REQUEST):
             sender_id = out.get_registered_id(client.name, REQUEST)

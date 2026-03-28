@@ -15,13 +15,13 @@ System:
           wcet: 5
           publishers:
           - pub_1
-          request: 
-            client: client_1
+          requests: 
+          - client: client_1
             response: response_cb_1
         - callback: cb_2
           wcet: 1
-          request: 
-            client: client_2
+          requests: 
+          - client: client_2
             response: response_cb_2
         - callback: response_cb_1
           wcet: 1

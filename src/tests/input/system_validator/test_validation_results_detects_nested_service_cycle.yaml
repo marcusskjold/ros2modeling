@@ -17,8 +17,8 @@ System:
           wcet : 5
           # publishers:
           # - publisher: pub_1
-          request:
-            client: client_1
+          requests:
+          - client: client_1
             response: cb
 
         # - callback : nested_nested_cb

@@ -391,9 +391,10 @@ class RosGraphView(dict[NodeType, dict[str, GraphNode]]):
                                  (CALLBACK, _cb, EXTERNAL_OUTPUT, cb.external_outputs))
                         edgeq.append((CALLBACK, _cb, VARIABLE, cb.write_variables))
                         edgeq.append((VARIABLE, cb.read_variables, CALLBACK, _cb))
-                        if cb.request is not None:
+                        for req in cb.requests:
+                            requests.append((req, _cb))
                             # Important - callbacks requires that clients are registered
-                            requests.append((cb.request, _cb))
+                            
             for e in edgeq:
                 g.add_edges(e)
             for r, cb in requests:

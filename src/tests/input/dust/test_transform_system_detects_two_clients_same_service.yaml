@@ -10,13 +10,13 @@ System:
         callbacks:
         - callback: cb_1
           wcet: 3
-          request:
-            client: client_1
+          requests:
+          - client: client_1
             response: response_cb
         - callback: cb_2
           wcet: 4
-          request:
-            client: client_2
+          requests:
+          - client: client_2
             response: response_cb
         - callback: response_cb
           wcet: 1

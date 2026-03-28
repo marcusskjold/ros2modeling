@@ -1,5 +1,5 @@
 System:
-  system: dust_scenario_1_EXV1_individual
+  system: dust_scenario_1_EXV1_holistic
   default_distribution: Dashing
   hosts: 
   - host: 
@@ -34,11 +34,7 @@ System:
         - client: client_SL
           service: SL
         callbacks:
-        - callback: response_SH
-          wcet: 0
-        - callback: response_SM
-          wcet: 0
-        - callback: response_SL
+        - callback: response_cb
           wcet: 0
         - callback: seq_1_cb
           wcet: 0
@@ -49,40 +45,24 @@ System:
           - pub_L
           - pub_M
           - pub_H 
-          request: 
-            client: client_SH 
-            response: response_SH
-          calls: nest_1
-        - callback: nest_1
-          wcet: 0
-          request: 
-            client: client_SL
-            response: response_SL 
-          calls: nest_2
-        - callback: nest_2
-          wcet: 0 
-          request: 
-            client: client_SH
-            response: response_SH
-          calls: nest_3
-        - callback: nest_3
-          wcet: 0
-          request: 
-            client: client_SL  
-            response: response_SL
+          requests: 
+          - client: client_SH 
+            response: response_cb
+          - client: client_SL
+            response: response_cb 
+          - client: client_SH
+            response: response_cb
+          - client: client_SL  
+            response: response_cb      
         - callback: seq_2_cb
           wcet: 0
           publishers:
           - pub_H
-          request:
-            client: client_SM 
-            response: response_SM
-          calls: nest_4
-        - callback: nest_4
-          wcet: 0
-          request:
-            client: client_SM
-            response: response_SM
+          requests:
+          - client: client_SM 
+            response: response_cb
+          - client: client_SM
+            response: response_cb
 
     - executor: executor_1
       implementation: SingleThreadedExecutor
