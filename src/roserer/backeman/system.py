@@ -213,7 +213,7 @@ class System():
     actuator: str
     period: int
     name: str
-    node: list[Node]
+    nodes: list[Node]
     det_hosts: bool
 
     def __init__(self, name: str):
