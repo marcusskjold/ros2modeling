@@ -10,67 +10,8 @@ import logging
 from roserer.adapters.backeman_adapter import transform_system
 import roserer.ros2system as ros
 import roserer.patterns.backeman as bmp
+from roserer.scenarios.backeman import case_study
 from roserer.backeman.system import System
-
-# Case study has following parameters:
-# - cameras: No. of cameras
-# - prob: probability of each camera being used (load)
-# - mcamera: which camera should be monitored
-# - subcription: if True, subscription is used of fusion (otherwise Timer)
-#
-def case_study(cameras, prob, mcamera, subscription, fusion_period=500) -> System | None:
-    log = logging.getLogger(__name__)
-
-    CAMERAWCET = 20
-    CAMERAPER = 1000
-    OBJDETWCET = 50
-    FUSIONSUBWCET = 90
-    FUSIONSUB = 10
-    FUSIONTIMERWCET = 90
-    ACTUATORWCET = 50
-    
-    if mcamera >= cameras:
-        return None
-
-    if subscription:
-        name = "casestudy" + str(cameras) + "_" + str(mcamera) + "_sub" + str(prob)
-    else:
-        name = "casestudy" + str(cameras) + "_" + str(mcamera) + "_tmr" + str(prob)
-
-    system = ros.System(name)
-    e = system.add_host("host").add_executor("executor", ros_distribution=DISTRIBUTION.Humble)
-
-    for i in range(cameras):
-        bmp.add_probabilistic_datagenerator(
-                e, "CAMERA" + str(i), CAMERAWCET, CAMERAPER, 0, prob)
-        bmp.add_subscriber(e, "OBJDET" + str(i), OBJDETWCET, "CAMERA" + str(i))
-
-    if subscription:
-        bmp.add_subscriber(
-                e,
-                "FUSION",
-                FUSIONSUBWCET,
-                "OBJDET0",
-                ["OBJDET" + str(i) for i in range(1,cameras)],
-                [FUSIONSUB]*(cameras-1))
-    else:
-        bmp.add_timer(
-                e,
-                "FUSION",
-                FUSIONTIMERWCET,
-                fusion_period,
-                0,
-                ["OBJDET" + str(i) for i in range(cameras)],
-                [FUSIONSUB]*cameras)
-    bmp.add_subscriber(e, "ACTUATOR", ACTUATORWCET, "FUSION")
-    feedback, bms = transform_system(system, (f"CAMERA{mcamera}", "ACTUATOR"))
-    # for node in RosGraphView(system).get_all_nodes():
-    #     log.debug(node)
-    log = logging.getLogger(__name__)
-    for ln in feedback.errors:
-        log.info(ln)
-    assert isinstance(bms, System)
-    return bms
 
 def run_system(max_cameras: int, mcamera: int, subscription: bool, upper_limit: int, fusion_period: int):
     log = logging.getLogger(__name__)
