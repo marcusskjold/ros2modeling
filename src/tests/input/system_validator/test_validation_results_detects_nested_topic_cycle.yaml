@@ -20,8 +20,8 @@ System:
 
         # - callback : nested_nested_cb
         #   wcet: 5
-        #   request:
-        #     client: client_1
+        #   requests:
+        #   - client: client_1
         #     response: response_cb
         # - callback: response_cb
         #   wcet: 5

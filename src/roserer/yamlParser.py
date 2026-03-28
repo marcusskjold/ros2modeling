@@ -10,7 +10,7 @@ VALID_ATTRIBUTES = {
     'host' : ['host', 'architecture', 'operating_system', 'default_qos', 'default_distribution', 'executors'],
     'executor' : ['executor', 'ros_distribution', 'implementation', 'default_qos', 'nodes'],
     'node' : ['node', 'default_qos', 'publishers','callbacks', 'subscriptions', 'variables', 'timers', 'services', 'external_inputs', 'external_outputs', 'clients'],
-    'callback' : ['callback', 'wcet', 'bcet', 'read_variables', 'write_variables', 'calls', 'publishers', 'external_outputs', 'request'],
+    'callback' : ['callback', 'wcet', 'bcet', 'read_variables', 'write_variables', 'calls', 'publishers', 'external_outputs', 'requests'],
     'publisher' : ['publisher', 'topic', 'qos'],
     'timer' : ['timer', 'period', 'offset', 'callback', 'end', 'probability'],
     'subscription' : ['subscription', 'topic', 'callback', 'qos', 'wall_times'],
@@ -139,13 +139,15 @@ def parse_callbacks(ros_node: ros.Node, yaml_callbacks: dict) -> None:
                           for write_variable in callback['write_variables']]
             callback_args['write_variables'] = [wv for wv in ros_node.variables
                                                 if wv.name in yaml_names]
-        if 'request' in callback:
+        if 'requests' in callback:
             # add the request with the key-value pair of its content
-            request_yaml = callback['request']
-            validate_yaml_attributes("request", request_yaml)
-            request_args = {k: request_yaml[k] for k in request_yaml.keys()
-                         & {'client', 'response'}}
-            callback_args['request'] = ros.Request(**request_args)
+            requests_yaml = callback['requests']
+            callback_args['requests'] = []
+            for req in requests_yaml:
+                validate_yaml_attributes("request", req)
+                request_args = {k: req[k] for k in req.keys()
+                             & {'client', 'response'}}
+                callback_args['requests'].append(ros.Request(**request_args))
         ros_node.add_callback(**callback_args)
 
 

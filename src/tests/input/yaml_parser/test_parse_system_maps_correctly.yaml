@@ -30,8 +30,8 @@ System:
           calls: cb_2
           publishers: [pub_1]
           external_outputs: [eo_1]
-          request:
-            client: client_1
+          requests:
+          - client: client_1
             response: cb_2
         - callback: cb_2
           wcet: 5

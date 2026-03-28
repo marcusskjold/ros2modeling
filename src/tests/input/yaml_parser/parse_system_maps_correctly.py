@@ -38,7 +38,7 @@ callback_1 = node.add_callback(wcet=1, name='cb_1',
                   calls='cb_2',
                   outputs=[e_output],
                   publishers=[publisher],
-                  request=ros.Request(client='client_1', response='cb_2')
+                  requests=[ros.Request(client='client_1', response='cb_2')]
                   )
 
 e_input= node.add_external_input(name='ei_1', callback=callback_1)

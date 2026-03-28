@@ -58,10 +58,9 @@ System:
           publishers:
           - publisher: filter1publisher0
         - callback: filter1request0
-          # request:
-          #  client: filter1client0
-          #  response: None
-          # timeout: 500
+          # requests:
+          # - client: filter1client0
+          #   response: None
           wcet: 50
         subscriptions:
         - topic: sensor1
