@@ -33,6 +33,9 @@ class Feedback():
         self.errors = errors
         self.warnings = warnings
 
+    def __str__(self) -> str:
+        return "\n".join(self.errors + self.warnings)
+
     def __add__(self, other: 'Feedback') -> 'Feedback':
         return Feedback(self.errors + other.errors, self.warnings + other.warnings)
 
