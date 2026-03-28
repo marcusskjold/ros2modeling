@@ -7,6 +7,7 @@ import roserer.ros2system as ros
 import roserer.adapters.backeman_adapter as ba
 import roserer.qos as qos
 import roserer.scenarios.backeman as bms
+from roserer.backeman.system import Subscriber, Node
 
 def blank_node() -> ros.Node:
     return ros.Node(
@@ -99,3 +100,35 @@ def test_dust_system_is_rejected() -> None:
     assert feedback.errors != []
     for error in ("[E101]","[E114]", "[E116]", "[E118]", "[E120]", "[E122]",):
         assert feedback.contains(error)
+
+def test_timers_have_higher_priorities_validation() -> None:
+    system = bms.backeman_tt_scenario()
+    _, bs = ba.transform_system(system, ("SENSOR1", "ACTUATOR1"))
+    assert bs is not None
+    hastimer: list[Node] = []
+    subscriber: list[Subscriber] = []
+    for node in bs.nodes:
+        if isinstance(node, Subscriber):
+            subscriber.append(node)
+        else:
+            hastimer.append(node)
+    assert len(subscriber) == 6
+    assert len(hastimer) == 4
+    for timer in hastimer:
+        assert all(timer.priority() > node.priority() for node in subscriber)
+
+
+def test_timers_have_higher_priorities_case() -> None:
+    system = bms.case_study(12, 75, 0, False)
+    assert system is not None
+    hastimer: list[Node] = []
+    subscriber: list[Subscriber] = []
+    for node in system.nodes:
+        if isinstance(node, Subscriber):
+            subscriber.append(node)
+        else:
+            hastimer.append(node)
+    assert len(subscriber) == 25
+    assert len(hastimer) == 13
+    for timer in hastimer:
+        assert all(timer.priority() > node.priority() for node in subscriber)
