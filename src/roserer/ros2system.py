@@ -91,7 +91,7 @@ class Callback():
     calls: str | None
     publishers: list[str]
     external_outputs: list[str]
-    request: Request | None
+    requests: list[Request]
 
     def __init__(
             self,
@@ -103,7 +103,7 @@ class Callback():
             calls: str | None = None,
             external_outputs: list[ExternalOutput] | list[str] | None = None,
             publishers: list[Publisher] | list[str] | None = None,
-            request: Request | None = None
+            requests: list[Request] | None = None
             ) -> None:
         self.name = name
         if bcet is None:
@@ -116,7 +116,7 @@ class Callback():
         self.publishers = _stringify_list(publishers)
         self.external_outputs = _stringify_list(external_outputs)
         self.calls = calls
-        self.request = request
+        self.requests = requests if requests is not None else []
 
 @dataclass
 class Subscription():
@@ -242,7 +242,7 @@ class Node():
             calls: str | None = None,
             outputs: list[str] | list[ExternalOutput] | None = None,
             publishers: list[str] | list[Publisher] | None = None,
-            request: Request | None = None
+            requests: list[Request] | None = None
             ) -> Callback:
 
         callback = Callback(
@@ -254,7 +254,7 @@ class Node():
             calls=calls,
             external_outputs=outputs,
             publishers=publishers,
-            request=request
+            requests=requests
             )
         self.callbacks.append(callback)
         return callback
