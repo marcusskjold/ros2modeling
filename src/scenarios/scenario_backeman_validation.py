@@ -107,7 +107,6 @@ def scenario_backeman_ss_erroneous() -> None:
     # See Backeman & Seceleanu (2025) Table 3 (p.310)
     assert result == 540
 
-
 def scenario_backeman_ss_variant() -> None:
     """
     This test shows that:
@@ -132,10 +131,10 @@ def scenario_backeman_ss_variant() -> None:
     assert result1 == 660
     assert result2 == 650
     assert result1 != result2
-    assert not any("[W001]: topic FILTER2 is published to, but not subscribed to"
-                   in warn for warn in validate_system(s1).warnings)
-    assert any("[W001]: topic FILTER2 is published to, but not subscribed to"
-               in warn for warn in validate_system(s2).warnings)
+    s1_feedback = validate_system(s1)
+    s2_feedback = validate_system(s2)
+    assert not s1_feedback.contains("[W001]: topic FILTER2 is published to, but not subscribed to")
+    assert s2_feedback.contains("[W001]: topic FILTER2 is published to, but not subscribed to")
 
 def scenario_backeman_st() -> None:
     from dotenv import load_dotenv
@@ -146,6 +145,23 @@ def scenario_backeman_st() -> None:
                          actuator="ACTUATOR1",
                          external_event=True)
     result = exp.perform_reaction_time_experiment(s, "backeman/st", experiment)
+    # See Backeman & Seceleanu (2025) Table 3 (p.310)
+    assert result == 1320
+
+def scenario_backeman_st_erroneous() -> None:
+    """
+    Even though this system is erroneous, the results are the same as the
+    correct version.
+    """
+    from dotenv import load_dotenv
+    load_dotenv()
+    s = bs.backeman_st_scenario_erroneous()
+    experiment = partial(be.backeman_rt_experiment,
+                         monitor="SENSOR1",
+                         actuator="ACTUATOR1",
+                         external_event=True)
+    result = exp.perform_reaction_time_experiment(
+            s, "backeman/st-errroneous", experiment)
     # See Backeman & Seceleanu (2025) Table 3 (p.310)
     assert result == 1320
 
