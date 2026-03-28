@@ -2,9 +2,12 @@ import pytest
 from functools import partial
 from roserer.types import DDS_IMPLEMENTATION, DISTRIBUTION, OPERATING_SYSTEM, ARCHITECTURE, EXECUTOR
 import roserer.ros2system as ros
+import roserer.systemvalidator as systemvalidator
 import roserer.experiments.experimenter as exp
 import roserer.experiments.backeman as be
+import roserer.adapters.dust_adapter as da
 import roserer.patterns.backeman as bmp
+import roserer.adapters.backeman_adapter as ba
 import roserer.patterns.reference_system as ars
 from roserer.patterns.reference_system import (
         add_command_node,
@@ -16,7 +19,7 @@ from roserer.patterns.reference_system import (
         add_fusion_node_no_condition
         )
 
-def scenario_autoware_reference_system_singlethreaded():
+def create_autoware_reference_system_singlethreaded() -> ros.System:
     s = ros.System(
             name="Autoware Reference System",
             dds_implementation=DDS_IMPLEMENTATION.Connext,
@@ -100,8 +103,27 @@ def scenario_autoware_reference_system_singlethreaded():
     # Command node
     add_command_node(e, "VehicleDBWSystem", WCET, "VehicleInterface")
     add_command_node(e, "IntersectionOutput", WCET, "EuclideanIntersection")
+    return s
 
-    assert exp.perform_reaction_time_experiment(s, "autoware_reference_system_singlethreaded", exp.dummy_experimenter) == 0
+def scenario_ars_passes_validation() -> None:
+    s = create_autoware_reference_system_singlethreaded()
+    feedback = systemvalidator.validate_system(s)
+    assert feedback.errors == []
+    
+
+def scenario_ars_fails_backeman_validation() -> None:
+    s = create_autoware_reference_system_singlethreaded()
+    feedback = ba.validate_system(s, [])
+    errorcodes = ["[E114]", "[E116]", "[E117]", "[E118]", "[E120]"]
+    for error in feedback.errors:
+        assert any([ec in error for ec in errorcodes])
+
+def scenario_ars_fails_dust_validation() -> None:
+    s = create_autoware_reference_system_singlethreaded()
+    feedback = da.validate_system(s)
+    errorcodes = ["E209"]
+    for error in feedback.errors:
+        assert any([ec in error for ec in errorcodes])
 
 def scenario_autoware_reference_system_mod_sub_result():
     s = ros.System(
