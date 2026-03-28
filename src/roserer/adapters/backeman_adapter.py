@@ -297,12 +297,12 @@ def validate_node(node: ros.Node) -> Feedback:
             or is_valid_timer(node)
             or is_valid_subscriber(node)):
         errors += [f"[E120] Node '{node.name}': is neither a data generator, "
-                   "timer or subscriber"]
-        errors += ["    Full contents of node:",
-                   f"    Timers:        {len(node.timers)}",
-                   f"    Subscriptions: {len(node.subscriptions)}",
-                   f"    Callbacks:     {len(node.callbacks)}",
-                   f"    Variables:     {len(node.variables)}"]
+                   "timer or subscriber"
+                   "\n    Full contents of node:"
+                   f"\n    Timers:        {len(node.timers)}"
+                   f"\n    Subscriptions: {len(node.subscriptions)}"
+                   f"\n    Callbacks:     {len(node.callbacks)}"
+                   f"\n    Variables:     {len(node.variables)}"]
     if (not is_valid_data_generator(node)
         and any(timer.probability != 100 for timer in node.timers)):
         errors += [f"[E124]: Node '{node.name}' has non-deterministic timers, yet "
@@ -551,8 +551,8 @@ def get_valid_chains(system: ros.System, monitor_node: str, actuator_node: str
     graph = RosGraphView(system)
     monitor_cb = ""
     actuator_cb = ""
-    print(monitor_node)
-    print(actuator_node)
+    # print(monitor_node)
+    # print(actuator_node)
     for n in system.get_nodes():
         if n.name == monitor_node and is_valid_data_generator(n):
             for cb in n.callbacks:
