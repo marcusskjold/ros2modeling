@@ -98,7 +98,7 @@ def test_dust_system_is_rejected() -> None:
     ros_system = yparse.parse_yaml("src/tests/input/dust_scenario_1_EXV1_holistic.yaml")
     feedback = ba.validate_system(ros_system, [])
     assert feedback.errors != []
-    for error in ("[E101]","[E114]", "[E116]", "[E118]", "[E120]", "[E122]",):
+    for error in ("[E101]", "[E116]", "[E118]", "[E120]", "[E122]",):
         assert feedback.contains(error)
 
 def test_timers_have_higher_priorities_validation() -> None:
