@@ -1,6 +1,6 @@
 import pytest
 from functools import partial
-from roserer.types import DDS_IMPLEMENTATION, DISTRIBUTION, OPERATING_SYSTEM, ARCHITECTURE, EXECUTOR
+from roserer.types import DDS_IMPLEMENTATION, DISTRIBUTION, OPERATING_SYSTEM, ARCHITECTURE, EXECUTOR, NodeType
 import roserer.ros2system as ros
 import roserer.systemvalidator as systemvalidator
 import roserer.experiments.experimenter as exp
@@ -9,6 +9,7 @@ import roserer.adapters.dust_adapter as da
 import roserer.patterns.backeman as bmp
 import roserer.adapters.backeman_adapter as ba
 import roserer.patterns.reference_system as ars
+from roserer.printers.graph_printer import GraphDrawer
 from roserer.patterns.reference_system import (
         add_command_node,
         add_cyclic_node,
@@ -20,6 +21,7 @@ from roserer.patterns.reference_system import (
         )
 
 def create_autoware_reference_system_singlethreaded() -> ros.System:
+    """ This function creates a model of the original Autoware Reference System """
     s = ros.System(
             name="Autoware Reference System",
             dds_implementation=DDS_IMPLEMENTATION.Connext,
@@ -109,7 +111,13 @@ def scenario_ars_passes_validation() -> None:
     s = create_autoware_reference_system_singlethreaded()
     feedback = systemvalidator.validate_system(s)
     assert feedback.errors == []
-    
+   
+def scenario_ars_draw_graphs() -> None:
+    s = create_autoware_reference_system_singlethreaded()
+    systemgraph = GraphDrawer(s)
+    systemgraph.save_to_file("ars_system_graph.pdf")
+    systemgraph = GraphDrawer(s, [NodeType.NODE])
+    systemgraph.save_to_file("ars_node_graph.pdf")
 
 def scenario_ars_fails_backeman_validation() -> None:
     s = create_autoware_reference_system_singlethreaded()
@@ -125,23 +133,14 @@ def scenario_ars_fails_dust_validation() -> None:
     for error in feedback.errors:
         assert any([ec in error for ec in errorcodes])
 
-def scenario_autoware_reference_system_mod_sub_result():
-    s = ros.System(
-            name="Autoware Reference System",
-            dds_implementation=DDS_IMPLEMENTATION.Connext,
-            default_distribution=DISTRIBUTION.Humble
-            )
+# MODEL CHECKING EXPERIMENTS
+# ===============================================================================
+# From here, we experiment with a modified version of the ARS
+# This replaces the problematic fusion nodes and instersection nodes with variations
+# We have created two versions of of the modified system, one using subscriptions
+# to replace fusion nodes, and another using timers.
+# There are four 
 
-    h = s.add_host(
-            name="host",
-            operating_system=OPERATING_SYSTEM.RTLinuxKernel,
-            architecture=ARCHITECTURE.arm64)
-    e = h.add_executor(
-            name="SingleThreadedExecutor",
-            implementation=EXECUTOR.SingleThreadedExecutor)
-    WCET = 10
-    # Sensor nodes
-    # FrontLidarDriver to VehicleDBWSystem
     # NOTE: FOR TIMER VERSION: 250 / 10 runs fast (1470), also 251 / 10. 249 / 10 crashes
     #                          224 / 9 crashes, but 225 / 9 runs
     #                          Buffer overflow (+20) happens at a ratio of CYCLE_TIME / WCET < 25
@@ -160,65 +159,14 @@ def scenario_autoware_reference_system_mod_sub_result():
     # or running this query:
     # E[<=1000;100](max: monitor.x[lm] * monitor.measure)
     #       
-    CYCLE_TIME = 300 # Time in milliseconds. TODO: Make all time equivalent
-    # Sensors
-    sensors = ["FrontLidarDriver",
-               "RearLidarDriver",
-               "PointCloudMap", 
-               "EuclideanClusterSettings",
-               "Visualizer",
-               "Lanelet2Map"]
-    for name in sensors:
-        add_sensor_node(e, name, WCET, CYCLE_TIME)
 
-    # Transform nodes
-    transformers = [("PointsTransformerFront", "FrontLidarDriver"),
-                    ("PointsTransformerRear", "RearLidarDriver"),
-                    ("VoxelGridDownsampler", "PointCloudFusion"),
-                    ("PointCloudMapLoader", "PointCloudMap"),
-                    ("RayGroundFilter", "PointCloudFusion"),
-                    ("ObjectCollisionEstimator", "EuclideanClusterDetector"),
-                    ("MPCController", "BehaviorPlanner"),
-                    ("ParkingPlanner", "Lanelet2MapLoader"),
-                    ("LanePlanner", "Lanelet2MapLoader"),
-                    ("EuclideanClusterDetector", "RayGroundFilter"), # Add
-                    ("EuclideanIntersection", "EuclideanClusterSettings"), # Add
-                    ]
-    for name, input_topic in transformers:
-        add_transform_node(e, name, WCET, input_topic)
-
-    # Fusion nodes
-    fusions = [("PointCloudFusion", "PointsTransformerFront", "PointsTransformerRear"),
-               ("NDTLocalizer", "VoxelGridDownsampler", "PointCloudMapLoader"),
-               ("VehicleInterface", "MPCController", "BehaviorPlanner"),
-               ("Lanelet2GlobalPlanner", "Visualizer", "NDTLocalizer"),
-               ("Lanelet2MapLoader", "Lanelet2Map", "Lanelet2GlobalPlanner")]
-    for name, sub_topic1, sub_topic2 in fusions:
-        add_fusion_node_no_condition(e, name, WCET, sub_topic1, sub_topic2)
-        # add_cyclic_node(e, name, WCET, CYCLE_TIME, [sub_topic1, sub_topic2])
-
-    # Cyclic node
-    add_cyclic_node(e, "BehaviorPlanner", WCET, CYCLE_TIME,[
-        "ObjectCollisionEstimator", "NDTLocalizer", "Lanelet2GlobalPlanner",
-        "Lanelet2MapLoader", "ParkingPlanner", "LanePlanner"])
-
-    # Intersection node
-    # Replace with multiple transform nodes
-    # ars.add_intersection_node_backeman(e, "EuclideanClusterDetector", WCET, [
-    #     ("RayGroundFilter", "EuclideanClusterDetector"),
-    #     ("EuclideanClusterSettings", "EuclideanIntersection")
-    #     ])
-
-    # Command node
-    ars.add_command_node_with_pub(e, "VehicleDBWSystem", WCET, "VehicleInterface")
-    ars.add_command_node_with_pub(e, "IntersectionOutput", WCET, "EuclideanIntersection")
-
-    experiment = partial(
-            # be.backeman_rt_experiment, monitor="FrontLidarDriver", actuator="VehicleDBWSystem")
-            be.backeman_rt_experiment, monitor="FrontLidarDriver", actuator="ObjectCollisionEstimator")
-    assert exp.perform_reaction_time_experiment(s, "autoware_reference_system_singlethreaded", experiment) == 280
-
-def scenario_autoware_reference_system_mod_sub_overflow():
+def get_ars_mod(wcet: int, cycle_time: int, subscription: bool = True):
+    """
+    Creates a modified version of the Autoware Reference System.
+    If subscription is True, then the modification will be based on a replacing fusion conditions
+    with subscription triggers.
+    Otherwise the modification will be based on timers
+    """
     s = ros.System(
             name="Autoware Reference System",
             dds_implementation=DDS_IMPLEMENTATION.Connext,
@@ -232,8 +180,8 @@ def scenario_autoware_reference_system_mod_sub_overflow():
     e = h.add_executor(
             name="SingleThreadedExecutor",
             implementation=EXECUTOR.SingleThreadedExecutor)
-    WCET = 10
-    CYCLE_TIME = 299 
+    WCET = wcet
+    CYCLE_TIME = cycle_time # Time in milliseconds. 
     # Sensors
     sensors = ["FrontLidarDriver",
                "RearLidarDriver",
@@ -245,18 +193,19 @@ def scenario_autoware_reference_system_mod_sub_overflow():
         add_sensor_node(e, name, WCET, CYCLE_TIME)
 
     # Transform nodes
-    transformers = [("PointsTransformerFront", "FrontLidarDriver"),
-                    ("PointsTransformerRear", "RearLidarDriver"),
-                    ("VoxelGridDownsampler", "PointCloudFusion"),
-                    ("PointCloudMapLoader", "PointCloudMap"),
-                    ("RayGroundFilter", "PointCloudFusion"),
-                    ("ObjectCollisionEstimator", "EuclideanClusterDetector"),
-                    ("MPCController", "BehaviorPlanner"),
-                    ("ParkingPlanner", "Lanelet2MapLoader"),
-                    ("LanePlanner", "Lanelet2MapLoader"),
-                    ("EuclideanClusterDetector", "RayGroundFilter"), # Add
-                    ("EuclideanIntersection", "EuclideanClusterSettings"), # Add
-                    ]
+    transformers = [
+            ("PointsTransformerFront", "FrontLidarDriver"),
+            ("PointsTransformerRear", "RearLidarDriver"),
+            ("VoxelGridDownsampler", "PointCloudFusion"),
+            ("PointCloudMapLoader", "PointCloudMap"),
+            ("RayGroundFilter", "PointCloudFusion"),
+            ("ObjectCollisionEstimator", "EuclideanClusterDetector"),
+            ("MPCController", "BehaviorPlanner"),
+            ("ParkingPlanner", "Lanelet2MapLoader"),
+            ("LanePlanner", "Lanelet2MapLoader"),
+            ("EuclideanClusterDetector", "RayGroundFilter"), # Replaces intersection node
+            ("EuclideanIntersection", "EuclideanClusterSettings"), # Replaces intersection node
+            ]
     for name, input_topic in transformers:
         add_transform_node(e, name, WCET, input_topic)
 
@@ -267,150 +216,76 @@ def scenario_autoware_reference_system_mod_sub_overflow():
                ("Lanelet2GlobalPlanner", "Visualizer", "NDTLocalizer"),
                ("Lanelet2MapLoader", "Lanelet2Map", "Lanelet2GlobalPlanner")]
     for name, sub_topic1, sub_topic2 in fusions:
-        add_fusion_node_no_condition(e, name, WCET, sub_topic1, sub_topic2)
-        # add_cyclic_node(e, name, WCET, CYCLE_TIME, [sub_topic1, sub_topic2])
+        if subscription:
+            add_fusion_node_no_condition(e, name, WCET, sub_topic1, sub_topic2)
+        else:
+            add_cyclic_node(e, name, WCET, CYCLE_TIME, [sub_topic1, sub_topic2])
 
     # Cyclic node
     add_cyclic_node(e, "BehaviorPlanner", WCET, CYCLE_TIME,[
         "ObjectCollisionEstimator", "NDTLocalizer", "Lanelet2GlobalPlanner",
         "Lanelet2MapLoader", "ParkingPlanner", "LanePlanner"])
+
     # Command node
     ars.add_command_node_with_pub(e, "VehicleDBWSystem", WCET, "VehicleInterface")
     ars.add_command_node_with_pub(e, "IntersectionOutput", WCET, "EuclideanIntersection")
 
-    experiment = partial(
-            # be.backeman_rt_experiment, monitor="FrontLidarDriver", actuator="VehicleDBWSystem")
-            be.backeman_rt_experiment, monitor="FrontLidarDriver", actuator="ObjectCollisionEstimator")
-    with pytest.raises(ZeroDivisionError):
-        exp.perform_reaction_time_experiment(s, "autoware_reference_system_singlethreaded", experiment)
+    return s
 
-def scenario_autoware_reference_system_mod_tim_overflow():
-    s = ros.System(
-            name="Autoware Reference System",
-            dds_implementation=DDS_IMPLEMENTATION.Connext,
-            default_distribution=DISTRIBUTION.Humble
-            )
+ars_mod_experiment = [
+    (10, 100, True, -1),
+    (10, 200, True, -1),
+    (10, 299, True, -1),
+    (10, 300, True, 280),
+    (10, 400, True, 280),
+    (10, 449, True, 280),
+    (10, 450, True, 280),
+    (10, 500, True, 280),
+    (10, 599, True, 280),
+    (10, 600, True, 280),
+    (10, 700, True, 280),
+    (10, 800, True, 280),
+    (15, 100, True, -1),
+    (15, 200, True, -1),
+    (15, 299, True, -1),
+    (15, 300, True, -1),
+    (15, 400, True, -1),
+    (15, 449, True, -1),
+    (15, 450, True, 420),
+    (15, 500, True, 420),
+    (15, 599, True, 420),
+    (15, 600, True, 420),
+    (15, 700, True, 420),
+    (15, 800, True, 420),
+    (20, 100, True, -1),
+    (20, 200, True, -1),
+    (20, 299, True, -1),
+    (20, 300, True, -1),
+    (20, 400, True, -1),
+    (20, 449, True, -1),
+    (20, 500, True, -1),
+    (20, 599, True, -1),
+    (20, 600, True, 560),
+    (20, 700, True, 560),
+    (20, 800, True, 560),
+    (10, 100, False, -1),
+    (10, 200, False, -1),
+    (10, 249, False, -1),
+    (10, 250, False, 500),
+    (10, 300, False, 550),
+    (10, 350, False, 600),
+    (10, 400, False, 650),
+    (10, 600, False, 850),
+    (10, 800, False, 1050),
+        ]
 
-    h = s.add_host(
-            name="host",
-            operating_system=OPERATING_SYSTEM.RTLinuxKernel,
-            architecture=ARCHITECTURE.arm64)
-    e = h.add_executor(
-            name="SingleThreadedExecutor",
-            implementation=EXECUTOR.SingleThreadedExecutor)
-    WCET = 10
-    CYCLE_TIME = 249
-    # Sensors
-    sensors = ["FrontLidarDriver",
-               "RearLidarDriver",
-               "PointCloudMap", 
-               "EuclideanClusterSettings",
-               "Visualizer",
-               "Lanelet2Map"]
-    for name in sensors:
-        add_sensor_node(e, name, WCET, CYCLE_TIME)
-
-    # Transform nodes
-    transformers = [("PointsTransformerFront", "FrontLidarDriver"),
-                    ("PointsTransformerRear", "RearLidarDriver"),
-                    ("VoxelGridDownsampler", "PointCloudFusion"),
-                    ("PointCloudMapLoader", "PointCloudMap"),
-                    ("RayGroundFilter", "PointCloudFusion"),
-                    ("ObjectCollisionEstimator", "EuclideanClusterDetector"),
-                    ("MPCController", "BehaviorPlanner"),
-                    ("ParkingPlanner", "Lanelet2MapLoader"),
-                    ("LanePlanner", "Lanelet2MapLoader"),
-                    ("EuclideanClusterDetector", "RayGroundFilter"), # Add
-                    ("EuclideanIntersection", "EuclideanClusterSettings"), # Add
-                    ]
-    for name, input_topic in transformers:
-        add_transform_node(e, name, WCET, input_topic)
-
-    # Fusion nodes
-    fusions = [("PointCloudFusion", "PointsTransformerFront", "PointsTransformerRear"),
-               ("NDTLocalizer", "VoxelGridDownsampler", "PointCloudMapLoader"),
-               ("VehicleInterface", "MPCController", "BehaviorPlanner"),
-               ("Lanelet2GlobalPlanner", "Visualizer", "NDTLocalizer"),
-               ("Lanelet2MapLoader", "Lanelet2Map", "Lanelet2GlobalPlanner")]
-    for name, sub_topic1, sub_topic2 in fusions:
-        # add_fusion_node_no_condition(e, name, WCET, sub_topic1, sub_topic2)
-        add_cyclic_node(e, name, WCET, CYCLE_TIME, [sub_topic1, sub_topic2])
-
-    # Cyclic node
-    add_cyclic_node(e, "BehaviorPlanner", WCET, CYCLE_TIME,[
-        "ObjectCollisionEstimator", "NDTLocalizer", "Lanelet2GlobalPlanner",
-        "Lanelet2MapLoader", "ParkingPlanner", "LanePlanner"])
-    # Command node
-    ars.add_command_node_with_pub(e, "VehicleDBWSystem", WCET, "VehicleInterface")
-    ars.add_command_node_with_pub(e, "IntersectionOutput", WCET, "EuclideanIntersection")
+@pytest.mark.parametrize("wcet,period,subscription,expected_result", ars_mod_experiment)
+def scenario_ars_mod_result(wcet, period, subscription, expected_result):
+    s = get_ars_mod(wcet, period, subscription)
 
     experiment = partial(
-            # be.backeman_rt_experiment, monitor="FrontLidarDriver", actuator="VehicleDBWSystem")
-            be.backeman_rt_experiment, monitor="FrontLidarDriver", actuator="ObjectCollisionEstimator")
-    with pytest.raises(ZeroDivisionError):
-        exp.perform_reaction_time_experiment(s, "autoware_reference_system_singlethreaded", experiment)
-
-def scenario_autoware_reference_system_mod_tim_result():
-    s = ros.System(
-            name="Autoware Reference System",
-            dds_implementation=DDS_IMPLEMENTATION.Connext,
-            default_distribution=DISTRIBUTION.Humble
-            )
-
-    h = s.add_host(
-            name="host",
-            operating_system=OPERATING_SYSTEM.RTLinuxKernel,
-            architecture=ARCHITECTURE.arm64)
-    e = h.add_executor(
-            name="SingleThreadedExecutor",
-            implementation=EXECUTOR.SingleThreadedExecutor)
-    WCET = 10
-    CYCLE_TIME = 250
-    # Sensors
-    sensors = ["FrontLidarDriver",
-               "RearLidarDriver",
-               "PointCloudMap", 
-               "EuclideanClusterSettings",
-               "Visualizer",
-               "Lanelet2Map"]
-    for name in sensors:
-        add_sensor_node(e, name, WCET, CYCLE_TIME)
-
-    # Transform nodes
-    transformers = [("PointsTransformerFront", "FrontLidarDriver"),
-                    ("PointsTransformerRear", "RearLidarDriver"),
-                    ("VoxelGridDownsampler", "PointCloudFusion"),
-                    ("PointCloudMapLoader", "PointCloudMap"),
-                    ("RayGroundFilter", "PointCloudFusion"),
-                    ("ObjectCollisionEstimator", "EuclideanClusterDetector"),
-                    ("MPCController", "BehaviorPlanner"),
-                    ("ParkingPlanner", "Lanelet2MapLoader"),
-                    ("LanePlanner", "Lanelet2MapLoader"),
-                    ("EuclideanClusterDetector", "RayGroundFilter"), # Add
-                    ("EuclideanIntersection", "EuclideanClusterSettings"), # Add
-                    ]
-    for name, input_topic in transformers:
-        add_transform_node(e, name, WCET, input_topic)
-
-    # Fusion nodes
-    fusions = [("PointCloudFusion", "PointsTransformerFront", "PointsTransformerRear"),
-               ("NDTLocalizer", "VoxelGridDownsampler", "PointCloudMapLoader"),
-               ("VehicleInterface", "MPCController", "BehaviorPlanner"),
-               ("Lanelet2GlobalPlanner", "Visualizer", "NDTLocalizer"),
-               ("Lanelet2MapLoader", "Lanelet2Map", "Lanelet2GlobalPlanner")]
-    for name, sub_topic1, sub_topic2 in fusions:
-        # add_fusion_node_no_condition(e, name, WCET, sub_topic1, sub_topic2)
-        add_cyclic_node(e, name, WCET, CYCLE_TIME, [sub_topic1, sub_topic2])
-
-    # Cyclic node
-    add_cyclic_node(e, "BehaviorPlanner", WCET, CYCLE_TIME,[
-        "ObjectCollisionEstimator", "NDTLocalizer", "Lanelet2GlobalPlanner",
-        "Lanelet2MapLoader", "ParkingPlanner", "LanePlanner"])
-    # Command node
-    ars.add_command_node_with_pub(e, "VehicleDBWSystem", WCET, "VehicleInterface")
-    ars.add_command_node_with_pub(e, "IntersectionOutput", WCET, "EuclideanIntersection")
-
-    experiment = partial(
-            # be.backeman_rt_experiment, monitor="FrontLidarDriver", actuator="VehicleDBWSystem")
-            be.backeman_rt_experiment, monitor="FrontLidarDriver", actuator="ObjectCollisionEstimator")
-    assert exp.perform_reaction_time_experiment(s, "autoware_reference_system_singlethreaded", experiment) == 500
+            be.backeman_rt_experiment, monitor="FrontLidarDriver", actuator="ObjectCollisionEstimator", external_event=False)
+    try:
+        assert exp.perform_reaction_time_experiment(s, f"ars_mod_{wcet}_{period}_{subscription}", experiment) == expected_result
+    except ZeroDivisionError:
+        assert expected_result == -1
