@@ -11,7 +11,8 @@ def _is_executable(path: Path) -> bool:
 
 def _resolve_candidate(path: Path) -> Path | None:
     if path.is_dir():
-        exe = path / ("verifyta.exe" if sys.platform == "win32" else "verifyta")
+        exe = path / ("verifyta.exe" if sys.platform == "win32" or sys.platform == "linux" else "verifyta")
+        
         return exe if _is_executable(exe) else None
     return path if _is_executable(path) else None
 
