@@ -239,14 +239,14 @@ def warning_system_timer_period_too_small(system: ros.System) -> list[str]:
     for node in system.get_nodes():
         for timer in node.timers:
             wcet = node.full_wcet(timer.callback)
-        if timer.period < wcet:
-            warnings += [f"[W006]: Timer {timer.name} has a period shorter than the "
-                         "combined period of its connected callbacks."
-                         f"{timer.name} has period {timer.period}, however, the "
-                         f"combined wcets of the callback released by this timer is "
-                         f"{wcet} (including nested calls). If a model assumes fixed "
-                         "execution-time (equal to wcet), then a buffer overflow will "
-                         "trivially occur."]
+            if timer.period < wcet:
+                warnings += [f"[W006]: Timer {timer.name} has a period shorter than the "
+                             "combined period of its connected callbacks."
+                             f"{timer.name} has period {timer.period}, however, the "
+                             f"combined wcets of the callback released by this timer is "
+                             f"{wcet} (including nested calls). If a model assumes fixed "
+                             "execution-time (equal to wcet), then a buffer overflow will "
+                             "trivially occur."]
     return warnings
 
 def validate_qos(qos: qos.QoS, parent: str) -> Feedback:
