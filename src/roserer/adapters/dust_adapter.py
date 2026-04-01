@@ -71,7 +71,7 @@ def error_node_has_multiple_response_callbacks_for_client(node: ros.Node) -> lis
         for r in reqs:
             requests.setdefault(r.client,set())
             requests[r.client].add(r.response)
-    return [f"[E202]: There are multiple response callbacks tied to the same client "
+    return ["[E202]: There are multiple response callbacks tied to the same client "
             "{client} in node {node.name}"
             for client, responseset in requests.items()
             if len(responseset) > 1]

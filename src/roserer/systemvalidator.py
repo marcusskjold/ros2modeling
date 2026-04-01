@@ -135,7 +135,6 @@ def error_graph_invalid_source(graph: RosGraphView) -> list[str]:
     an unused and therefor redundant part of the system, or it represents a mistake
     in design or modelling of the actual system.
     """
-    # TODO: Revisit after wall times discussion
     valid_sources: list[NodeType] = [NodeType.TIMER,
                                      NodeType.TOPIC,
                                      NodeType.EXTERNAL_INPUT,
